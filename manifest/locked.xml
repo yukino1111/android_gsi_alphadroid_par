@@ -9,9 +9,9 @@
   <remote name="gitlab" fetch="https://gitlab.com/" revision="alpha-13"/>
   <remote name="pixel" fetch="https://github.com/PixelExperience" review="gerrit.pixelexperience.org" revision="thirteen"/>
   <remote name="private" fetch="ssh://git@github.com"/>
-  
+
   <default remote="github" revision="refs/heads/lineage-20.0" sync-j="4" sync-c="true"/>
-  
+
   <project name="AndyCGYan/android_packages_apps_QcRilAm" path="packages/apps/QcRilAm" revision="a207520873a5c6ce051a43e4a9db3d8ded84ff9b" groups="local::alpha"/>
   <project name="LineageOS/android_device_generic_common" path="device/generic/common" revision="62abffc498581cef1b846e5cf41b6e00a6de37a8" upstream="refs/heads/lineage-20.0" dest-branch="refs/heads/lineage-20.0" groups="pdk"/>
   <project name="LineageOS/android_device_google_atv" path="device/google/atv" revision="8606ccc9d9373e29269a54dea997f3c14b775f5e" upstream="refs/heads/lineage-20.0" dest-branch="refs/heads/lineage-20.0" groups="broadcom_pdk,device,generic_fs,pdk"/>
@@ -1277,8 +1277,8 @@
   <project name="vendor_addons" path="vendor/addons" remote="alpha" revision="f85c343dfca680fe535f2522c8efdab7491e89b5" upstream="alpha-13" dest-branch="alpha-13"/>
   <project name="vendor_google_interfaces" path="vendor/google/interfaces" remote="alpha" revision="326f4ed3ee65847583dff58c6052bfd27230201c" upstream="alpha-13" dest-branch="alpha-13"/>
   <project name="vendor_lineage" path="vendor/lineage" remote="alpha" revision="a97a154c9b15e6d88eba969bdb1335de543d371a" upstream="alpha-13" dest-branch="alpha-13"/>
-  
+
   <superproject name="platform/superproject" remote="aosp" revision="android-13.0.0_r63"/>
-  
+
   <contactinfo bugurl="go/repo-bug"/>
 </manifest>
