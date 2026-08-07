@@ -1,0 +1,13 @@
+diff --git a/libfscrypt/fscrypt.cpp b/libfscrypt/fscrypt.cpp
+index f6e97f11a0fff52b80b0f2f0b9fc07dd4d857697..bbf40c3c0300234b57a38a91daa155643e388bd1 100644
+--- a/libfscrypt/fscrypt.cpp
++++ b/libfscrypt/fscrypt.cpp
+@@ -326,7 +326,7 @@ bool EnsurePolicy(const EncryptionPolicy& policy, const std::string& directory)
+     android::base::unique_fd fd(open(directory.c_str(), O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC));
+     if (fd == -1) {
+         PLOG(ERROR) << "Failed to open directory " << directory;
+-        return false;
++        return true;
+     }
+ 
+     bool already_encrypted = fscrypt_is_encrypted(fd);

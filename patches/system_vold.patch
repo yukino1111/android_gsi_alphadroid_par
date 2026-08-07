@@ -1,0 +1,93 @@
+diff --git a/FsCrypt.cpp b/FsCrypt.cpp
+index 85ffefde7f4c7eb8d21443805e1e0f07f17fc804..8869ac717837d992cbf61fdb5792d05bd2d8499a 100644
+--- a/FsCrypt.cpp
++++ b/FsCrypt.cpp
+@@ -327,6 +327,7 @@ static bool prepare_dir(const std::string& dir, mode_t mode, uid_t uid, gid_t gi
+ static bool destroy_dir(const std::string& dir) {
+     LOG(DEBUG) << "Destroying: " << dir;
+     if (rmdir(dir.c_str()) != 0 && errno != ENOENT) {
++        if(unlink(dir.c_str()) == 0) return true;
+         PLOG(ERROR) << "Failed to destroy " << dir;
+         return false;
+     }
+diff --git a/VolumeManager.cpp b/VolumeManager.cpp
+index 8190e7e9cf25740c808fc0eb3c6ea739fe7ad9de..41ace8b115547fba62654c9490d3d9f388806891 100644
+--- a/VolumeManager.cpp
++++ b/VolumeManager.cpp
+@@ -974,6 +974,7 @@ int VolumeManager::unmountAll() {
+     while ((mentry = getmntent(fp)) != NULL) {
+         auto test = std::string(mentry->mnt_dir);
+         if ((StartsWith(test, "/mnt/") &&
++             !StartsWith(test, "/mnt/phh") &&
+ #ifdef __ANDROID_DEBUGGABLE__
+              !StartsWith(test, "/mnt/scratch") &&
+ #endif
+diff --git a/fs/Exfat.cpp b/fs/Exfat.cpp
+index c8b19e0308e523fdb37186f53ec46ac3b6468bcb..9e34347bb0dcb4f5d3b8fd93af10c1f2b71a200a 100644
+--- a/fs/Exfat.cpp
++++ b/fs/Exfat.cpp
+@@ -35,7 +35,9 @@ static const char* kFsckPath = "/system/bin/fsck.exfat";
+ 
+ bool IsSupported() {
+     return access(kMkfsPath, X_OK) == 0 && access(kFsckPath, X_OK) == 0 &&
+-           IsFilesystemSupported("exfat");
++           (IsFilesystemSupported("exfat") ||
++            IsFilesystemSupported("texfat") ||
++            IsFilesystemSupported("sdfat"));
+ }
+ 
+ status_t Check(const std::string& source) {
+@@ -61,13 +63,16 @@ status_t Mount(const std::string& source, const std::string& target, int ownerUi
+     auto mountData = android::base::StringPrintf("uid=%d,gid=%d,fmask=%o,dmask=%o", ownerUid,
+                                                  ownerGid, permMask, permMask);
+ 
+-    if (mount(source.c_str(), target.c_str(), "exfat", mountFlags, mountData.c_str()) == 0) {
++    const char* fs = "exfat";
++    if (IsFilesystemSupported("sdfat")) fs = "sdfat";
++    if (IsFilesystemSupported("texfat")) fs = "texfat";
++    if (mount(source.c_str(), target.c_str(), fs, mountFlags, mountData.c_str()) == 0) {
+         return 0;
+     }
+ 
+     PLOG(ERROR) << "Mount failed; attempting read-only";
+     mountFlags |= MS_RDONLY;
+-    if (mount(source.c_str(), target.c_str(), "exfat", mountFlags, mountData.c_str()) == 0) {
++    if (mount(source.c_str(), target.c_str(), fs, mountFlags, mountData.c_str()) == 0) {
+         return 0;
+     }
+ 
+diff --git a/main.cpp b/main.cpp
+index 5b1bdf71c8f0d6505ab90a0029d4348ad2597fa8..e33570b712ab853a12a49ada754d00872bf08250 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -273,7 +273,7 @@ static int process_config(VolumeManager* vm, VoldConfigs* configs) {
+             int partnum = entry.partnum;
+             int flags = 0;
+ 
+-            if (entry.is_encryptable()) {
++            if (entry.is_encryptable() || true) {
+                 flags |= android::vold::Disk::Flags::kAdoptable;
+                 configs->has_adoptable = true;
+             }
+diff --git a/vold_prepare_subdirs.cpp b/vold_prepare_subdirs.cpp
+index 94d7f151a66969c9ff268dafba57af9153aa55a2..671ae6fb37589b7975497b0d55ed2b6d2f53f131 100644
+--- a/vold_prepare_subdirs.cpp
++++ b/vold_prepare_subdirs.cpp
+@@ -198,7 +198,7 @@ static bool prepare_subdirs(const std::string& volume_uuid, int user_id, int fla
+             }
+             auto facedata_path = vendor_de_path + "/facedata";
+             if (!prepare_dir(sehandle, 0700, AID_SYSTEM, AID_SYSTEM, facedata_path)) {
+-                return false;
++                LOG(ERROR) << "Failed preparing folder for de facedata";
+             }
+         }
+     }
+@@ -247,7 +247,7 @@ static bool prepare_subdirs(const std::string& volume_uuid, int user_id, int fla
+             auto vendor_ce_path = android::vold::BuildDataVendorCePath(user_id);
+             auto facedata_path = vendor_ce_path + "/facedata";
+             if (!prepare_dir(sehandle, 0700, AID_SYSTEM, AID_SYSTEM, facedata_path)) {
+-                return false;
++                LOG(ERROR) << "Failed preparing folder for de facedata";
+             }
+         }
+     }

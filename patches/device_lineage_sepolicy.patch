@@ -1,0 +1,8 @@
+diff --git a/common/private/seapp_contexts b/common/private/seapp_contexts
+index 6e2ef9dc419622b5fb8fa99ba8a42b8b7335eda2..aa8fe9c74ace0579f490f0ad06220696deebdba8 100644
+--- a/common/private/seapp_contexts
++++ b/common/private/seapp_contexts
+@@ -1,3 +1 @@
+ user=_app isPrivApp=true seinfo=platform name=com.alpha.updater domain=updater_app type=app_data_file levelFrom=user
+-user=_app seinfo=platform name=com.google.android.flipendo domain=flipendo type=app_data_file levelFrom=all
+-user=_app seinfo=platform name=com.google.android.turboadapter domain=turbo_adapter type=app_data_file levelFrom=all

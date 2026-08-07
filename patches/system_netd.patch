@@ -1,0 +1,58 @@
+diff --git a/server/Controllers.cpp b/server/Controllers.cpp
+index 00ee186d6f72109f3f4e80de076667d09664ce9d..faa6f135597155298aca38797c0e5f4b58a8a3c6 100644
+--- a/server/Controllers.cpp
++++ b/server/Controllers.cpp
+@@ -284,7 +284,7 @@ void Controllers::init() {
+         // As such simply exit netd.  This may crash loop the system, but by failing
+         // to bootup we will trigger rollback and thus this offers us protection against
+         // a mainline update breaking things.
+-        exit(1);
++        // exit(1);
+     }
+     gLog.info("Enabling bandwidth control: %" PRId64 "us", s.getTimeAndResetUs());
+ 
+diff --git a/server/TetherController.cpp b/server/TetherController.cpp
+index 791935746427a3ab17ed1a5ef66f61d5d0d37f4e..00c979d82173e15159265a8a1aecda3dcf13929e 100644
+--- a/server/TetherController.cpp
++++ b/server/TetherController.cpp
+@@ -718,17 +718,23 @@ int TetherController::setForwardRules(bool add, const char *intIface, const char
+         "*raw\n"
+         "%s %s -i %s -m rpfilter --invert ! -s fe80::/64 -j DROP\n"
+         "COMMIT\n", op, LOCAL_RAW_PREROUTING, intIface);
+-    if (iptablesRestoreFunction(V6, rpfilterCmd, nullptr) == -1 && add) {
++    if (iptablesRestoreFunction(V6, rpfilterCmd, nullptr) == -1 && add && false) {
+         return -EREMOTEIO;
+     }
+ 
+-    std::vector<std::string> v4 = {
++    std::vector<std::string> v4Ftp = {
+             "*raw",
+-            StringPrintf("%s %s -p tcp --dport 21 -i %s -j CT --helper ftp", op,
+-                         LOCAL_RAW_PREROUTING, intIface),
++            StringPrintf("%s %s -p tcp --dport 21 -i %s -j CT --helper ftp",
++                            op, LOCAL_RAW_PREROUTING, intIface),
+             StringPrintf("%s %s -p tcp --dport 1723 -i %s -j CT --helper pptp", op,
+                          LOCAL_RAW_PREROUTING, intIface),
+             "COMMIT",
++    };
++    if(iptablesRestoreFunction(V4, Join(v4Ftp, '\n'), nullptr) == -1) {
++            ALOGE("Failed adding iptables CT target on FTP.");
++    }
++
++    std::vector<std::string> v4 = {
+             "*filter",
+             StringPrintf("%s %s -i %s -o %s -m state --state ESTABLISHED,RELATED -g %s", op,
+                          LOCAL_FORWARD, extIface, intIface, LOCAL_TETHER_COUNTERS_CHAIN),
+diff --git a/server/main.cpp b/server/main.cpp
+index 0e81d4e5c102d488d4a7a2ad78badb066032755a..18287d378f18763066adfbecde12cb3ebd9c8265 100644
+--- a/server/main.cpp
++++ b/server/main.cpp
+@@ -134,7 +134,7 @@ int main() {
+ 
+     if (libnetd_updatable_init(cg2_path.c_str())) {
+         ALOGE("libnetd_updatable_init failed");
+-        exit(1);
++        //exit(1);
+     }
+     gLog.info("libnetd_updatable_init success");
+ 

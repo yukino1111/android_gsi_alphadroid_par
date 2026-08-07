@@ -1,0 +1,131 @@
+diff --git a/src/com/alpha/settings/fragments/QuickSettings.java b/src/com/alpha/settings/fragments/QuickSettings.java
+index 12609a37db9a3b6e33d96edb2b746de2da9f00a0..94aa7c626cef1577ce726fc6558066cbd6839ab6 100644
+--- a/src/com/alpha/settings/fragments/QuickSettings.java
++++ b/src/com/alpha/settings/fragments/QuickSettings.java
+@@ -153,7 +153,7 @@ public class QuickSettings extends SettingsPreferenceFragment implements
+         LineageSettings.Secure.putIntForUser(resolver,
+                 LineageSettings.Secure.QS_SHOW_BRIGHTNESS_SLIDER, 1, UserHandle.USER_CURRENT);
+         LineageSettings.Secure.putIntForUser(resolver,
+-                LineageSettings.Secure.QS_BRIGHTNESS_SLIDER_POSITION, 0, UserHandle.USER_CURRENT);
++                Settings.System.QS_BRIGHTNESS_SLIDER_POSITION, 0, UserHandle.USER_CURRENT);
+         LineageSettings.Secure.putIntForUser(resolver,
+                 LineageSettings.Secure.QS_SHOW_AUTO_BRIGHTNESS, 1, UserHandle.USER_CURRENT);
+     }
+diff --git a/src/com/alpha/settings/fragments/buttons/PowerMenuActions.java b/src/com/alpha/settings/fragments/buttons/PowerMenuActions.java
+index 1062231c1fa1e16f7e3bac5d1659cf55216c2f5f..11e72730792ae1b42495297a48ccd5d99785c8d0 100644
+--- a/src/com/alpha/settings/fragments/buttons/PowerMenuActions.java
++++ b/src/com/alpha/settings/fragments/buttons/PowerMenuActions.java
+@@ -225,7 +225,7 @@ public class PowerMenuActions extends SettingsPreferenceFragment {
+         LineageSettings.Secure.putIntForUser(resolver,
+                 LineageSettings.Secure.ADVANCED_REBOOT, 1, UserHandle.USER_CURRENT);
+         LineageSettings.Secure.putIntForUser(resolver,
+-                LineageSettings.Secure.ADVANCED_REBOOT_SECURED, 1, UserHandle.USER_CURRENT);
++                Settings.System.ADVANCED_REBOOT_SECURED, 1, UserHandle.USER_CURRENT);
+     }
+ 
+     @Override
+diff --git a/src/com/alpha/settings/fragments/notifications/notificationlight/BatteryLightSettings.java b/src/com/alpha/settings/fragments/notifications/notificationlight/BatteryLightSettings.java
+index d69bee54f58602c2bc1617e6f3e66bd870370994..e3034f37506aba3e1efe3514ee85f83137cc64e9 100644
+--- a/src/com/alpha/settings/fragments/notifications/notificationlight/BatteryLightSettings.java
++++ b/src/com/alpha/settings/fragments/notifications/notificationlight/BatteryLightSettings.java
+@@ -22,6 +22,7 @@ import android.content.pm.PackageManager;
+ import android.content.res.Resources;
+ import android.os.Bundle;
+ import android.os.UserHandle;
++import android.provider.Settings;
+ import android.view.Menu;
+ import android.view.MenuInflater;
+ import android.view.MenuItem;
+@@ -217,7 +218,7 @@ public class BatteryLightSettings extends SettingsPreferenceFragment implements
+ 
+         if (mReallyFullColorPref != null) {
+             int reallyfullColor = LineageSettings.System.getIntForUser(resolver,
+-                    LineageSettings.System.BATTERY_LIGHT_REALLY_FULL_COLOR, mDefaultReallyFullColor, UserHandle.USER_CURRENT);
++                    Settings.System.BATTERY_LIGHT_REALLY_FULL_COLOR, mDefaultReallyFullColor, UserHandle.USER_CURRENT);
+             mReallyFullColorPref.setAllValues(reallyfullColor, 0, 0, false);
+             updateBrightnessPrefColor(reallyfullColor);
+         }
+@@ -250,7 +251,7 @@ public class BatteryLightSettings extends SettingsPreferenceFragment implements
+             LineageSettings.System.putIntForUser(resolver, LineageSettings.System.BATTERY_LIGHT_FULL_COLOR, color, UserHandle.USER_CURRENT);
+             updateBrightnessPrefColor(color);
+         } else if (key.equals(REALLY_FULL_COLOR_PREF)) {
+-            LineageSettings.System.putIntForUser(resolver, LineageSettings.System.BATTERY_LIGHT_REALLY_FULL_COLOR, color, UserHandle.USER_CURRENT);
++            LineageSettings.System.putIntForUser(resolver, Settings.System.BATTERY_LIGHT_REALLY_FULL_COLOR, color, UserHandle.USER_CURRENT);
+             updateBrightnessPrefColor(color);
+         }
+     }
+@@ -286,7 +287,7 @@ public class BatteryLightSettings extends SettingsPreferenceFragment implements
+                 mDefaultMediumColor, UserHandle.USER_CURRENT);
+         LineageSettings.System.putIntForUser(resolver, LineageSettings.System.BATTERY_LIGHT_FULL_COLOR,
+                 mDefaultFullColor, UserHandle.USER_CURRENT);
+-        LineageSettings.System.putIntForUser(resolver, LineageSettings.System.BATTERY_LIGHT_REALLY_FULL_COLOR,
++        LineageSettings.System.putIntForUser(resolver, Settings.System.BATTERY_LIGHT_REALLY_FULL_COLOR,
+                 mDefaultReallyFullColor, UserHandle.USER_CURRENT);
+         refreshColors();
+     }
+diff --git a/src/com/alpha/settings/fragments/statusbar/NetworkTrafficSettings.java b/src/com/alpha/settings/fragments/statusbar/NetworkTrafficSettings.java
+index a5c3ebe818e6e94277ea2efe6b6084e3f03e5d0b..bdc4e579e7be79e5cedaf3f720120f6c5cd7342e 100644
+--- a/src/com/alpha/settings/fragments/statusbar/NetworkTrafficSettings.java
++++ b/src/com/alpha/settings/fragments/statusbar/NetworkTrafficSettings.java
+@@ -20,6 +20,7 @@ import android.content.ContentResolver;
+ import android.content.Context;
+ import android.os.Bundle;
+ import android.os.UserHandle;
++import android.provider.Settings;
+ 
+ import androidx.preference.ListPreference;
+ import androidx.preference.Preference;
+@@ -55,11 +56,11 @@ public class NetworkTrafficSettings extends SettingsPreferenceFragment
+         final ContentResolver resolver = getActivity().getContentResolver();
+ 
+         mNetTrafficAutohideThreshold = (CustomSeekBarPreference)
+-                findPreference(LineageSettings.Secure.NETWORK_TRAFFIC_AUTOHIDE_THRESHOLD);
++                findPreference(Settings.System.NETWORK_TRAFFIC_AUTOHIDE_THRESHOLD);
+         mNetTrafficRefreshInterval = (CustomSeekBarPreference)
+-                findPreference(LineageSettings.Secure.NETWORK_TRAFFIC_REFRESH_INTERVAL);
++                findPreference(Settings.System.NETWORK_TRAFFIC_REFRESH_INTERVAL);
+         mNetTrafficLocation = (ListPreference)
+-                findPreference(LineageSettings.Secure.NETWORK_TRAFFIC_LOCATION);
++                findPreference(Settings.System.NETWORK_TRAFFIC_LOCATION);
+         mNetTrafficLocation.setOnPreferenceChangeListener(this);
+         mNetTrafficMode = (ListPreference)
+                 findPreference(LineageSettings.Secure.NETWORK_TRAFFIC_MODE);
+@@ -68,10 +69,10 @@ public class NetworkTrafficSettings extends SettingsPreferenceFragment
+         mNetTrafficUnits = (ListPreference)
+                 findPreference(LineageSettings.Secure.NETWORK_TRAFFIC_UNITS);
+         mNetTrafficHideArrow = (SwitchPreference)
+-                findPreference(LineageSettings.Secure.NETWORK_TRAFFIC_HIDEARROW);
++                findPreference(Settings.System.NETWORK_TRAFFIC_HIDEARROW);
+ 
+         int location = LineageSettings.Secure.getIntForUser(resolver,
+-                LineageSettings.Secure.NETWORK_TRAFFIC_LOCATION, 0, UserHandle.USER_CURRENT);
++                Settings.System.NETWORK_TRAFFIC_LOCATION, 0, UserHandle.USER_CURRENT);
+         updateEnabledStates(location);
+     }
+ 
+@@ -98,21 +99,21 @@ public class NetworkTrafficSettings extends SettingsPreferenceFragment
+     public static void reset(Context mContext) {
+         ContentResolver resolver = mContext.getContentResolver();
+         LineageSettings.Secure.putIntForUser(resolver,
+-                LineageSettings.Secure.NETWORK_TRAFFIC_LOCATION, 0, UserHandle.USER_CURRENT);
++                Settings.System.NETWORK_TRAFFIC_LOCATION, 0, UserHandle.USER_CURRENT);
+         LineageSettings.Secure.putIntForUser(resolver,
+                 LineageSettings.Secure.NETWORK_TRAFFIC_MODE, 0, UserHandle.USER_CURRENT);
+         LineageSettings.Secure.putIntForUser(resolver,
+                 LineageSettings.Secure.NETWORK_TRAFFIC_AUTOHIDE, 1, UserHandle.USER_CURRENT);
+         LineageSettings.Secure.putIntForUser(resolver,
+-                LineageSettings.Secure.NETWORK_TRAFFIC_AUTOHIDE_THRESHOLD, 0, UserHandle.USER_CURRENT);
++                Settings.System.NETWORK_TRAFFIC_AUTOHIDE_THRESHOLD, 0, UserHandle.USER_CURRENT);
+         LineageSettings.Secure.putIntForUser(resolver,
+                 LineageSettings.Secure.NETWORK_TRAFFIC_UNITS, 1, UserHandle.USER_CURRENT);
+         LineageSettings.Secure.putIntForUser(resolver,
+                 LineageSettings.Secure.NETWORK_TRAFFIC_SHOW_UNITS, 1, UserHandle.USER_CURRENT);
+         LineageSettings.Secure.putIntForUser(resolver,
+-                LineageSettings.Secure.NETWORK_TRAFFIC_REFRESH_INTERVAL, 2, UserHandle.USER_CURRENT);
++                Settings.System.NETWORK_TRAFFIC_REFRESH_INTERVAL, 2, UserHandle.USER_CURRENT);
+         LineageSettings.Secure.putIntForUser(resolver,
+-                LineageSettings.Secure.NETWORK_TRAFFIC_HIDEARROW, 0, UserHandle.USER_CURRENT);
++                Settings.System.NETWORK_TRAFFIC_HIDEARROW, 0, UserHandle.USER_CURRENT);
+     }
+ 
+     @Override

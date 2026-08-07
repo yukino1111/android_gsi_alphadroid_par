@@ -1,0 +1,544 @@
+diff --git a/themes/icons/Statusbar/ButterflySignal/Android.mk b/themes/icons/Statusbar/ButterflySignal/Android.mk
+deleted file mode 100644
+index 7e5e2e07436df3de24b1c8b7f98b6a0a5342a5f1..0000000000000000000000000000000000000000
+--- a/themes/icons/Statusbar/ButterflySignal/Android.mk
++++ /dev/null
+@@ -1,27 +0,0 @@
+-#
+-#  Copyright (C) 2020, The Android Open Source Project
+-#
+-# Licensed under the Apache License, Version 2.0 (the "License");
+-# you may not use this file except in compliance with the License.
+-# You may obtain a copy of the License at
+-#
+-#     http://www.apache.org/licenses/LICENSE-2.0
+-#
+-# Unless required by applicable law or agreed to in writing, software
+-# distributed under the License is distributed on an "AS IS" BASIS,
+-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-# See the License for the specific language governing permissions and
+-# limitations under the License.
+-#
+-LOCAL_PATH:= $(call my-dir)
+-include $(CLEAR_VARS)
+-
+-LOCAL_RRO_THEME := ButterflySignal
+-LOCAL_PRODUCT_MODULE := true
+-
+-LOCAL_RESOURCE_DIR := $(LOCAL_PATH)/res
+-
+-LOCAL_PACKAGE_NAME := ButterflySignalOverlay
+-LOCAL_SDK_VERSION := current
+-
+-include $(BUILD_RRO_PACKAGE)
+\ No newline at end of file
+diff --git a/themes/icons/Statusbar/CircleSignal/Android.mk b/themes/icons/Statusbar/CircleSignal/Android.mk
+deleted file mode 100644
+index 5220cf48bd2afd2fd4ff0fcab316ef6dcfcdcd46..0000000000000000000000000000000000000000
+--- a/themes/icons/Statusbar/CircleSignal/Android.mk
++++ /dev/null
+@@ -1,27 +0,0 @@
+-#
+-#  Copyright (C) 2020, The Android Open Source Project
+-#
+-# Licensed under the Apache License, Version 2.0 (the "License");
+-# you may not use this file except in compliance with the License.
+-# You may obtain a copy of the License at
+-#
+-#     http://www.apache.org/licenses/LICENSE-2.0
+-#
+-# Unless required by applicable law or agreed to in writing, software
+-# distributed under the License is distributed on an "AS IS" BASIS,
+-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-# See the License for the specific language governing permissions and
+-# limitations under the License.
+-#
+-LOCAL_PATH:= $(call my-dir)
+-include $(CLEAR_VARS)
+-
+-LOCAL_RRO_THEME := CircleSignal
+-LOCAL_PRODUCT_MODULE := true
+-
+-LOCAL_RESOURCE_DIR := $(LOCAL_PATH)/res
+-
+-LOCAL_PACKAGE_NAME := CircleSignalOverlay
+-LOCAL_SDK_VERSION := current
+-
+-include $(BUILD_RRO_PACKAGE)
+\ No newline at end of file
+diff --git a/themes/icons/Statusbar/DaunSignal/Android.mk b/themes/icons/Statusbar/DaunSignal/Android.mk
+deleted file mode 100644
+index 8026c3e8598674b31226112c07f0f0d5142763fd..0000000000000000000000000000000000000000
+--- a/themes/icons/Statusbar/DaunSignal/Android.mk
++++ /dev/null
+@@ -1,27 +0,0 @@
+-#
+-#  Copyright (C) 2020, The Android Open Source Project
+-#
+-# Licensed under the Apache License, Version 2.0 (the "License");
+-# you may not use this file except in compliance with the License.
+-# You may obtain a copy of the License at
+-#
+-#     http://www.apache.org/licenses/LICENSE-2.0
+-#
+-# Unless required by applicable law or agreed to in writing, software
+-# distributed under the License is distributed on an "AS IS" BASIS,
+-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-# See the License for the specific language governing permissions and
+-# limitations under the License.
+-#
+-LOCAL_PATH:= $(call my-dir)
+-include $(CLEAR_VARS)
+-
+-LOCAL_RRO_THEME := DaunSignal
+-LOCAL_PRODUCT_MODULE := true
+-
+-LOCAL_RESOURCE_DIR := $(LOCAL_PATH)/res
+-
+-LOCAL_PACKAGE_NAME := DaunSignalOverlay
+-LOCAL_SDK_VERSION := current
+-
+-include $(BUILD_RRO_PACKAGE)
+\ No newline at end of file
+diff --git a/themes/icons/Statusbar/DecSignal/Android.mk b/themes/icons/Statusbar/DecSignal/Android.mk
+deleted file mode 100644
+index b2ea75e555b7daec17034cf4f7c1984a113111cf..0000000000000000000000000000000000000000
+--- a/themes/icons/Statusbar/DecSignal/Android.mk
++++ /dev/null
+@@ -1,27 +0,0 @@
+-#
+-#  Copyright (C) 2020, The Android Open Source Project
+-#
+-# Licensed under the Apache License, Version 2.0 (the "License");
+-# you may not use this file except in compliance with the License.
+-# You may obtain a copy of the License at
+-#
+-#     http://www.apache.org/licenses/LICENSE-2.0
+-#
+-# Unless required by applicable law or agreed to in writing, software
+-# distributed under the License is distributed on an "AS IS" BASIS,
+-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-# See the License for the specific language governing permissions and
+-# limitations under the License.
+-#
+-LOCAL_PATH:= $(call my-dir)
+-include $(CLEAR_VARS)
+-
+-LOCAL_RRO_THEME := DecSignal
+-LOCAL_PRODUCT_MODULE := true
+-
+-LOCAL_RESOURCE_DIR := $(LOCAL_PATH)/res
+-
+-LOCAL_PACKAGE_NAME := DecSignalOverlay
+-LOCAL_SDK_VERSION := current
+-
+-include $(BUILD_RRO_PACKAGE)
+\ No newline at end of file
+diff --git a/themes/icons/Statusbar/EqualSignal/Android.mk b/themes/icons/Statusbar/EqualSignal/Android.mk
+deleted file mode 100644
+index 3dbda1043f0391f55a9d219f28d2a2ac58498740..0000000000000000000000000000000000000000
+--- a/themes/icons/Statusbar/EqualSignal/Android.mk
++++ /dev/null
+@@ -1,27 +0,0 @@
+-#
+-#  Copyright (C) 2020, The Android Open Source Project
+-#
+-# Licensed under the Apache License, Version 2.0 (the "License");
+-# you may not use this file except in compliance with the License.
+-# You may obtain a copy of the License at
+-#
+-#     http://www.apache.org/licenses/LICENSE-2.0
+-#
+-# Unless required by applicable law or agreed to in writing, software
+-# distributed under the License is distributed on an "AS IS" BASIS,
+-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-# See the License for the specific language governing permissions and
+-# limitations under the License.
+-#
+-LOCAL_PATH:= $(call my-dir)
+-include $(CLEAR_VARS)
+-
+-LOCAL_RRO_THEME := EqualSignal
+-LOCAL_PRODUCT_MODULE := true
+-
+-LOCAL_RESOURCE_DIR := $(LOCAL_PATH)/res
+-
+-LOCAL_PACKAGE_NAME := EqualSignalOverlay
+-LOCAL_SDK_VERSION := current
+-
+-include $(BUILD_RRO_PACKAGE)
+\ No newline at end of file
+diff --git a/themes/icons/Statusbar/FanSignal/Android.mk b/themes/icons/Statusbar/FanSignal/Android.mk
+deleted file mode 100644
+index 7d6f5eb6269ea16aa79b8f41c96e634ff43d2081..0000000000000000000000000000000000000000
+--- a/themes/icons/Statusbar/FanSignal/Android.mk
++++ /dev/null
+@@ -1,27 +0,0 @@
+-#
+-#  Copyright (C) 2020, The Android Open Source Project
+-#
+-# Licensed under the Apache License, Version 2.0 (the "License");
+-# you may not use this file except in compliance with the License.
+-# You may obtain a copy of the License at
+-#
+-#     http://www.apache.org/licenses/LICENSE-2.0
+-#
+-# Unless required by applicable law or agreed to in writing, software
+-# distributed under the License is distributed on an "AS IS" BASIS,
+-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-# See the License for the specific language governing permissions and
+-# limitations under the License.
+-#
+-LOCAL_PATH:= $(call my-dir)
+-include $(CLEAR_VARS)
+-
+-LOCAL_RRO_THEME := FanSignal
+-LOCAL_PRODUCT_MODULE := true
+-
+-LOCAL_RESOURCE_DIR := $(LOCAL_PATH)/res
+-
+-LOCAL_PACKAGE_NAME := FanSignalOverlay
+-LOCAL_SDK_VERSION := current
+-
+-include $(BUILD_RRO_PACKAGE)
+\ No newline at end of file
+diff --git a/themes/icons/Statusbar/MiniSignal/Android.mk b/themes/icons/Statusbar/MiniSignal/Android.mk
+deleted file mode 100644
+index 557b2efd9a8f0299bf793d6ffb75eee083e5c880..0000000000000000000000000000000000000000
+--- a/themes/icons/Statusbar/MiniSignal/Android.mk
++++ /dev/null
+@@ -1,27 +0,0 @@
+-#
+-#  Copyright (C) 2020, The Android Open Source Project
+-#
+-# Licensed under the Apache License, Version 2.0 (the "License");
+-# you may not use this file except in compliance with the License.
+-# You may obtain a copy of the License at
+-#
+-#     http://www.apache.org/licenses/LICENSE-2.0
+-#
+-# Unless required by applicable law or agreed to in writing, software
+-# distributed under the License is distributed on an "AS IS" BASIS,
+-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-# See the License for the specific language governing permissions and
+-# limitations under the License.
+-#
+-LOCAL_PATH:= $(call my-dir)
+-include $(CLEAR_VARS)
+-
+-LOCAL_RRO_THEME := MiniSignal
+-LOCAL_PRODUCT_MODULE := true
+-
+-LOCAL_RESOURCE_DIR := $(LOCAL_PATH)/res
+-
+-LOCAL_PACKAGE_NAME := MiniSignalOverlay
+-LOCAL_SDK_VERSION := current
+-
+-include $(BUILD_RRO_PACKAGE)
+\ No newline at end of file
+diff --git a/themes/icons/Statusbar/OdinSignal/Android.mk b/themes/icons/Statusbar/OdinSignal/Android.mk
+deleted file mode 100644
+index c75efe7e8aefc00691a0c7e0482d926a617204b8..0000000000000000000000000000000000000000
+--- a/themes/icons/Statusbar/OdinSignal/Android.mk
++++ /dev/null
+@@ -1,27 +0,0 @@
+-#
+-#  Copyright (C) 2020, The Android Open Source Project
+-#
+-# Licensed under the Apache License, Version 2.0 (the "License");
+-# you may not use this file except in compliance with the License.
+-# You may obtain a copy of the License at
+-#
+-#     http://www.apache.org/licenses/LICENSE-2.0
+-#
+-# Unless required by applicable law or agreed to in writing, software
+-# distributed under the License is distributed on an "AS IS" BASIS,
+-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-# See the License for the specific language governing permissions and
+-# limitations under the License.
+-#
+-LOCAL_PATH:= $(call my-dir)
+-include $(CLEAR_VARS)
+-
+-LOCAL_RRO_THEME := OdinSignal
+-LOCAL_PRODUCT_MODULE := true
+-
+-LOCAL_RESOURCE_DIR := $(LOCAL_PATH)/res
+-
+-LOCAL_PACKAGE_NAME := OdinSignalOverlay
+-LOCAL_SDK_VERSION := current
+-
+-include $(BUILD_RRO_PACKAGE)
+\ No newline at end of file
+diff --git a/themes/icons/Statusbar/RelSignal/Android.mk b/themes/icons/Statusbar/RelSignal/Android.mk
+deleted file mode 100644
+index d12e223250dede0b84ff16a5ecc0cbc4e375439a..0000000000000000000000000000000000000000
+--- a/themes/icons/Statusbar/RelSignal/Android.mk
++++ /dev/null
+@@ -1,27 +0,0 @@
+-#
+-#  Copyright (C) 2020, The Android Open Source Project
+-#
+-# Licensed under the Apache License, Version 2.0 (the "License");
+-# you may not use this file except in compliance with the License.
+-# You may obtain a copy of the License at
+-#
+-#     http://www.apache.org/licenses/LICENSE-2.0
+-#
+-# Unless required by applicable law or agreed to in writing, software
+-# distributed under the License is distributed on an "AS IS" BASIS,
+-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-# See the License for the specific language governing permissions and
+-# limitations under the License.
+-#
+-LOCAL_PATH:= $(call my-dir)
+-include $(CLEAR_VARS)
+-
+-LOCAL_RRO_THEME := RelSignal
+-LOCAL_PRODUCT_MODULE := true
+-
+-LOCAL_RESOURCE_DIR := $(LOCAL_PATH)/res
+-
+-LOCAL_PACKAGE_NAME := RelSignalOverlay
+-LOCAL_SDK_VERSION := current
+-
+-include $(BUILD_RRO_PACKAGE)
+\ No newline at end of file
+diff --git a/themes/icons/Statusbar/RomanSignal/Android.mk b/themes/icons/Statusbar/RomanSignal/Android.mk
+deleted file mode 100644
+index 2a628dd8865117ffa59ba4bb6555385458b6de7f..0000000000000000000000000000000000000000
+--- a/themes/icons/Statusbar/RomanSignal/Android.mk
++++ /dev/null
+@@ -1,27 +0,0 @@
+-#
+-#  Copyright (C) 2020, The Android Open Source Project
+-#
+-# Licensed under the Apache License, Version 2.0 (the "License");
+-# you may not use this file except in compliance with the License.
+-# You may obtain a copy of the License at
+-#
+-#     http://www.apache.org/licenses/LICENSE-2.0
+-#
+-# Unless required by applicable law or agreed to in writing, software
+-# distributed under the License is distributed on an "AS IS" BASIS,
+-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-# See the License for the specific language governing permissions and
+-# limitations under the License.
+-#
+-LOCAL_PATH:= $(call my-dir)
+-include $(CLEAR_VARS)
+-
+-LOCAL_RRO_THEME := RomanSignal
+-LOCAL_PRODUCT_MODULE := true
+-
+-LOCAL_RESOURCE_DIR := $(LOCAL_PATH)/res
+-
+-LOCAL_PACKAGE_NAME := RomanSignalOverlay
+-LOCAL_SDK_VERSION := current
+-
+-include $(BUILD_RRO_PACKAGE)
+\ No newline at end of file
+diff --git a/themes/icons/Statusbar/ScrollSignal/Android.mk b/themes/icons/Statusbar/ScrollSignal/Android.mk
+deleted file mode 100644
+index 3128dc1dc78c730a920cd123cbb49d222d8f0e96..0000000000000000000000000000000000000000
+--- a/themes/icons/Statusbar/ScrollSignal/Android.mk
++++ /dev/null
+@@ -1,27 +0,0 @@
+-#
+-#  Copyright (C) 2020, The Android Open Source Project
+-#
+-# Licensed under the Apache License, Version 2.0 (the "License");
+-# you may not use this file except in compliance with the License.
+-# You may obtain a copy of the License at
+-#
+-#     http://www.apache.org/licenses/LICENSE-2.0
+-#
+-# Unless required by applicable law or agreed to in writing, software
+-# distributed under the License is distributed on an "AS IS" BASIS,
+-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-# See the License for the specific language governing permissions and
+-# limitations under the License.
+-#
+-LOCAL_PATH:= $(call my-dir)
+-include $(CLEAR_VARS)
+-
+-LOCAL_RRO_THEME := ScrollSignal
+-LOCAL_PRODUCT_MODULE := true
+-
+-LOCAL_RESOURCE_DIR := $(LOCAL_PATH)/res
+-
+-LOCAL_PACKAGE_NAME := ScrollSignalOverlay
+-LOCAL_SDK_VERSION := current
+-
+-include $(BUILD_RRO_PACKAGE)
+\ No newline at end of file
+diff --git a/themes/icons/Statusbar/SeaSignal/Android.mk b/themes/icons/Statusbar/SeaSignal/Android.mk
+deleted file mode 100644
+index 9847e33c6d684cd9534696109f79784f1850a1a1..0000000000000000000000000000000000000000
+--- a/themes/icons/Statusbar/SeaSignal/Android.mk
++++ /dev/null
+@@ -1,27 +0,0 @@
+-#
+-#  Copyright (C) 2020, The Android Open Source Project
+-#
+-# Licensed under the Apache License, Version 2.0 (the "License");
+-# you may not use this file except in compliance with the License.
+-# You may obtain a copy of the License at
+-#
+-#     http://www.apache.org/licenses/LICENSE-2.0
+-#
+-# Unless required by applicable law or agreed to in writing, software
+-# distributed under the License is distributed on an "AS IS" BASIS,
+-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-# See the License for the specific language governing permissions and
+-# limitations under the License.
+-#
+-LOCAL_PATH:= $(call my-dir)
+-include $(CLEAR_VARS)
+-
+-LOCAL_RRO_THEME := SeaSignal
+-LOCAL_PRODUCT_MODULE := true
+-
+-LOCAL_RESOURCE_DIR := $(LOCAL_PATH)/res
+-
+-LOCAL_PACKAGE_NAME := SeaSignalOverlay
+-LOCAL_SDK_VERSION := current
+-
+-include $(BUILD_RRO_PACKAGE)
+\ No newline at end of file
+diff --git a/themes/icons/Statusbar/StackSignal/Android.mk b/themes/icons/Statusbar/StackSignal/Android.mk
+deleted file mode 100644
+index 252a955843049d0408e6f187366c165002638281..0000000000000000000000000000000000000000
+--- a/themes/icons/Statusbar/StackSignal/Android.mk
++++ /dev/null
+@@ -1,27 +0,0 @@
+-#
+-#  Copyright (C) 2020, The Android Open Source Project
+-#
+-# Licensed under the Apache License, Version 2.0 (the "License");
+-# you may not use this file except in compliance with the License.
+-# You may obtain a copy of the License at
+-#
+-#     http://www.apache.org/licenses/LICENSE-2.0
+-#
+-# Unless required by applicable law or agreed to in writing, software
+-# distributed under the License is distributed on an "AS IS" BASIS,
+-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-# See the License for the specific language governing permissions and
+-# limitations under the License.
+-#
+-LOCAL_PATH:= $(call my-dir)
+-include $(CLEAR_VARS)
+-
+-LOCAL_RRO_THEME := StackSignal
+-LOCAL_PRODUCT_MODULE := true
+-
+-LOCAL_RESOURCE_DIR := $(LOCAL_PATH)/res
+-
+-LOCAL_PACKAGE_NAME := StackSignalOverlay
+-LOCAL_SDK_VERSION := current
+-
+-include $(BUILD_RRO_PACKAGE)
+\ No newline at end of file
+diff --git a/themes/icons/Statusbar/WannuiSignal/Android.mk b/themes/icons/Statusbar/WannuiSignal/Android.mk
+deleted file mode 100644
+index 430442b6a797beadc33a95bbab26730e9014012e..0000000000000000000000000000000000000000
+--- a/themes/icons/Statusbar/WannuiSignal/Android.mk
++++ /dev/null
+@@ -1,27 +0,0 @@
+-#
+-#  Copyright (C) 2020, The Android Open Source Project
+-#
+-# Licensed under the Apache License, Version 2.0 (the "License");
+-# you may not use this file except in compliance with the License.
+-# You may obtain a copy of the License at
+-#
+-#     http://www.apache.org/licenses/LICENSE-2.0
+-#
+-# Unless required by applicable law or agreed to in writing, software
+-# distributed under the License is distributed on an "AS IS" BASIS,
+-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-# See the License for the specific language governing permissions and
+-# limitations under the License.
+-#
+-LOCAL_PATH:= $(call my-dir)
+-include $(CLEAR_VARS)
+-
+-LOCAL_RRO_THEME := WannuiSignal
+-LOCAL_PRODUCT_MODULE := true
+-
+-LOCAL_RESOURCE_DIR := $(LOCAL_PATH)/res
+-
+-LOCAL_PACKAGE_NAME := WannuiSignalOverlay
+-LOCAL_SDK_VERSION := current
+-
+-include $(BUILD_RRO_PACKAGE)
+\ No newline at end of file
+diff --git a/themes/icons/Statusbar/WindowsSignal/Android.mk b/themes/icons/Statusbar/WindowsSignal/Android.mk
+deleted file mode 100644
+index 593b685425795af69aa2f30dc2f42a9a0f02028a..0000000000000000000000000000000000000000
+--- a/themes/icons/Statusbar/WindowsSignal/Android.mk
++++ /dev/null
+@@ -1,27 +0,0 @@
+-#
+-#  Copyright (C) 2020, The Android Open Source Project
+-#
+-# Licensed under the Apache License, Version 2.0 (the "License");
+-# you may not use this file except in compliance with the License.
+-# You may obtain a copy of the License at
+-#
+-#     http://www.apache.org/licenses/LICENSE-2.0
+-#
+-# Unless required by applicable law or agreed to in writing, software
+-# distributed under the License is distributed on an "AS IS" BASIS,
+-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-# See the License for the specific language governing permissions and
+-# limitations under the License.
+-#
+-LOCAL_PATH:= $(call my-dir)
+-include $(CLEAR_VARS)
+-
+-LOCAL_RRO_THEME := WindowsSignal
+-LOCAL_PRODUCT_MODULE := true
+-
+-LOCAL_RESOURCE_DIR := $(LOCAL_PATH)/res
+-
+-LOCAL_PACKAGE_NAME := WindowsSignalOverlay
+-LOCAL_SDK_VERSION := current
+-
+-include $(BUILD_RRO_PACKAGE)
+\ No newline at end of file
+diff --git a/themes/icons/Statusbar/WingSignal/Android.mk b/themes/icons/Statusbar/WingSignal/Android.mk
+deleted file mode 100644
+index f7264924486f065e51b9f191a0bfbb6990aefeae..0000000000000000000000000000000000000000
+--- a/themes/icons/Statusbar/WingSignal/Android.mk
++++ /dev/null
+@@ -1,27 +0,0 @@
+-#
+-#  Copyright (C) 2020, The Android Open Source Project
+-#
+-# Licensed under the Apache License, Version 2.0 (the "License");
+-# you may not use this file except in compliance with the License.
+-# You may obtain a copy of the License at
+-#
+-#     http://www.apache.org/licenses/LICENSE-2.0
+-#
+-# Unless required by applicable law or agreed to in writing, software
+-# distributed under the License is distributed on an "AS IS" BASIS,
+-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-# See the License for the specific language governing permissions and
+-# limitations under the License.
+-#
+-LOCAL_PATH:= $(call my-dir)
+-include $(CLEAR_VARS)
+-
+-LOCAL_RRO_THEME := WingSignal
+-LOCAL_PRODUCT_MODULE := true
+-
+-LOCAL_RESOURCE_DIR := $(LOCAL_PATH)/res
+-
+-LOCAL_PACKAGE_NAME := WingSignalOverlay
+-LOCAL_SDK_VERSION := current
+-
+-include $(BUILD_RRO_PACKAGE)
+\ No newline at end of file

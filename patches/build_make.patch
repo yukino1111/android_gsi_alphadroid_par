@@ -1,0 +1,146 @@
+diff --git a/core/build_id.mk b/core/build_id.mk
+index e70e58b0cef8a327c015cae5095abd79255b8867..049bd2ac99a7f2cfdd01257d1a8e742a1fdff6b8 100644
+--- a/core/build_id.mk
++++ b/core/build_id.mk
+@@ -18,4 +18,4 @@
+ # (like "CRB01").  It must be a single word, and is
+ # capitalized by convention.
+ 
+-BUILD_ID=TQ3A.230805.001
++BUILD_ID=TQ3A.230705.001.B4
+diff --git a/core/version_defaults.mk b/core/version_defaults.mk
+index 4fa5425a4bf99756a13a8510b3d6b1eeea503a01..23dce804406c619cd1c6d8fa1dda97bc382dd848 100644
+--- a/core/version_defaults.mk
++++ b/core/version_defaults.mk
+@@ -103,7 +103,7 @@ ifndef PLATFORM_SECURITY_PATCH
+     #  It must be of the form "YYYY-MM-DD" on production devices.
+     #  It must match one of the Android Security Patch Level strings of the Public Security Bulletins.
+     #  If there is no $PLATFORM_SECURITY_PATCH set, keep it empty.
+-    PLATFORM_SECURITY_PATCH := 2023-08-05
++    PLATFORM_SECURITY_PATCH := 2023-07-05
+ endif
+ 
+ include $(BUILD_SYSTEM)/version_util.mk
+diff --git a/target/product/aosp_arm64.mk b/target/product/aosp_arm64.mk
+index 01897b77d2af0c7d9e2c542d4cadb89b3647f20d..a0a7c0d2fc7d58b66dd6f65f861edaeb3d27870e 100644
+--- a/target/product/aosp_arm64.mk
++++ b/target/product/aosp_arm64.mk
+@@ -51,9 +51,9 @@ $(call inherit-product, $(SRC_TARGET_DIR)/product/aosp_product.mk)
+ #
+ # All components inherited here go to vendor or vendor_boot image
+ #
+-$(call inherit-product, $(SRC_TARGET_DIR)/product/emulator_vendor.mk)
+-$(call inherit-product, $(SRC_TARGET_DIR)/board/generic_arm64/device.mk)
+-$(call inherit-product, $(SRC_TARGET_DIR)/product/non_ab_device.mk)
++#$(call inherit-product, $(SRC_TARGET_DIR)/product/emulator_vendor.mk)
++#$(call inherit-product, $(SRC_TARGET_DIR)/board/generic_arm64/device.mk)
++#$(call inherit-product, $(SRC_TARGET_DIR)/product/non_ab_device.mk)
+ 
+ #
+ # Special settings for GSI releasing
+diff --git a/target/product/base_system.mk b/target/product/base_system.mk
+index b0870c32aa4e82cc6ece7c11f4750d855541a19a..310876804c813b59c6b94920a12a47b1d49e9e13 100644
+--- a/target/product/base_system.mk
++++ b/target/product/base_system.mk
+@@ -203,7 +203,6 @@ PRODUCT_PACKAGES += \
+     libwilhelm \
+     linker \
+     linkerconfig \
+-    llkd \
+     lmkd \
+     LocalTransport \
+     locksettings \
+diff --git a/target/product/emulator.mk b/target/product/emulator.mk
+index 36da1f70344dab7e9a96df1a760c7d0cceaae9f6..1497c061fcb7d9929b0d472410600789ff2ad2ec 100644
+--- a/target/product/emulator.mk
++++ b/target/product/emulator.mk
+@@ -36,7 +36,7 @@ PRODUCT_PACKAGES += \
+ 
+ PRODUCT_PACKAGE_OVERLAYS := device/generic/goldfish/overlay
+ 
+-PRODUCT_CHARACTERISTICS := emulator
++# PRODUCT_CHARACTERISTICS := emulator
+ 
+ PRODUCT_FULL_TREBLE_OVERRIDE := true
+ 
+@@ -56,5 +56,5 @@ PRODUCT_SYSTEM_EXT_PROPERTIES += \
+     ro.com.google.locationfeatures=1
+ 
+ # disable setupwizard
+-PRODUCT_SYSTEM_EXT_PROPERTIES += \
+-    ro.setupwizard.mode=DISABLED
++# PRODUCT_SYSTEM_EXT_PROPERTIES += \
++#    ro.setupwizard.mode=DISABLED
+diff --git a/target/product/emulator_vendor.mk b/target/product/emulator_vendor.mk
+index f71b275b0e2450b78ac9b30859de95dcb63e6818..62984253f315985959576d11e0b3ff4efab32b50 100644
+--- a/target/product/emulator_vendor.mk
++++ b/target/product/emulator_vendor.mk
+@@ -28,7 +28,7 @@ PRODUCT_PACKAGES += \
+ 
+ DEVICE_PACKAGE_OVERLAYS := device/generic/goldfish/overlay
+ 
+-PRODUCT_CHARACTERISTICS := emulator
++# PRODUCT_CHARACTERISTICS := emulator
+ 
+ PRODUCT_FULL_TREBLE_OVERRIDE := true
+ 
+@@ -48,5 +48,5 @@ PRODUCT_SYSTEM_EXT_PROPERTIES += \
+     ro.com.google.locationfeatures=1
+ 
+ # disable setupwizard
+-PRODUCT_SYSTEM_EXT_PROPERTIES += \
+-    ro.setupwizard.mode?=DISABLED
++# PRODUCT_SYSTEM_EXT_PROPERTIES += \
++#    ro.setupwizard.mode?=DISABLED
+diff --git a/target/product/gsi/Android.mk b/target/product/gsi/Android.mk
+index 85e551d3f272c745bf0726e4016b5f86e84fbc47..c1f37e07fae383c6bf5e0b9297e55097ad1704cc 100644
+--- a/target/product/gsi/Android.mk
++++ b/target/product/gsi/Android.mk
+@@ -247,16 +247,3 @@ LOCAL_SYSTEM_EXT_MODULE := true
+ LOCAL_MODULE_RELATIVE_PATH := init
+ 
+ include $(BUILD_PREBUILT)
+-
+-
+-include $(CLEAR_VARS)
+-LOCAL_MODULE := init.vndk-nodef.rc
+-LOCAL_LICENSE_KINDS := SPDX-license-identifier-Apache-2.0
+-LOCAL_LICENSE_CONDITIONS := notice
+-LOCAL_NOTICE_FILE := build/soong/licenses/LICENSE
+-LOCAL_SRC_FILES := $(LOCAL_MODULE)
+-LOCAL_MODULE_CLASS := ETC
+-LOCAL_SYSTEM_EXT_MODULE := true
+-LOCAL_MODULE_RELATIVE_PATH := gsi
+-
+-include $(BUILD_PREBUILT)
+diff --git a/target/product/gsi/init.gsi.rc b/target/product/gsi/init.gsi.rc
+index 69c8e467be0b44215fb0b5cbcf8a149ac64241a9..c6faba78d99b35579462de49139e9d0eb5f0bdaf 100644
+--- a/target/product/gsi/init.gsi.rc
++++ b/target/product/gsi/init.gsi.rc
+@@ -1,5 +1,3 @@
+ #
+ # Android init script for GSI required initialization
+ #
+-
+-import /system/system_ext/etc/gsi/init.vndk-${ro.vndk.version:-nodef}.rc
+diff --git a/target/product/gsi/init.vndk-nodef.rc b/target/product/gsi/init.vndk-nodef.rc
+deleted file mode 100644
+index 1b141a05e70f42ec2975e41af8a3ea98115eabc6..0000000000000000000000000000000000000000
+--- a/target/product/gsi/init.vndk-nodef.rc
++++ /dev/null
+@@ -1,3 +0,0 @@
+-on early-init
+-    # Reboot if BOARD_VNDK_VERSION is not defined
+-    exec - root -- /system/bin/reboot bootloader
+diff --git a/target/product/gsi_release.mk b/target/product/gsi_release.mk
+index 74501cd1f173c5861b6df637c6d66422a0e618a2..575e90b1481f8620b3fe867da6a2f6d243e63da0 100644
+--- a/target/product/gsi_release.mk
++++ b/target/product/gsi_release.mk
+@@ -60,7 +60,6 @@ PRODUCT_PACKAGES += com.android.apex.cts.shim.v1_with_prebuilts.flattened
+ PRODUCT_PACKAGES += \
+     gsi_skip_mount.cfg \
+     init.gsi.rc \
+-    init.vndk-nodef.rc \
+ 
+ # Support additional VNDK snapshots
+ PRODUCT_EXTRA_VNDK_VERSIONS := \

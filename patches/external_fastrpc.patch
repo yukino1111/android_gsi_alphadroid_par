@@ -1,0 +1,14 @@
+diff --git a/Android.bp b/Android.bp
+new file mode 100644
+index 0000000000000000000000000000000000000000..42f93a2d35d346915312057f05f66db1b9bed808
+--- /dev/null
++++ b/Android.bp
+@@ -0,0 +1,8 @@
++// Build fix: crDroid fastrpc 13.0 branch (2020) lacks the libfastrpcshippable_headers
++// module referenced by hardware/qcom-caf/*/audio/adsprpcd. Not used on HiSilicon.
++cc_library_headers {
++    name: "libfastrpcshippable_headers",
++    export_include_dirs: ["inc"],
++    vendor_available: true,
++    product_available: true,
++}

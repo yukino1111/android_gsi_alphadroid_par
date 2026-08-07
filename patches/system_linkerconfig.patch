@@ -1,0 +1,13 @@
+diff --git a/modules/environment.cc b/modules/environment.cc
+index 82801f325624d0438d6a9664708b34ef65a1b0bf..e05341b7c38f017891c36a253a6a1643dff04f11 100644
+--- a/modules/environment.cc
++++ b/modules/environment.cc
+@@ -29,7 +29,7 @@ bool IsLegacyDevice() {
+ }
+ 
+ bool IsVndkLiteDevice() {
+-  return Variables::GetValue("ro.vndk.lite").value_or("") == "true";
++  return false;
+ }
+ 
+ bool IsVndkInSystemNamespace() {

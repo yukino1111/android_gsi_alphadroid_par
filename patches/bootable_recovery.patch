@@ -1,0 +1,13 @@
+diff --git a/update_verifier/update_verifier.cpp b/update_verifier/update_verifier.cpp
+index 88fcfa5025d6e6810ea9feb634ea733a18c29943..097a2c4e5a8236fb6ee0b2f8469da6bb76557957 100644
+--- a/update_verifier/update_verifier.cpp
++++ b/update_verifier/update_verifier.cpp
+@@ -332,7 +332,7 @@ int update_verifier(int argc, char** argv) {
+   sp<IBootControl> module = IBootControl::getService();
+   if (module == nullptr) {
+     LOG(ERROR) << "Error getting bootctrl module.";
+-    return reboot_device();
++    return 0;
+   }
+ 
+   uint32_t current_slot = module->getCurrentSlot();

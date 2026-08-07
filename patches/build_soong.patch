@@ -1,0 +1,40 @@
+diff --git a/ui/build/kati.go b/ui/build/kati.go
+index dad68fac2f4d62df8c61b2d3bd59f39a7c8ed13b..224fa9d14ccc34f7e8d24de34d5e81164a4aa70e 100644
+--- a/ui/build/kati.go
++++ b/ui/build/kati.go
+@@ -19,7 +19,6 @@ import (
+ 	"fmt"
+ 	"io/ioutil"
+ 	"os"
+-	"os/user"
+ 	"path/filepath"
+ 	"strings"
+ 
+@@ -161,23 +160,14 @@ func runKati(ctx Context, config Config, extraSuffix string, args []string, envF
+ 	envFunc(cmd.Environment)
+ 
+ 	// Pass on various build environment metadata to Kati.
++	// Use neutral defaults instead of the build machine's user/hostname so
++	// ro.build.user / ro.build.host never leak personal information.
+ 	if _, ok := cmd.Environment.Get("BUILD_USERNAME"); !ok {
+-		username := "unknown"
+-		if u, err := user.Current(); err == nil {
+-			username = u.Username
+-		} else {
+-			ctx.Println("Failed to get current user:", err)
+-		}
+-		cmd.Environment.Set("BUILD_USERNAME", username)
++		cmd.Environment.Set("BUILD_USERNAME", "android")
+ 	}
+ 
+ 	if _, ok := cmd.Environment.Get("BUILD_HOSTNAME"); !ok {
+-		hostname, err := os.Hostname()
+-		if err != nil {
+-			ctx.Println("Failed to read hostname:", err)
+-			hostname = "unknown"
+-		}
+-		cmd.Environment.Set("BUILD_HOSTNAME", hostname)
++		cmd.Environment.Set("BUILD_HOSTNAME", "localhost")
+ 	}
+ 
+ 	cmd.StartOrFatal()

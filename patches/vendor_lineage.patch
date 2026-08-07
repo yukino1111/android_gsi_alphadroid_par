@@ -1,0 +1,96 @@
+diff --git a/build/core/config.mk b/build/core/config.mk
+index f2e595ff92dc2e5cc63aabb632b27ba668b471e1..ced90256ad92a70a1a799aecad3e18c20ba5c069 100644
+--- a/build/core/config.mk
++++ b/build/core/config.mk
+@@ -13,6 +13,9 @@
+ # See the License for the specific language governing permissions and
+ # limitations under the License.
+ 
++# Build fix: ensure TARGET_OUT_COMMON_INTERMEDIATES follows a non-default
++# OUT_DIR for GSI builds.
++TARGET_OUT_COMMON_INTERMEDIATES ?= $(OUT_DIR)/target/common/obj
+ LINEAGE_SRC_API_DIR := $(TOPDIR)prebuilts/lineage-sdk/api
+ INTERNAL_LINEAGE_PLATFORM_API_FILE := $(TARGET_OUT_COMMON_INTERMEDIATES)/PACKAGING/lineage_public_api.txt
+ INTERNAL_LINEAGE_PLATFORM_REMOVED_API_FILE := $(TARGET_OUT_COMMON_INTERMEDIATES)/PACKAGING/lineage_removed.txt
+diff --git a/build/soong/Android.bp b/build/soong/Android.bp
+index 835f55d3ace0fdfb878cdb26f0a308a9fe1d6a6b..131fde42d3d1e8100d7554de512590550839bbc2 100644
+--- a/build/soong/Android.bp
++++ b/build/soong/Android.bp
+@@ -21,7 +21,7 @@ lineage_generator {
+     name: "generated_kernel_includes",
+ 
+     // The headers make command
+-    cmd: "$(PATH_OVERRIDE_SOONG) $(KERNEL_MAKE_CMD) $(KERNEL_MAKE_FLAGS) -C $(TARGET_KERNEL_SOURCE) O=$(KERNEL_BUILD_OUT_PREFIX)$(genDir) ARCH=$(KERNEL_ARCH) $(KERNEL_CROSS_COMPILE) headers_install",
++    cmd: "$(KERNEL_MAKE_CMD) $(KERNEL_MAKE_FLAGS) -C $(TARGET_KERNEL_SOURCE) O=$(KERNEL_BUILD_OUT_PREFIX)$(genDir) ARCH=$(KERNEL_ARCH) $(KERNEL_CROSS_COMPILE) headers_install",
+ 
+     // Directories that can be imported by a cc_* module generated_headers property
+     export_include_dirs: [
+diff --git a/charger/Android.mk b/charger/Android.mk
+index a95c5c261d136b2618ec40cba6746e971d52c530..a2d50f1280403ed11f66ccb5baa3192afaf1114a 100644
+--- a/charger/Android.mk
++++ b/charger/Android.mk
+@@ -1,3 +1,6 @@
++# Build fix: skip LineageOS charger images on GSI builds;
++# TrebleDroid pixel charger (device/phh/treble/charger) is used instead.
++ifneq ($(TARGET_GSI_CHARGER),true)
+ #
+ # Copyright (C) 2021 The LineageOS Project
+ #
+@@ -84,3 +87,5 @@ LOCAL_MODULE_CLASS := ETC
+ LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR_ETC)/res/values/charger
+ LOCAL_REQUIRED_MODULES := lineage_charger_battery_scale_vendor lineage_charger_battery_fail_vendor
+ include $(BUILD_PREBUILT)
++
++endif # TARGET_GSI_CHARGER
+diff --git a/config/common.mk b/config/common.mk
+index 7d1715f1d4713ad0a4e752e6269881cc61621fc0..fd44a45ea9c17efc98367f97f69eb054f285664d 100644
+--- a/config/common.mk
++++ b/config/common.mk
+@@ -23,11 +23,14 @@ endif
+ # Backup Tool
+ PRODUCT_COPY_FILES += \
+     vendor/lineage/prebuilt/common/bin/backuptool.sh:install/bin/backuptool.sh \
+-    vendor/lineage/prebuilt/common/bin/backuptool.functions:install/bin/backuptool.functions \
+-    vendor/lineage/prebuilt/common/bin/50-lineage.sh:$(TARGET_COPY_OUT_SYSTEM)/addon.d/50-lineage.sh
++    vendor/lineage/prebuilt/common/bin/backuptool.functions:install/bin/backuptool.functions
+ 
++ifneq ($(TARGET_EXCLUDE_LINEAGE_ADDON_D),true)
++PRODUCT_COPY_FILES += \
++    vendor/lineage/prebuilt/common/bin/50-lineage.sh:$(TARGET_COPY_OUT_SYSTEM)/addon.d/50-lineage.sh
+ PRODUCT_ARTIFACT_PATH_REQUIREMENT_ALLOWED_LIST += \
+     system/addon.d/50-lineage.sh
++endif
+ 
+ ifneq ($(strip $(AB_OTA_PARTITIONS) $(AB_OTA_POSTINSTALL_CONFIG)),)
+ PRODUCT_COPY_FILES += \
+diff --git a/config/lineage_sdk_common.mk b/config/lineage_sdk_common.mk
+index db335995f023c6e16a2e8e5142ab8a78f66a5086..29e9de31d749347a522153b198d6b34e802f59f1 100644
+--- a/config/lineage_sdk_common.mk
++++ b/config/lineage_sdk_common.mk
+@@ -13,6 +13,9 @@ PRODUCT_PACKAGES += \
+     org.lineageos.platform-res \
+     org.lineageos.platform
+ 
++PRODUCT_SYSTEM_SERVER_JARS += \
++    org.lineageos.platform
++
+ # AOSP has no support of loading framework resources from /system_ext
+ # so the SDK has to stay in /system for now
+ PRODUCT_ARTIFACT_PATH_REQUIREMENT_ALLOWED_LIST += \
+diff --git a/prebuilt/common/Android.mk b/prebuilt/common/Android.mk
+index adcb3e9c159f76c91a1bb30657083104cac45854..a856187862b3d1979dcc0e67e5fd55d70c50d535 100644
+--- a/prebuilt/common/Android.mk
++++ b/prebuilt/common/Android.mk
+@@ -1,3 +1,6 @@
++# Build fix: skip LineageOS apns-conf on GSI builds;
++# AOSP GSI product (device/generic/common/gsi_product.mk) provides it.
++ifneq ($(TARGET_GSI_APNS),true)
+ LOCAL_PATH := $(call my-dir)
+ 
+ ################################
+@@ -29,3 +32,5 @@ LOCAL_PREBUILT_MODULE_FILE := $(FINAL_APNS_FILE)
+ LOCAL_PRODUCT_MODULE := true
+ 
+ include $(BUILD_PREBUILT)
++
++endif # TARGET_GSI_APNS

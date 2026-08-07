@@ -1,0 +1,36 @@
+diff --git a/fs_mgr/include_fstab/fstab/fstab.h b/fs_mgr/include_fstab/fstab/fstab.h
+index d0b93a8a3a275a84cb5f90facf965bf91dbcc3ed..f6bba41c0b2bee7c8f7bf8ada0965e27b4701f2f 100644
+--- a/fs_mgr/include_fstab/fstab/fstab.h
++++ b/fs_mgr/include_fstab/fstab/fstab.h
+@@ -84,6 +84,7 @@ struct FstabEntry {
+         bool ext_meta_csum : 1;
+         bool fs_compress : 1;
+         bool overlayfs_remove_missing_lowerdir : 1;
++        bool wrapped_key : 1;  // AOSP follow-up; required by vold FsCrypt
+     } fs_mgr_flags = {};
+ 
+     bool is_encryptable() const { return fs_mgr_flags.crypt; }
+diff --git a/libdiskconfig/Android.bp b/libdiskconfig/Android.bp
+index f523d4e70c28d040f4dec1527867a8a44f84312d..bf8d8946d55ad99e4f9e92d39fd0234540d2a024 100644
+--- a/libdiskconfig/Android.bp
++++ b/libdiskconfig/Android.bp
+@@ -4,6 +4,7 @@ package {
+ 
+ cc_library {
+     name: "libdiskconfig",
++    recovery_available: true,
+     vendor_available: true,
+     vndk: {
+         enabled: true,
+diff --git a/libsysutils/Android.bp b/libsysutils/Android.bp
+index 5f472b2abd2cb32741fbadf482480241b1b3acd4..aadaaf8858b8755f327425229cf8532b5b9d85ec 100644
+--- a/libsysutils/Android.bp
++++ b/libsysutils/Android.bp
+@@ -4,6 +4,7 @@ package {
+ 
+ cc_library {
+     name: "libsysutils",
++    recovery_available: true,
+     vendor_available: true,
+     vndk: {
+         enabled: true,

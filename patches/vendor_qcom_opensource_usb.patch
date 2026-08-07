@@ -1,0 +1,210 @@
+diff --git a/hal/Android.bp b/hal/Android.bp
+index 4cccf13d4ee1b9ca311abccd5637a904093e1461..1c7a9b14f0393cc171c9fd25d083ef34d18fe9bb 100644
+--- a/hal/Android.bp
++++ b/hal/Android.bp
+@@ -29,7 +29,7 @@ cc_binary {
+     ],
+ 
+     init_rc: ["android.hardware.usb@1.2-service-qti.rc"],
+-    vintf_fragments: ["android.hardware.usb@1.2-service.xml"],
++    vintf_fragments: ["android.hardware.usb@1.2-service-qti.xml"],
+ }
+ 
+ cc_binary {
+@@ -48,7 +48,7 @@ cc_binary {
+     ],
+ 
+     init_rc: ["android.hardware.usb.gadget@1.2-service-qti.rc"],
+-    vintf_fragments: ["android.hardware.usb.gadget@1.2-service.xml"],
++    vintf_fragments: ["android.hardware.usb.gadget@1.2-service-qti.xml"],
+ }
+ 
+ prebuilt_etc {
+diff --git a/hal/android.hardware.usb.gadget@1.2-service.xml b/hal/android.hardware.usb.gadget@1.2-service.xml
+deleted file mode 100644
+index 5ae9e0f2494a94ceb4f91468c37e99ea3e186c4e..0000000000000000000000000000000000000000
+--- a/hal/android.hardware.usb.gadget@1.2-service.xml
++++ /dev/null
+@@ -1,43 +0,0 @@
+-<!-- Copyright (c) 2019 The Linux Foundation. All rights reserved.
+-
+-Redistribution and use in source and binary forms, with or without
+-modification, are permitted provided that the following conditions are
+-met:
+-    * Redistributions of source code must retain the above copyright
+-      notice, this list of conditions and the following disclaimer.
+-    * Redistributions in binary form must reproduce the above
+-      copyright notice, this list of conditions and the following
+-      disclaimer in the documentation and/or other materials provided
+-      with the distribution.
+-    * Neither the name of The Linux Foundation nor the names of its
+-      contributors may be used to endorse or promote products derived
+-      from this software without specific prior written permission.
+-
+-THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
+-WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
+-ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+-BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+-BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+-WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+-OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+-IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-
+-Changes from Qualcomm Innovation Center are provided under the following license:
+-Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+-SPDX-License-Identifier: BSD-3-Clause-Clear
+--->
+-<manifest version="1.0" type="device">
+-    <hal format="hidl">
+-        <name>android.hardware.usb.gadget</name>
+-        <transport>hwbinder</transport>
+-        <version>1.2</version>
+-        <interface>
+-            <name>IUsbGadget</name>
+-            <instance>default</instance>
+-        </interface>
+-        <fqname>@1.2::IUsbGadget/default</fqname>
+-    </hal>
+-</manifest>
+diff --git a/hal/android.hardware.usb@1.2-service.xml b/hal/android.hardware.usb@1.2-service.xml
+deleted file mode 100644
+index 3af5c1f6d9d5dad5d09717e1735d8cc1e5d83b98..0000000000000000000000000000000000000000
+--- a/hal/android.hardware.usb@1.2-service.xml
++++ /dev/null
+@@ -1,39 +0,0 @@
+-<!-- Copyright (c) 2019-2020 The Linux Foundation. All rights reserved.
+-
+-Redistribution and use in source and binary forms, with or without
+-modification, are permitted provided that the following conditions are
+-met:
+-    * Redistributions of source code must retain the above copyright
+-      notice, this list of conditions and the following disclaimer.
+-    * Redistributions in binary form must reproduce the above
+-      copyright notice, this list of conditions and the following
+-      disclaimer in the documentation and/or other materials provided
+-      with the distribution.
+-    * Neither the name of The Linux Foundation nor the names of its
+-      contributors may be used to endorse or promote products derived
+-      from this software without specific prior written permission.
+-
+-THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
+-WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
+-ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+-BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+-BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+-WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+-OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+-IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+--->
+-<manifest version="1.0" type="device">
+-    <hal format="hidl">
+-        <name>android.hardware.usb</name>
+-        <transport>hwbinder</transport>
+-        <version>1.2</version>
+-        <interface>
+-            <name>IUsb</name>
+-            <instance>default</instance>
+-        </interface>
+-        <fqname>@1.2::IUsb/default</fqname>
+-    </hal>
+-</manifest>
+diff --git a/hal/android.hardware.usb.gadget@1.2-service-qti.xml b/hal/android.hardware.usb.gadget@1.2-service-qti.xml
+new file mode 100644
+index 0000000000000000000000000000000000000000..5ae9e0f2494a94ceb4f91468c37e99ea3e186c4e
+--- /dev/null
++++ b/hal/android.hardware.usb.gadget@1.2-service-qti.xml
+@@ -0,0 +1,43 @@
++<!-- Copyright (c) 2019 The Linux Foundation. All rights reserved.
++
++Redistribution and use in source and binary forms, with or without
++modification, are permitted provided that the following conditions are
++met:
++    * Redistributions of source code must retain the above copyright
++      notice, this list of conditions and the following disclaimer.
++    * Redistributions in binary form must reproduce the above
++      copyright notice, this list of conditions and the following
++      disclaimer in the documentation and/or other materials provided
++      with the distribution.
++    * Neither the name of The Linux Foundation nor the names of its
++      contributors may be used to endorse or promote products derived
++      from this software without specific prior written permission.
++
++THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
++WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
++ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
++BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
++BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
++WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
++OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
++IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++
++Changes from Qualcomm Innovation Center are provided under the following license:
++Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
++SPDX-License-Identifier: BSD-3-Clause-Clear
++-->
++<manifest version="1.0" type="device">
++    <hal format="hidl">
++        <name>android.hardware.usb.gadget</name>
++        <transport>hwbinder</transport>
++        <version>1.2</version>
++        <interface>
++            <name>IUsbGadget</name>
++            <instance>default</instance>
++        </interface>
++        <fqname>@1.2::IUsbGadget/default</fqname>
++    </hal>
++</manifest>
+diff --git a/hal/android.hardware.usb@1.2-service-qti.xml b/hal/android.hardware.usb@1.2-service-qti.xml
+new file mode 100644
+index 0000000000000000000000000000000000000000..3af5c1f6d9d5dad5d09717e1735d8cc1e5d83b98
+--- /dev/null
++++ b/hal/android.hardware.usb@1.2-service-qti.xml
+@@ -0,0 +1,39 @@
++<!-- Copyright (c) 2019-2020 The Linux Foundation. All rights reserved.
++
++Redistribution and use in source and binary forms, with or without
++modification, are permitted provided that the following conditions are
++met:
++    * Redistributions of source code must retain the above copyright
++      notice, this list of conditions and the following disclaimer.
++    * Redistributions in binary form must reproduce the above
++      copyright notice, this list of conditions and the following
++      disclaimer in the documentation and/or other materials provided
++      with the distribution.
++    * Neither the name of The Linux Foundation nor the names of its
++      contributors may be used to endorse or promote products derived
++      from this software without specific prior written permission.
++
++THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
++WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
++ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
++BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
++BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
++WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
++OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
++IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++-->
++<manifest version="1.0" type="device">
++    <hal format="hidl">
++        <name>android.hardware.usb</name>
++        <transport>hwbinder</transport>
++        <version>1.2</version>
++        <interface>
++            <name>IUsb</name>
++            <instance>default</instance>
++        </interface>
++        <fqname>@1.2::IUsb/default</fqname>
++    </hal>
++</manifest>

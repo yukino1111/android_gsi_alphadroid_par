@@ -1,0 +1,1251 @@
+diff --git a/media/libaudiohal/Android.bp b/media/libaudiohal/Android.bp
+index 5f63e8de04916060a7fb9c9b3d0369c219f19d99..aa1d825d2f38aa56688d2d155fc5c8e0f67a6336 100644
+--- a/media/libaudiohal/Android.bp
++++ b/media/libaudiohal/Android.bp
+@@ -23,6 +23,7 @@ cc_library_shared {
+     ],
+ 
+     required: [
++        "libaudiohal@2.0",
+         "libaudiohal@4.0",
+         "libaudiohal@5.0",
+         "libaudiohal@6.0",
+diff --git a/media/libaudiohal/FactoryHalHidl.cpp b/media/libaudiohal/FactoryHalHidl.cpp
+index 590fec5443ad5969018158d79eabfbdd00a58324..46b6bd757a1cf12b96262cd0139e0304943752eb 100644
+--- a/media/libaudiohal/FactoryHalHidl.cpp
++++ b/media/libaudiohal/FactoryHalHidl.cpp
+@@ -36,12 +36,13 @@ namespace {
+  */
+ #define CONC_VERSION(maj, min) #maj "." #min
+ #define DECLARE_VERSION(maj, min) std::make_pair(std::make_pair(maj, min), CONC_VERSION(maj, min))
+-static constexpr std::array<std::pair<std::pair<int, int>, const char*>, 5> sAudioHALVersions = {
++static constexpr std::array<std::pair<std::pair<int, int>, const char*>, 6> sAudioHALVersions = {
+     DECLARE_VERSION(7, 1),
+     DECLARE_VERSION(7, 0),
+     DECLARE_VERSION(6, 0),
+     DECLARE_VERSION(5, 0),
+-    DECLARE_VERSION(4, 0)
++    DECLARE_VERSION(4, 0),
++    DECLARE_VERSION(2, 0)
+ };
+ 
+ bool createHalService(const std::string& version, const std::string& interface,
+diff --git a/media/libaudiohal/impl/Android.bp b/media/libaudiohal/impl/Android.bp
+index d30883a95c30b66a08adf8042362b87274c9c103..e53289c935c6470a969553ce6cd3b787a513f897 100644
+--- a/media/libaudiohal/impl/Android.bp
++++ b/media/libaudiohal/impl/Android.bp
+@@ -68,6 +68,29 @@ cc_defaults {
+     ],
+ }
+ 
++cc_library_shared {
++    name: "libaudiohal@2.0",
++    defaults: ["libaudiohal_default"],
++    srcs: [
++        ":audio_core_hal_client_sources",
++        ":audio_effect_hal_client_sources",
++        "EffectsFactoryHalHidlEntry.cpp",
++    ],
++    shared_libs: [
++        "android.hardware.audio.common@2.0",
++        "android.hardware.audio.common@2.0-util",
++        "android.hardware.audio.effect@2.0",
++        "android.hardware.audio.effect@2.0-util",
++        "android.hardware.audio@2.0",
++        "android.hardware.audio@2.0-util",
++    ],
++    cflags: [
++        "-DMAJOR_VERSION=2",
++        "-DMINOR_VERSION=0",
++        "-include common/all-versions/VersionMacro.h",
++    ]
++}
++
+ cc_library_shared {
+     name: "libaudiohal@4.0",
+     defaults: ["libaudiohal_default"],
+diff --git a/media/libaudiohal/impl/DeviceHalHidl.cpp b/media/libaudiohal/impl/DeviceHalHidl.cpp
+index 0cdf621c7a26974d54dfbdf9709550ffdce27a8a..1dffa87c904bbfd0b8c1d59104fdaa3968f8da09 100644
+--- a/media/libaudiohal/impl/DeviceHalHidl.cpp
++++ b/media/libaudiohal/impl/DeviceHalHidl.cpp
+@@ -516,6 +516,7 @@ status_t DeviceHalHidl::removeDeviceEffect(
+ status_t DeviceHalHidl::setConnectedState(const struct audio_port_v7 *port, bool connected) {
+     TIME_CHECK();
+     if (mDevice == 0) return NO_INIT;
++#if MAJOR_VERSION > 2
+ #if MAJOR_VERSION == 7 && MINOR_VERSION == 1
+     if (supportsSetConnectedState7_1) {
+         AudioPort hidlPort;
+@@ -538,11 +539,17 @@ status_t DeviceHalHidl::setConnectedState(const struct audio_port_v7 *port, bool
+         return result;
+     }
+     return processReturn("setConnectedState", mDevice->setConnectedState(hidlAddress, connected));
++#else
++    (void) port;
++    (void) connected;
++    return NO_ERROR;
++#endif
+ }
+ 
+ error::Result<audio_hw_sync_t> DeviceHalHidl::getHwAvSync() {
+     TIME_CHECK();
+     if (mDevice == 0) return NO_INIT;
++#if MAJOR_VERSION > 2
+     audio_hw_sync_t value;
+     Result result;
+     Return<void> ret = mDevice->getHwAvSync([&value, &result](Result r, audio_hw_sync_t v) {
+@@ -551,6 +558,9 @@ error::Result<audio_hw_sync_t> DeviceHalHidl::getHwAvSync() {
+     });
+     RETURN_IF_ERROR(processReturn("getHwAvSync", ret, result));
+     return value;
++#else
++    return 0xdeadbeef;
++#endif
+ }
+ 
+ status_t DeviceHalHidl::dump(int fd, const Vector<String16>& args) {
+diff --git a/media/libaudiohal/impl/DevicesFactoryHalHidl.cpp b/media/libaudiohal/impl/DevicesFactoryHalHidl.cpp
+index 4069a6bdbdfec3b72b605a269ddde65e33e54b36..e9d2af5d2cafcb44114c1c1304dc5d3c163c7b86 100644
+--- a/media/libaudiohal/impl/DevicesFactoryHalHidl.cpp
++++ b/media/libaudiohal/impl/DevicesFactoryHalHidl.cpp
+@@ -114,6 +114,7 @@ status_t DevicesFactoryHalHidl::openDevice(const char *name, sp<DeviceHalInterfa
+     Result retval = Result::NOT_INITIALIZED;
+     for (const auto& factory : factories) {
+         Return<void> ret;
++#if MAJOR_VERSION > 2
+         if (strcmp(name, AUDIO_HARDWARE_MODULE_ID_PRIMARY) == 0) {
+             // In V7.1 it's not possible to cast IDevice back to IPrimaryDevice,
+             // thus openPrimaryDevice must be used.
+@@ -130,6 +131,9 @@ status_t DevicesFactoryHalHidl::openDevice(const char *name, sp<DeviceHalInterfa
+                         }
+                     });
+         } else {
++#else
++        if (true) {
++#endif
+ #if MAJOR_VERSION == 7 && MINOR_VERSION == 1
+             ret = factory->openDevice_7_1(
+ #else
+diff --git a/services/audiopolicy/common/managerdefinitions/src/HwModule.cpp b/services/audiopolicy/common/managerdefinitions/src/HwModule.cpp
+index 418b7ebe886ea1a4ff1929207c93a24735dc9fc0..a97f76be595ff37caa185ddc5eff6fa24833c608 100644
+--- a/services/audiopolicy/common/managerdefinitions/src/HwModule.cpp
++++ b/services/audiopolicy/common/managerdefinitions/src/HwModule.cpp
+@@ -311,6 +311,27 @@ sp<HwModule> HwModuleCollection::getModuleForDeviceType(audio_devices_t type,
+             }
+         }
+     }
++    //We didn't find one? Ok but all SCOs are equivalent surely?
++    if(type == AUDIO_DEVICE_OUT_BLUETOOTH_SCO ||
++        type == AUDIO_DEVICE_OUT_BLUETOOTH_SCO_HEADSET ||
++        type == AUDIO_DEVICE_OUT_BLUETOOTH_SCO_CARKIT) {
++        ALOGE("Fallback SCO");
++        if(type != AUDIO_DEVICE_OUT_BLUETOOTH_SCO) {
++            auto ret = getModuleForDeviceType(AUDIO_DEVICE_OUT_BLUETOOTH_SCO, encodedFormat);
++            ALOGE("Fallback SCO simple? %s", (ret != nullptr) ? "yes" : "no");
++            if(ret != nullptr) return ret;
++        }
++        if(type != AUDIO_DEVICE_OUT_BLUETOOTH_SCO_HEADSET) {
++            auto ret = getModuleForDeviceType(AUDIO_DEVICE_OUT_BLUETOOTH_SCO_HEADSET, encodedFormat);
++            ALOGE("Fallback SCO headset? %s", (ret != nullptr) ? "yes" : "no");
++            if(ret != nullptr) return ret;
++        }
++        if(type != AUDIO_DEVICE_OUT_BLUETOOTH_SCO_CARKIT) {
++            auto ret = getModuleForDeviceType(AUDIO_DEVICE_OUT_BLUETOOTH_SCO_CARKIT, encodedFormat);
++            ALOGE("Fallback SCO carkit? %s", (ret != nullptr) ? "yes" : "no");
++            if(ret != nullptr) return ret;
++        }
++    }
+     return nullptr;
+ }
+ 
+diff --git a/services/audiopolicy/common/managerdefinitions/src/Serializer.cpp b/services/audiopolicy/common/managerdefinitions/src/Serializer.cpp
+index d446e9667b8dcfe5c8854fc3ad29a76b8a5149b1..da2842656a6f51aca3828b790cca37d021ac574d 100644
+--- a/services/audiopolicy/common/managerdefinitions/src/Serializer.cpp
++++ b/services/audiopolicy/common/managerdefinitions/src/Serializer.cpp
+@@ -25,6 +25,8 @@
+ #include <libxml/parser.h>
+ #include <libxml/xinclude.h>
+ #include <media/convert.h>
++#include <cutils/properties.h>
++#include <system/audio.h>
+ #include <utils/Log.h>
+ #include <utils/StrongPointer.h>
+ #include <utils/Errors.h>
+@@ -250,6 +252,7 @@ private:
+     std::string mChannelMasksSeparator = ",";
+     std::string mSamplingRatesSeparator = ",";
+     std::string mFlagsSeparator = "|";
++    std::string mMixPortName = "";
+ 
+     // Children: ModulesTraits, VolumeTraits, SurroundSoundTraits (optional)
+ };
+@@ -333,11 +336,8 @@ status_t PolicySerializer::deserializeCollection(const xmlNode *cur,
+                             Trait::collectionTag);
+                         return status;
+                     }
+-                } else if (mIgnoreVendorExtensions && std::get<status_t>(maybeElement) == NO_INIT) {
+-                    // Skip a vendor extension element.
+-                } else {
+-                    return BAD_VALUE;
+                 }
++                // Ignore elements that failed to parse, e.g. routes with invalid sinks
+             }
+         }
+         if (!xmlStrcmp(cur->name, reinterpret_cast<const xmlChar*>(Trait::tag))) {
+@@ -417,23 +417,39 @@ std::variant<status_t, AudioGainTraits::Element> PolicySerializer::deserialize<A
+     }
+ }
+ 
++static bool fixedEarpieceChannels = false;
+ template<>
+ std::variant<status_t, AudioProfileTraits::Element>
+ PolicySerializer::deserialize<AudioProfileTraits>(
+-        const xmlNode *cur, AudioProfileTraits::PtrSerializingCtx /*serializingContext*/)
++        const xmlNode *cur, AudioProfileTraits::PtrSerializingCtx serializingContext)
+ {
+     using Attributes = AudioProfileTraits::Attributes;
++    bool isOutput = serializingContext != nullptr;
+ 
+     std::string samplingRates = getXmlAttribute(cur, Attributes::samplingRates);
+     std::string format = getXmlAttribute(cur, Attributes::format);
+     std::string channels = getXmlAttribute(cur, Attributes::channelMasks);
++    ChannelTraits::Collection channelsMask = channelMasksFromString(channels, mChannelMasksSeparator.c_str());
++
++    //Some Foxconn devices have wrong earpiece channel mask, leading to no channel mask
++    if(channelsMask.size() == 1 && *channelsMask.begin() == AUDIO_CHANNEL_IN_MONO && isOutput) {
++        fixedEarpieceChannels = true;
++        channelsMask = channelMasksFromString("AUDIO_CHANNEL_OUT_MONO", ",");
++    }
++
++    // This breaks in-game voice chat and audio in some messaging apps causing it to play with a higher pitch and speed
++    bool disableStereoVoip = property_get_bool("persist.sys.phh.disable_stereo_voip", false);
++    if (disableStereoVoip && mMixPortName == "voip_rx") {
++        ALOGI("%s: disabling stereo support on voip_rx", __func__);
++        channelsMask = channelMasksFromString("AUDIO_CHANNEL_OUT_MONO", ",");
++    }
+ 
+     if (mIgnoreVendorExtensions && maybeVendorExtension(format)) {
+         ALOGI("%s: vendor extension format \"%s\" skipped", __func__, format.c_str());
+         return NO_INIT;
+     }
+     AudioProfileTraits::Element profile = new AudioProfile(formatFromString(format, gDynamicFormat),
+-            channelMasksFromString(channels, mChannelMasksSeparator.c_str()),
++            channelsMask,
+             samplingRatesFromString(samplingRates, mSamplingRatesSeparator.c_str()));
+ 
+     profile->setDynamicFormat(profile->getFormat() == gDynamicFormat);
+@@ -450,6 +466,7 @@ std::variant<status_t, MixPortTraits::Element> PolicySerializer::deserialize<Mix
+     using Attributes = MixPortTraits::Attributes;
+ 
+     std::string name = getXmlAttribute(child, Attributes::name);
++    mMixPortName = name;
+     if (name.empty()) {
+         ALOGE("%s: No %s found", __func__, Attributes::name);
+         return BAD_VALUE;
+@@ -572,7 +589,11 @@ std::variant<status_t, DevicePortTraits::Element> PolicySerializer::deserialize<
+             new DeviceDescriptor(type, name, address, encodedFormats);
+ 
+     AudioProfileTraits::Collection profiles;
+-    status_t status = deserializeCollection<AudioProfileTraits>(cur, &profiles, NULL);
++    status_t status;
++    if(audio_is_output_devices(type))
++        status = deserializeCollection<AudioProfileTraits>(cur, &profiles, (AudioProfileTraits::PtrSerializingCtx)1);
++    else
++        status = deserializeCollection<AudioProfileTraits>(cur, &profiles, NULL);
+     if (status != NO_ERROR) {
+         return status;
+     }
+@@ -594,6 +615,17 @@ std::variant<status_t, DevicePortTraits::Element> PolicySerializer::deserialize<
+     return deviceDesc;
+ }
+ 
++char* trim(char * s) {
++    int l = strlen(s);
++
++    if (l > 0) {
++      while (isspace(s[l - 1])) --l;
++      while (*s && isspace(*s)) ++s, --l;
++    }
++
++    return strndup(s, l);
++}
++
+ template<>
+ std::variant<status_t, RouteTraits::Element> PolicySerializer::deserialize<RouteTraits>(
+         const xmlNode *cur, RouteTraits::PtrSerializingCtx ctx)
+@@ -628,6 +660,9 @@ std::variant<status_t, RouteTraits::Element> PolicySerializer::deserialize<Route
+     }
+     route->setSink(sink);
+ 
++    // This fixes broken mic while video record on some Exynos devices
++    bool disableBackMic = property_get_bool("persist.sys.phh.disable_back_mic", false);
++
+     std::string sourcesAttr = getXmlAttribute(cur, Attributes::sources);
+     if (sourcesAttr.empty()) {
+         ALOGE("%s: No %s found", __func__, Attributes::sources);
+@@ -640,15 +675,22 @@ std::variant<status_t, RouteTraits::Element> PolicySerializer::deserialize<Route
+     char *devTag = strtok(sourcesLiteral.get(), ",");
+     while (devTag != NULL) {
+         if (strlen(devTag) != 0) {
+-            sp<PolicyAudioPort> source = ctx->findPortByTagName(devTag);
+-            if (source == NULL && !mIgnoreVendorExtensions) {
+-                ALOGE("%s: no source found with name=%s", __func__, devTag);
+-                return BAD_VALUE;
+-            } else if (source == NULL) {
+-                ALOGW("Skipping route source \"%s\" as it likely has vendor extension type",
+-                        devTag);
++            if (disableBackMic && strcmp(devTag, "Built-In Back Mic") == 0) {
++                ALOGW("Skipping route source \"%s\" as it breaks video recording mic", devTag);
+             } else {
+-                sources.add(source);
++                sp<PolicyAudioPort> source = ctx->findPortByTagName(devTag);
++                if (source == NULL) {
++                    source = ctx->findPortByTagName(trim(devTag));
++                }
++                if (source == NULL && false) {
++                    ALOGE("%s: no source found with name=%s", __func__, devTag);
++                    return BAD_VALUE;
++                } else if (source == NULL) {
++                    ALOGW("Skipping route source \"%s\" as it likely has vendor extension type",
++                            devTag);
++                } else {
++                    sources.add(source);
++                }
+             }
+         }
+         devTag = strtok(NULL, ",");
+@@ -663,6 +705,98 @@ std::variant<status_t, RouteTraits::Element> PolicySerializer::deserialize<Route
+     return route;
+ }
+ 
++static void fixupQualcommBtScoRoute(RouteTraits::Collection& routes, DevicePortTraits::Collection& devicePorts, HwModule* ctx) {
++    // On many Qualcomm devices, there is a BT SCO Headset Mic => primary input mix
++    // But Telephony Rx => BT SCO Headset route is missing
++    // When we detect such case, add the missing route
++
++    // If we have:
++    // <route type="mix" sink="Telephony Tx" sources="voice_tx"/>
++    // <route type="mix" sink="primary input" sources="Built-In Mic,Built-In Back Mic,Wired Headset Mic,BT SCO Headset Mic"/>
++    // <devicePort tagName="BT SCO Headset" type="AUDIO_DEVICE_OUT_BLUETOOTH_SCO_HEADSET" role="sink" />
++    // And no <route type="mix" sink="BT SCO Headset" />
++
++    // Add:
++    // <route type="mix" sink="BT SCO Headset" sources="primary output,deep_buffer,compressed_offload,Telephony Rx"/>
++    bool foundBtScoHeadsetDevice = false;
++    for(const auto& device: devicePorts) {
++        if(device->getTagName() == "BT SCO Headset") {
++            foundBtScoHeadsetDevice = true;
++            break;
++        }
++    }
++    if(!foundBtScoHeadsetDevice) {
++        ALOGE("No BT SCO Headset device found, don't patch policy");
++        return;
++    }
++
++    bool foundTelephony = false;
++    bool foundBtScoInput = false;
++    bool foundScoHeadsetRoute = false;
++    for(const auto& route: routes) {
++        ALOGE("Looking at route %d\n", route->getType());
++        if(route->getType() != AUDIO_ROUTE_MIX)
++            continue;
++        auto sink = route->getSink();
++        ALOGE("... With sink %s\n", sink->getTagName().c_str());
++        if(sink->getTagName() == "Telephony Tx") {
++            foundTelephony = true;
++            continue;
++        }
++        if(sink->getTagName() == "BT SCO Headset") {
++            foundScoHeadsetRoute = true;
++            break;
++        }
++        for(const auto& source: route->getSources()) {
++            ALOGE("... With source %s\n", source->getTagName().c_str());
++            if(source->getTagName() == "BT SCO Headset Mic") {
++                foundBtScoInput = true;
++                break;
++            }
++        }
++    }
++    //The route we want to add is already there
++    ALOGE("Done looking for existing routes");
++    if(foundScoHeadsetRoute)
++        return;
++
++    ALOGE("No existing route found... %d %d", foundTelephony ? 1 : 0, foundBtScoInput ? 1 : 0);
++    //We couldn't find the routes we assume are required for the function we want to add
++    if(!foundTelephony || !foundBtScoInput)
++        return;
++    ALOGE("Adding our own.");
++
++    // Add:
++    // <route type="mix" sink="BT SCO Headset" sources="primary output,deep_buffer,compressed_offload,Telephony Rx"/>
++    AudioRoute *newRoute = new AudioRoute(AUDIO_ROUTE_MIX);
++
++    auto sink = ctx->findPortByTagName("BT SCO Headset");
++    ALOGE("Got sink %p\n", sink.get());
++    newRoute->setSink(sink);
++
++    Vector<sp<PolicyAudioPort>> sources;
++    for(const auto& sourceName: {
++            "primary output",
++            "deep_buffer",
++            "compressed_offload",
++            "Telephony Rx"
++            }) {
++        auto source = ctx->findPortByTagName(sourceName);
++        ALOGE("Got source %p\n", source.get());
++        if (source.get() != nullptr) {
++            sources.add(source);
++            source->addRoute(newRoute);
++        }
++    }
++
++    newRoute->setSources(sources);
++
++    sink->addRoute(newRoute);
++
++    auto ret = routes.add(newRoute);
++    ALOGE("route add returned %zd", ret);
++}
++
+ template<>
+ std::variant<status_t, ModuleTraits::Element> PolicySerializer::deserialize<ModuleTraits>(
+         const xmlNode *cur, ModuleTraits::PtrSerializingCtx ctx)
+@@ -678,6 +812,7 @@ std::variant<status_t, ModuleTraits::Element> PolicySerializer::deserialize<Modu
+         ALOGE("%s: No %s found", __func__, Attributes::name);
+         return BAD_VALUE;
+     }
++
+     uint32_t versionMajor = 0, versionMinor = 0;
+     std::string versionLiteral = getXmlAttribute(cur, Attributes::version);
+     if (!versionLiteral.empty()) {
+@@ -703,6 +838,25 @@ std::variant<status_t, ModuleTraits::Element> PolicySerializer::deserialize<Modu
+     if (status != NO_ERROR) {
+         return status;
+     }
++    bool shouldEraseA2DP = name == "primary" && property_get_bool("persist.bluetooth.system_audio_hal.enabled", false);
++    if (shouldEraseA2DP) {
++        // Having A2DP ports in the primary audio HAL module will interfere with sysbta
++        // so remove them here. Note that we do not need to explicitly remove the
++        // corresponding routes below, because routes with invalid sinks will be ignored
++        auto iter = devicePorts.begin();
++        while (iter != devicePorts.end()) {
++            auto port = *iter;
++            auto type = port->type();
++            if (type == AUDIO_DEVICE_OUT_BLUETOOTH_A2DP
++                    || type == AUDIO_DEVICE_OUT_BLUETOOTH_A2DP_HEADPHONES
++                    || type == AUDIO_DEVICE_OUT_BLUETOOTH_A2DP_SPEAKER) {
++                ALOGE("Erasing A2DP device port %s", port->getTagName().c_str());
++                iter = devicePorts.erase(iter);
++            } else {
++                iter++;
++            }
++        }
++    }
+     module->setDeclaredDevices(devicePorts);
+ 
+     RouteTraits::Collection routes;
+@@ -710,6 +864,7 @@ std::variant<status_t, ModuleTraits::Element> PolicySerializer::deserialize<Modu
+     if (status != NO_ERROR) {
+         return status;
+     }
++    fixupQualcommBtScoRoute(routes, devicePorts, module.get());
+     module->setRoutes(routes);
+ 
+     for (const xmlNode *children = cur->xmlChildrenNode; children != NULL;
+@@ -728,7 +883,7 @@ std::variant<status_t, ModuleTraits::Element> PolicySerializer::deserialize<Modu
+                         sp<DeviceDescriptor> device = module->getDeclaredDevices().
+                                 getDeviceFromTagName(std::string(reinterpret_cast<const char*>(
+                                                         attachedDevice.get())));
+-                        if (device == nullptr && mIgnoreVendorExtensions) {
++                        if (device == nullptr) {
+                             ALOGW("Skipped attached device \"%s\" because it likely uses a vendor"
+                                     "extension type",
+                                     reinterpret_cast<const char*>(attachedDevice.get()));
+@@ -756,6 +911,14 @@ std::variant<status_t, ModuleTraits::Element> PolicySerializer::deserialize<Modu
+             }
+         }
+     }
++
++    if(fixedEarpieceChannels) {
++        sp<DeviceDescriptor> device =
++            module->getDeclaredDevices().getDeviceFromTagName("Earpiece");
++        if(device != 0)
++            ctx->addDevice(device);
++        fixedEarpieceChannels = false;
++    }
+     return module;
+ }
+ 
+@@ -890,6 +1053,30 @@ status_t PolicySerializer::deserialize(const char *configFile, AudioPolicyConfig
+     if (status != NO_ERROR) {
+         return status;
+     }
++
++   // Remove modules called bluetooth, bluetooth_qti or a2dp, and inject our own
++    if (property_get_bool("persist.bluetooth.system_audio_hal.enabled", false)) {
++	    for (auto it = modules.begin(); it != modules.end(); it++) {
++		    const char *name = (*it)->getName();
++		    if (strcmp(name, "a2dp") == 0 ||
++				    strcmp(name, "a2dpsink") == 0 ||
++				    strcmp(name, "bluetooth") == 0 ||
++				    strcmp(name, "bluetooth_qti") == 0) {
++
++			    ALOGE("Removed module %s\n", name);
++			    it = modules.erase(it);
++		    }
++		    if (it == modules.end()) break;
++	    }
++	    const char* a2dpFileName = "/system/etc/sysbta_audio_policy_configuration.xml";
++	    if (version == "7.0")
++		    a2dpFileName = "/system/etc/sysbta_audio_policy_configuration_7_0.xml";
++	    auto doc = make_xmlUnique(xmlParseFile(a2dpFileName));
++	    xmlNodePtr root = xmlDocGetRootElement(doc.get());
++	    auto maybeA2dpModule = deserialize<ModuleTraits>(root, config);
++	    modules.add(std::get<1>(maybeA2dpModule));
++    }
++
+     config->setHwModules(modules);
+ 
+     // Global Configuration
+diff --git a/services/audiopolicy/engine/common/src/EngineBase.cpp b/services/audiopolicy/engine/common/src/EngineBase.cpp
+index 99507eee5d3bb94d3883734e9bd151fd4680c146..e31cc21b17c9418f0ca374d6b3f48a1778a80e80 100644
+--- a/services/audiopolicy/engine/common/src/EngineBase.cpp
++++ b/services/audiopolicy/engine/common/src/EngineBase.cpp
+@@ -222,9 +222,9 @@ engineConfig::ParsingResult EngineBase::loadAudioPolicyEngineConfig()
+             }
+             if (group.stream != AUDIO_STREAM_DEFAULT) {
+                 // A legacy stream can be assigned once to a volume group
+-                LOG_ALWAYS_FATAL_IF(checkStreamForGroups(group.stream, mVolumeGroups),
+-                                    "stream %s already assigned to a volume group, "
+-                                    "review the configuration", toString(group.stream).c_str());
++                if(checkStreamForGroups(group.stream, mVolumeGroups)) {
++                    ALOGE("stream %s already assigned to a volume group, review the configuration", toString(group.stream).c_str());
++                }
+                 volumeGroup->addSupportedStream(group.stream);
+             }
+             addSupportedAttributesToGroup(group, volumeGroup, strategy);
+diff --git a/services/audiopolicy/engine/config/src/EngineConfig.cpp b/services/audiopolicy/engine/config/src/EngineConfig.cpp
+index 6f560d558da114f2ceb1cb00579d7e0a27bc9cee..92cf03e418dd6a507edffff9f8c071667e688236 100644
+--- a/services/audiopolicy/engine/config/src/EngineConfig.cpp
++++ b/services/audiopolicy/engine/config/src/EngineConfig.cpp
+@@ -724,7 +724,12 @@ android::status_t parseLegacyVolumeFile(const char* path, VolumeGroups &volumeGr
+ android::status_t parseLegacyVolumes(VolumeGroups &volumeGroups) {
+     if (std::string audioPolicyXmlConfigFile = audio_get_audio_policy_config_file();
+             !audioPolicyXmlConfigFile.empty()) {
+-        return parseLegacyVolumeFile(audioPolicyXmlConfigFile.c_str(), volumeGroups);
++        int ret = parseLegacyVolumeFile(audioPolicyXmlConfigFile.c_str(), volumeGroups);
++        if (ret == NO_ERROR && volumeGroups.size() == 0) {
++            ret = parseLegacyVolumeFile("/system/etc/fake_audio_policy_volume.xml", volumeGroups);
++            ALOGE("Parsing volume for /system/etc/fake_audio_policy_volume.xml gave %zu",  volumeGroups.size());
++        }
++	return ret;
+     } else {
+         ALOGE("No readable audio policy config file found");
+         return BAD_VALUE;
+diff --git a/services/audiopolicy/managerdefault/AudioPolicyManager.cpp b/services/audiopolicy/managerdefault/AudioPolicyManager.cpp
+index f625fdb3bee62765f77799e825293e6de60ee62a..6c456960056b80e864ffb32ee5bbde3ec1ff3f0c 100644
+--- a/services/audiopolicy/managerdefault/AudioPolicyManager.cpp
++++ b/services/audiopolicy/managerdefault/AudioPolicyManager.cpp
+@@ -675,6 +675,17 @@ status_t AudioPolicyManager::updateCallRoutingInternal(
+     disconnectTelephonyAudioSource(mCallRxSourceClient);
+     disconnectTelephonyAudioSource(mCallTxSourceClient);
+ 
++    // release existing RX patch if any
++    if (mCallRxPatch != 0) {
++        releaseAudioPatchInternal(mCallRxPatch->getHandle());
++        mCallRxPatch.clear();
++    }
++    // release TX patch if any
++    if (mCallTxPatch != 0) {
++        releaseAudioPatchInternal(mCallTxPatch->getHandle());
++        mCallTxPatch.clear();
++    }
++
+     auto telephonyRxModule =
+         mHwModules.getModuleForDeviceType(AUDIO_DEVICE_IN_TELEPHONY_RX, AUDIO_FORMAT_DEFAULT);
+     auto telephonyTxModule =
+@@ -697,9 +708,20 @@ status_t AudioPolicyManager::updateCallRoutingInternal(
+             ALOGE("%s() no telephony Tx and/or RX device", __func__);
+             return INVALID_OPERATION;
+         }
+-        // createAudioPatchInternal now supports both HW / SW bridging
+-        createRxPatch = true;
+-        createTxPatch = true;
++        if (property_get_int32("ro.vndk.version", 31) >= 30) {
++            // createAudioPatchInternal now supports both HW / SW bridging
++            createRxPatch = true;
++            createTxPatch = true;
++        } else {
++            // pre-R behavior: some devices before VNDK 30 do not support createAudioPatch correctly
++            // for HW bridging even though they declare support for it
++            // do not create a patch (aka Sw Bridging) if Primary HW module has declared supporting a
++            // route between telephony RX to Sink device and Source device to telephony TX
++            ALOGI("%s() Using pre-R behavior for createRxPatch and createTxPatch", __func__);
++            const auto &primaryModule = telephonyRxModule;
++            createRxPatch = !primaryModule->supportsPatch(rxSourceDevice, rxDevices.itemAt(0));
++            createTxPatch = !primaryModule->supportsPatch(txSourceDevice, txSinkDevice);
++        }
+     } else {
+         // If the RX device is on the primary HW module, then use legacy routing method for
+         // voice calls via setOutputDevice() on primary output.
+@@ -716,7 +738,14 @@ status_t AudioPolicyManager::updateCallRoutingInternal(
+     if (!createRxPatch) {
+         muteWaitMs = setOutputDevices(mPrimaryOutput, rxDevices, true, delayMs);
+     } else { // create RX path audio patch
+-        connectTelephonyRxAudioSource();
++        if (property_get_int32("ro.vndk.version", 31) >= 31) {
++            connectTelephonyRxAudioSource();
++        } else {
++            // pre-S behavior: some devices do not support SW bridging correctly when HW bridge is
++            // available through createAudioPatch(); startAudioSource() forces SW bridging.
++            ALOGI("%s() Using pre-S behavior to create HW Rx patch", __func__);
++            mCallRxPatch = createTelephonyPatch(true /*isRx*/, rxDevices.itemAt(0), delayMs);
++        }
+         // If the TX device is on the primary HW module but RX device is
+         // on other HW module, SinkMetaData of telephony input should handle it
+         // assuming the device uses audio HAL V5.0 and above
+@@ -731,7 +760,12 @@ status_t AudioPolicyManager::updateCallRoutingInternal(
+                 closeActiveClients(activeDesc);
+             }
+         }
+-        connectTelephonyTxAudioSource(txSourceDevice, txSinkDevice, delayMs);
++        if (property_get_int32("ro.vndk.version", 33) >= 33) {
++            connectTelephonyTxAudioSource(txSourceDevice, txSinkDevice, delayMs);
++        } else {
++            // pre-T behavior: hw bridging for tx too; skip the SwOutput
++            mCallTxPatch = createTelephonyPatch(false /*isRx*/, txSourceDevice, delayMs);
++        }
+     }
+     if (waitMs != nullptr) {
+         *waitMs = muteWaitMs;
+@@ -739,6 +773,36 @@ status_t AudioPolicyManager::updateCallRoutingInternal(
+     return NO_ERROR;
+ }
+ 
++sp<AudioPatch> AudioPolicyManager::createTelephonyPatch(
++        bool isRx, const sp<DeviceDescriptor> &device, uint32_t delayMs) {
++    PatchBuilder patchBuilder;
++
++    if (device == nullptr) {
++        return nullptr;
++    }
++
++    // @TODO: still ignoring the address, or not dealing platform with multiple telephony devices
++    if (isRx) {
++        patchBuilder.addSink(device).
++                addSource(mAvailableInputDevices.getDevice(
++                    AUDIO_DEVICE_IN_TELEPHONY_RX, String8(), AUDIO_FORMAT_DEFAULT));
++    } else {
++        patchBuilder.addSource(device).
++                addSink(mAvailableOutputDevices.getDevice(
++                    AUDIO_DEVICE_OUT_TELEPHONY_TX, String8(), AUDIO_FORMAT_DEFAULT));
++    }
++
++    audio_patch_handle_t patchHandle = AUDIO_PATCH_HANDLE_NONE;
++    status_t status =
++            createAudioPatchInternal(patchBuilder.patch(), &patchHandle, mUidCached, delayMs, nullptr);
++    ssize_t index = mAudioPatches.indexOfKey(patchHandle);
++    if (status != NO_ERROR || index < 0) {
++        ALOGW("%s() error %d creating %s audio patch", __func__, status, isRx ? "RX" : "TX");
++        return nullptr;
++    }
++    return mAudioPatches.valueAt(index);
++}
++
+ bool AudioPolicyManager::isDeviceOfModule(
+         const sp<DeviceDescriptor>& devDesc, const char *moduleId) const {
+     sp<HwModule> module = mHwModules.getModuleFromName(moduleId);
+@@ -4550,78 +4614,97 @@ status_t AudioPolicyManager::createAudioPatchInternal(const struct audio_patch *
+                 // in config XML to reach the sink so that is can be declared as available.
+                 audio_io_handle_t output = AUDIO_IO_HANDLE_NONE;
+                 sp<SwAudioOutputDescriptor> outputDesc;
+-                if (!sourceDesc->isInternal()) {
+-                    // take care of dynamic routing for SwOutput selection,
+-                    audio_attributes_t attributes = sourceDesc->attributes();
+-                    audio_stream_type_t stream = sourceDesc->stream();
+-                    audio_attributes_t resultAttr;
+-                    audio_config_t config = AUDIO_CONFIG_INITIALIZER;
+-                    config.sample_rate = sourceDesc->config().sample_rate;
+-                    config.channel_mask = sourceDesc->config().channel_mask;
+-                    config.format = sourceDesc->config().format;
+-                    audio_output_flags_t flags = AUDIO_OUTPUT_FLAG_NONE;
+-                    audio_port_handle_t selectedDeviceId = AUDIO_PORT_HANDLE_NONE;
+-                    bool isRequestedDeviceForExclusiveUse = false;
+-                    output_type_t outputType;
+-                    bool isSpatialized;
+-                    getOutputForAttrInt(&resultAttr, &output, AUDIO_SESSION_NONE, &attributes,
+-                                        &stream, sourceDesc->uid(), &config, &flags,
+-                                        &selectedDeviceId, &isRequestedDeviceForExclusiveUse,
+-                                        nullptr, &outputType, &isSpatialized);
+-                    if (output == AUDIO_IO_HANDLE_NONE) {
+-                        ALOGV("%s no output for device %s",
+-                              __FUNCTION__, sinkDevice->toString().c_str());
+-                        return INVALID_OPERATION;
+-                    }
+-                    outputDesc = mOutputs.valueFor(output);
+-                    if (outputDesc->isDuplicated()) {
+-                        ALOGE("%s output is duplicated", __func__);
+-                        return INVALID_OPERATION;
+-                    }
+-                    bool closeOutput = outputDesc->mDirectOpenCount != 0;
+-                    sourceDesc->setSwOutput(outputDesc, closeOutput);
+-                } else {
+-                    // Same for "raw patches" aka created from createAudioPatch API
+-                    SortedVector<audio_io_handle_t> outputs =
+-                            getOutputsForDevices(DeviceVector(sinkDevice), mOutputs);
+-                    // if the sink device is reachable via an opened output stream, request to
+-                    // go via this output stream by adding a second source to the patch
+-                    // description
+-                    output = selectOutput(outputs);
+-                    if (output == AUDIO_IO_HANDLE_NONE) {
+-                        ALOGE("%s no output available for internal patch sink", __func__);
+-                        return INVALID_OPERATION;
+-                    }
+-                    outputDesc = mOutputs.valueFor(output);
+-                    if (outputDesc->isDuplicated()) {
+-                        ALOGV("%s output for device %s is duplicated",
+-                              __func__, sinkDevice->toString().c_str());
+-                        return INVALID_OPERATION;
++                if (sourceDesc != nullptr) {
++                    if (!sourceDesc->isInternal()) {
++                        // take care of dynamic routing for SwOutput selection,
++                        audio_attributes_t attributes = sourceDesc->attributes();
++                        audio_stream_type_t stream = sourceDesc->stream();
++                        audio_attributes_t resultAttr;
++                        audio_config_t config = AUDIO_CONFIG_INITIALIZER;
++                        config.sample_rate = sourceDesc->config().sample_rate;
++                        config.channel_mask = sourceDesc->config().channel_mask;
++                        config.format = sourceDesc->config().format;
++                        audio_output_flags_t flags = AUDIO_OUTPUT_FLAG_NONE;
++                        audio_port_handle_t selectedDeviceId = AUDIO_PORT_HANDLE_NONE;
++                        bool isRequestedDeviceForExclusiveUse = false;
++                        output_type_t outputType;
++                        bool isSpatialized;
++                        getOutputForAttrInt(&resultAttr, &output, AUDIO_SESSION_NONE, &attributes,
++                                            &stream, sourceDesc->uid(), &config, &flags,
++                                            &selectedDeviceId, &isRequestedDeviceForExclusiveUse,
++                                            nullptr, &outputType, &isSpatialized);
++                        if (output == AUDIO_IO_HANDLE_NONE) {
++                            ALOGV("%s no output for device %s",
++                                __FUNCTION__, sinkDevice->toString().c_str());
++                            return INVALID_OPERATION;
++                        }
++                        outputDesc = mOutputs.valueFor(output);
++                        if (outputDesc->isDuplicated()) {
++                            ALOGE("%s output is duplicated", __func__);
++                            return INVALID_OPERATION;
++                        }
++                        bool closeOutput = outputDesc->mDirectOpenCount != 0;
++                        sourceDesc->setSwOutput(outputDesc, closeOutput);
++                    } else {
++                        // Same for "raw patches" aka created from createAudioPatch API
++                        SortedVector<audio_io_handle_t> outputs =
++                                getOutputsForDevices(DeviceVector(sinkDevice), mOutputs);
++                        // if the sink device is reachable via an opened output stream, request to
++                        // go via this output stream by adding a second source to the patch
++                        // description
++                        output = selectOutput(outputs);
++                        if (output == AUDIO_IO_HANDLE_NONE) {
++                            ALOGE("%s no output available for internal patch sink", __func__);
++                            return INVALID_OPERATION;
++                        }
++                        outputDesc = mOutputs.valueFor(output);
++                        if (outputDesc->isDuplicated()) {
++                            ALOGV("%s output for device %s is duplicated",
++                                __func__, sinkDevice->toString().c_str());
++                            return INVALID_OPERATION;
++                        }
++                        sourceDesc->setSwOutput(outputDesc, /* closeOutput= */ false);
+                     }
+-                    sourceDesc->setSwOutput(outputDesc, /* closeOutput= */ false);
+                 }
+                 // create a software bridge in PatchPanel if:
+                 // - source and sink devices are on different HW modules OR
+                 // - audio HAL version is < 3.0
+                 // - audio HAL version is >= 3.0 but no route has been declared between devices
+-                // - called from startAudioSource (aka sourceDesc is not internal) and source device
++                // - called from startAudioSource (aka sourceDesc is neither null nor internal) and source device
+                 //   does not have a gain controller
+                 if (!srcDevice->hasSameHwModuleAs(sinkDevice) ||
+                         (srcDevice->getModuleVersionMajor() < 3) ||
+                         !srcDevice->getModule()->supportsPatch(srcDevice, sinkDevice) ||
+-                        (!sourceDesc->isInternal() &&
++                        ((sourceDesc != nullptr && !sourceDesc->isInternal()) &&
+                          srcDevice->getAudioPort()->getGains().size() == 0)) {
+                     // support only one sink device for now to simplify output selection logic
+                     if (patch->num_sinks > 1) {
+                         return INVALID_OPERATION;
+                     }
+-                    sourceDesc->setUseSwBridge();
++                    if (sourceDesc == nullptr) {
++                        SortedVector<audio_io_handle_t> outputs =
++                                getOutputsForDevices(DeviceVector(sinkDevice), mOutputs);
++                        // if the sink device is reachable via an opened output stream, request to
++                        // go via this output stream by adding a second source to the patch
++                        // description
++                        output = selectOutput(outputs);
++                        if (output != AUDIO_IO_HANDLE_NONE) {
++                            outputDesc = mOutputs.valueFor(output);
++                            if (outputDesc->isDuplicated()) {
++                                ALOGV("%s output for device %s is duplicated",
++                                      __FUNCTION__, sinkDevice->toString().c_str());
++                                return INVALID_OPERATION;
++                            }
++                        }
++                    } else {
++                        sourceDesc->setUseSwBridge();
++                    }
+                     if (outputDesc != nullptr) {
+                         audio_port_config srcMixPortConfig = {};
+                         outputDesc->toAudioPortConfig(&srcMixPortConfig, nullptr);
+                         // for volume control, we may need a valid stream
+                         srcMixPortConfig.ext.mix.usecase.stream =
+-                            (!sourceDesc->isInternal() || isCallTxAudioSource(sourceDesc)) ?
++                            (sourceDesc != nullptr && (!sourceDesc->isInternal() || isCallTxAudioSource(sourceDesc))) ?
+                                     mEngine->getStreamTypeForAttributes(sourceDesc->attributes()) :
+                                     AUDIO_STREAM_PATCH;
+                         patchBuilder.addSource(srcMixPortConfig);
+diff --git a/services/audiopolicy/managerdefault/AudioPolicyManager.h b/services/audiopolicy/managerdefault/AudioPolicyManager.h
+index a69e08871ba7e2ddfba4adbdad16f7a27b3d1a44..f8762016db3d62b9e4e68636d65f74afee38b8c1 100644
+--- a/services/audiopolicy/managerdefault/AudioPolicyManager.h
++++ b/services/audiopolicy/managerdefault/AudioPolicyManager.h
+@@ -944,6 +944,9 @@ protected:
+ 
+         SoundTriggerSessionCollection mSoundTriggerSessions;
+ 
++        sp<AudioPatch> mCallTxPatch;
++        sp<AudioPatch> mCallRxPatch;
++
+         HwAudioOutputCollection mHwOutputs;
+         SourceClientCollection mAudioSources;
+ 
+diff --git a/services/camera/libcameraservice/Android.bp b/services/camera/libcameraservice/Android.bp
+index 981c56942c37b66119eef07dab2360449b5289af..769862aaa2853e1090474d089043394d4b204e7a 100644
+--- a/services/camera/libcameraservice/Android.bp
++++ b/services/camera/libcameraservice/Android.bp
+@@ -164,6 +164,10 @@ cc_library_shared {
+         "android.hardware.camera.device@3.6",
+         "android.hardware.camera.device@3.7",
+         "android.hardware.camera.device-V1-ndk",
++        "vendor.samsung.hardware.camera.provider@3.0",
++        "vendor.samsung.hardware.camera.provider@4.0",
++        "vendor.samsung.hardware.camera.device@5.0",
++        "vendor.samsung.hardware.camera.device@4.0",
+         "media_permission-aidl-cpp",
+     ],
+ 
+diff --git a/services/camera/libcameraservice/CameraService.cpp b/services/camera/libcameraservice/CameraService.cpp
+index bfd3120f73bee7fb052a11b709c1647b743bc2a6..653666b15c738767ad505db667dff39e95abb0e2 100644
+--- a/services/camera/libcameraservice/CameraService.cpp
++++ b/services/camera/libcameraservice/CameraService.cpp
+@@ -26,6 +26,7 @@
+ #include <ctime>
+ #include <string>
+ #include <sys/types.h>
++#include <sys/wait.h>
+ #include <inttypes.h>
+ #include <pthread.h>
+ #include <poll.h>
+@@ -143,6 +144,7 @@ const String16 CameraService::kWatchAllClientsFlag("all");
+ static std::set<String8> sServiceErrorEventSet;
+ 
+ CameraService::CameraService() :
++        mPhysicalFrontCamStatus(false),
+         mEventLog(DEFAULT_EVENT_LOG_LENGTH),
+         mNumberOfCameras(0),
+         mNumberOfCamerasWithoutSystemCamera(0),
+@@ -2044,6 +2046,7 @@ Status CameraService::connectHelper(const sp<CALLBACK>& cameraCb, const String8&
+             mServiceLock.lock();
+         } else {
+             // Otherwise, add client to active clients list
++            physicalFrontCam(cameraId == "1");
+             finishConnectLocked(client, partial, oomScoreOffset, systemNativeClient);
+         }
+ 
+@@ -2163,6 +2166,27 @@ status_t CameraService::addOfflineClient(String8 cameraId, sp<BasicClient> offli
+     return OK;
+ }
+ 
++void CameraService::physicalFrontCam(bool on) {
++    if(on == mPhysicalFrontCamStatus) return;
++    mPhysicalFrontCamStatus = on;
++
++    if(access("/dev/asusMotoDrv", F_OK) == 0) {
++        int pid = fork();
++        if(pid == 0) {
++            const char* cmd[] = {
++                "/system/bin/asus-motor",
++                "0",
++                NULL
++            };
++            cmd[1] = on ? "0" : "1";
++            execve("/system/bin/asus-motor", (char**)cmd, environ);
++            _exit(1);
++        } else {
++            waitpid(pid, NULL, 0);
++        }
++    }
++}
++
+ Status CameraService::turnOnTorchWithStrengthLevel(const String16& cameraId, int32_t torchStrength,
+         const sp<IBinder>& clientBinder) {
+     Mutex::Autolock lock(mServiceLock);
+@@ -3394,6 +3418,8 @@ binder::Status CameraService::BasicClient::disconnect() {
+     }
+     mDisconnected = true;
+ 
++    sCameraService->physicalFrontCam(false);
++
+     sCameraService->removeByClient(this);
+     sCameraService->logDisconnected(mCameraIdStr, mClientPid, String8(mClientPackageName));
+     sCameraService->mCameraProviderManager->removeRef(CameraProviderManager::DeviceMode::CAMERA,
+diff --git a/services/camera/libcameraservice/CameraService.h b/services/camera/libcameraservice/CameraService.h
+index 70293f4c5b3dbacab136c5227e749ce2c0f3942f..4ab725230cb2a6d13032122364c332d631874207 100644
+--- a/services/camera/libcameraservice/CameraService.h
++++ b/services/camera/libcameraservice/CameraService.h
+@@ -227,6 +227,9 @@ public:
+     // Register an offline client for a given active camera id
+     status_t addOfflineClient(String8 cameraId, sp<BasicClient> offlineClient);
+ 
++    bool mPhysicalFrontCamStatus;
++    void physicalFrontCam(bool on);
++
+     /////////////////////////////////////////////////////////////////////
+     // Client functionality
+ 
+diff --git a/services/camera/libcameraservice/common/CameraProviderManager.cpp b/services/camera/libcameraservice/common/CameraProviderManager.cpp
+index 43f92a9927cc8c4c7d3147a69213ef2a549ae8e7..4a2fb94da39823a4938605e5ace85a99dd21ba24 100644
+--- a/services/camera/libcameraservice/common/CameraProviderManager.cpp
++++ b/services/camera/libcameraservice/common/CameraProviderManager.cpp
+@@ -36,6 +36,7 @@
+ #include <functional>
+ #include <camera_metadata_hidden.h>
+ #include <android-base/parseint.h>
++#include <android-base/properties.h>
+ #include <android-base/logging.h>
+ #include <cutils/properties.h>
+ #include <hwbinder/IPCThreadState.h>
+@@ -210,6 +211,15 @@ std::vector<std::string> CameraProviderManager::getCameraDeviceIds(std::unordere
+             }
+         }
+     }
++
++    int32_t altPrimaryCamera = property_get_int32("persist.sys.alt_primary_camera", 0);
++
++    if (altPrimaryCamera != 0 && deviceIds.size() > (size_t) altPrimaryCamera) {
++        const std::string origPrimary = deviceIds[0];
++        deviceIds[0] = deviceIds[altPrimaryCamera];
++        deviceIds[altPrimaryCamera] = origPrimary;
++    }
++
+     return deviceIds;
+ }
+ 
+@@ -250,7 +260,9 @@ std::vector<std::string> CameraProviderManager::getAPI1CompatibleCameraDeviceIds
+         // API1 app doesn't handle logical and physical camera devices well. So
+         // for each camera facing, only take the first id advertised by HAL in
+         // all [logical, physical1, physical2, ...] id combos, and filter out the rest.
+-        filterLogicalCameraIdsLocked(providerDeviceIds);
++        if(!property_get_bool("persist.sys.phh.include_all_cameras", false)) {
++            filterLogicalCameraIdsLocked(providerDeviceIds);
++        }
+         collectDeviceIdsLocked(providerDeviceIds, publicDeviceIds, systemDeviceIds);
+     }
+     auto sortFunc =
+@@ -276,6 +288,18 @@ std::vector<std::string> CameraProviderManager::getAPI1CompatibleCameraDeviceIds
+     std::sort(systemDeviceIds.begin(), systemDeviceIds.end(), sortFunc);
+     deviceIds.insert(deviceIds.end(), publicDeviceIds.begin(), publicDeviceIds.end());
+     deviceIds.insert(deviceIds.end(), systemDeviceIds.begin(), systemDeviceIds.end());
++
++    // Default camera ID hack should match with android.hardware.camera2.CameraManager.sortCameraIds
++    // Note that the alt primary camera may not be available here due to filterLogicalCameraIdsLocked()
++    // in which case we will just ignore it.
++    int altPrimaryCameraId = base::GetIntProperty("persist.sys.alt_primary_camera", -1);
++
++    if (altPrimaryCameraId > 0 && altPrimaryCameraId < (int) deviceIds.size()) {
++        std::string origPrimary = deviceIds[0];
++        deviceIds[0] = deviceIds[altPrimaryCameraId];
++        deviceIds[altPrimaryCameraId] = origPrimary;
++    }
++
+     return deviceIds;
+ }
+ 
+@@ -954,10 +978,12 @@ SystemCameraKind CameraProviderManager::ProviderInfo::DeviceInfo3::getSystemCame
+ 
+     // Go through the capabilities and check if it has
+     // ANDROID_REQUEST_AVAILABLE_CAPABILITIES_SYSTEM_CAMERA
+-    for (size_t i = 0; i < entryCap.count; ++i) {
+-        uint8_t capability = entryCap.data.u8[i];
+-        if (capability == ANDROID_REQUEST_AVAILABLE_CAPABILITIES_SYSTEM_CAMERA) {
+-            return SystemCameraKind::SYSTEM_ONLY_CAMERA;
++    if(!property_get_bool("persist.sys.phh.include_all_cameras", false)) {
++        for (size_t i = 0; i < entryCap.count; ++i) {
++            uint8_t capability = entryCap.data.u8[i];
++            if (capability == ANDROID_REQUEST_AVAILABLE_CAPABILITIES_SYSTEM_CAMERA) {
++                return SystemCameraKind::SYSTEM_ONLY_CAMERA;
++            }
+         }
+     }
+     return SystemCameraKind::PUBLIC;
+diff --git a/services/camera/libcameraservice/common/hidl/HidlProviderInfo.cpp b/services/camera/libcameraservice/common/hidl/HidlProviderInfo.cpp
+index 630090b4acade2892f8aad238b9311e179a66cf3..62c57cd4f7eafe34a26996d8defac51d1c4c87fd 100644
+--- a/services/camera/libcameraservice/common/hidl/HidlProviderInfo.cpp
++++ b/services/camera/libcameraservice/common/hidl/HidlProviderInfo.cpp
+@@ -27,6 +27,10 @@
+ #include <utils/Trace.h>
+ 
+ #include <android/hardware/camera/device/3.7/ICameraDevice.h>
++#include <vendor/samsung/hardware/camera/provider/3.0/ISehCameraProvider.h>
++#include <vendor/samsung/hardware/camera/provider/4.0/ISehCameraProvider.h>
++#include <vendor/samsung/hardware/camera/device/5.0/ISehCameraDevice.h>
++#include <vendor/samsung/hardware/camera/device/4.0/ISehCameraDevice.h>
+ 
+ namespace {
+ const bool kEnableLazyHal(property_get_bool("ro.camera.enableLazyHal", false));
+@@ -134,6 +138,7 @@ status_t HidlProviderInfo::initializeHidlProvider(
+             mMinorVersion = 6;
+         }
+     }
++
+     // We need to check again since cast2_6.isOk() succeeds even if the provider
+     // version isn't actually 2.6.
+     if (interface2_6 == nullptr){
+@@ -170,6 +175,11 @@ status_t HidlProviderInfo::initializeHidlProvider(
+         return mapToStatusT(status);
+     }
+ 
++    auto samsungCast = vendor::samsung::hardware::camera::provider::V3_0::ISehCameraProvider::castFrom(interface);
++    auto samsung40Cast = vendor::samsung::hardware::camera::provider::V4_0::ISehCameraProvider::castFrom(interface);
++    auto samsungProvider = samsungCast.isOk() ? static_cast<sp<vendor::samsung::hardware::camera::provider::V3_0::ISehCameraProvider>>(samsungCast) : nullptr;
++    auto samsung40Provider = samsung40Cast.isOk() ? static_cast<sp<vendor::samsung::hardware::camera::provider::V4_0::ISehCameraProvider>>(samsung40Cast) : nullptr;
++
+     hardware::Return<bool> linked = interface->linkToDeath(this, /*cookie*/ mId);
+     if (!linked.isOk()) {
+         ALOGE("%s: Transaction error in linking to camera provider '%s' death: %s",
+@@ -200,12 +210,13 @@ status_t HidlProviderInfo::initializeHidlProvider(
+ 
+     // Get initial list of camera devices, if any
+     std::vector<std::string> devices;
+-    hardware::Return<void> ret = interface->getCameraIdList([&status, this, &devices](
++    auto cb = [&status, this, &devices](
+             Status idStatus,
+             const hardware::hidl_vec<hardware::hidl_string>& cameraDeviceNames) {
+         status = idStatus;
+         if (status == Status::OK) {
+             for (auto& name : cameraDeviceNames) {
++		    ALOGE("Listing camera ID %s", name.c_str());
+                 uint16_t major, minor;
+                 std::string type, id;
+                 status_t res = parseDeviceName(name, &major, &minor, &type, &id);
+@@ -217,7 +228,14 @@ status_t HidlProviderInfo::initializeHidlProvider(
+                     mProviderPublicCameraIds.push_back(id);
+                 }
+             }
+-        } });
++        } };
++    hardware::Return<void> ret;
++    if(samsung40Provider != nullptr && property_get_bool("persist.sys.phh.samsung.camera_ids", false))
++        ret = samsung40Provider->sehGetCameraIdList(cb);
++    else if(samsungProvider != nullptr && property_get_bool("persist.sys.phh.samsung.camera_ids", false))
++        ret = samsungProvider->sehGetCameraIdList(cb);
++    else
++        ret = interface->getCameraIdList(cb);
+     if (!ret.isOk()) {
+         ALOGE("%s: Transaction error in getting camera ID list from provider '%s': %s",
+                 __FUNCTION__, mProviderName.c_str(), linked.description().c_str());
+@@ -765,7 +783,23 @@ HidlProviderInfo::HidlDeviceInfo3::HidlDeviceInfo3(
+ status_t HidlProviderInfo::HidlDeviceInfo3::setTorchMode(bool enabled) {
+     using hardware::camera::common::V1_0::TorchMode;
+     const sp<hardware::camera::device::V3_2::ICameraDevice> interface = startDeviceInterface();
+-    Status s = interface->setTorchMode(enabled ? TorchMode::ON : TorchMode::OFF);
++    int32_t flashStrength = property_get_int32("persist.sys.phh.flash_strength", 1);
++
++    auto sehCast = vendor::samsung::hardware::camera::device::V5_0::ISehCameraDevice::castFrom(interface);
++    android::sp<vendor::samsung::hardware::camera::device::V5_0::ISehCameraDevice> seh = sehCast;
++
++    auto sehCast2 = vendor::samsung::hardware::camera::device::V4_0::ISehCameraDevice::castFrom(interface);
++    android::sp<vendor::samsung::hardware::camera::device::V4_0::ISehCameraDevice> seh2 = sehCast2;
++
++    Status s;
++    if(seh != nullptr) {
++        s = seh->sehSetTorchModeStrength(enabled ? TorchMode::ON : TorchMode::OFF, flashStrength);
++    } else if(seh2 != nullptr) {
++        s = seh2->sehSetTorchModeStrength(enabled ? TorchMode::ON : TorchMode::OFF, flashStrength);
++    } else {
++        s = interface->setTorchMode(enabled ? TorchMode::ON : TorchMode::OFF);
++    }
++
+     return mapToStatusT(s);
+ }
+ 
+diff --git a/services/camera/libcameraservice/device3/Camera3Device.cpp b/services/camera/libcameraservice/device3/Camera3Device.cpp
+index 6fb7dfd71fecf533255f424728ca3951af8f8185..082428beb0d991015597624e3c5fddfb486221df 100644
+--- a/services/camera/libcameraservice/device3/Camera3Device.cpp
++++ b/services/camera/libcameraservice/device3/Camera3Device.cpp
+@@ -194,8 +194,16 @@ status_t Camera3Device::initializeCommonLocked() {
+     mTimestampOffset = getMonoToBoottimeOffset();
+     camera_metadata_entry timestampSource =
+             mDeviceInfo.find(ANDROID_SENSOR_INFO_TIMESTAMP_SOURCE);
+-    if (timestampSource.count > 0 && timestampSource.data.u8[0] ==
+-            ANDROID_SENSOR_INFO_TIMESTAMP_SOURCE_REALTIME) {
++    int timestampSourceValue = 0;
++    if ((timestampSource.count > 0 && timestampSource.data.u8[0] ==
++            ANDROID_SENSOR_INFO_TIMESTAMP_SOURCE_REALTIME)) {
++        timestampSourceValue = 1;
++    }
++    int forceTimestampSource = property_get_int32("persist.sys.phh.camera.force_timestampsource", -1);
++    //Don't override if it's -1, default value
++    if(forceTimestampSource == 0) timestampSourceValue = 0;
++    if(forceTimestampSource == 1) timestampSourceValue = 1;
++    if (timestampSourceValue == 1) {
+         mDeviceTimeBaseIsRealtime = true;
+     }
+ 
+diff --git a/services/mediacodec/seccomp_policy/mediacodec-arm.policy b/services/mediacodec/seccomp_policy/mediacodec-arm.policy
+index b4a9ff6249b4d3f010323d036cb4ad312c52dcfa..aa6fc70d45bd5ceefa6aff6a7313362405b8319f 100644
+--- a/services/mediacodec/seccomp_policy/mediacodec-arm.policy
++++ b/services/mediacodec/seccomp_policy/mediacodec-arm.policy
+@@ -58,6 +58,8 @@ ugetrlimit: 1
+ getdents64: 1
+ getrandom: 1
+ 
++uname: 1
++
+ @include /system/etc/seccomp_policy/crash_dump.arm.policy
+ 
+ @include /system/etc/seccomp_policy/code_coverage.arm.policy
+diff --git a/services/mediacodec/seccomp_policy/mediacodec-arm64.policy b/services/mediacodec/seccomp_policy/mediacodec-arm64.policy
+index b4a9ff6249b4d3f010323d036cb4ad312c52dcfa..aa6fc70d45bd5ceefa6aff6a7313362405b8319f 100644
+--- a/services/mediacodec/seccomp_policy/mediacodec-arm64.policy
++++ b/services/mediacodec/seccomp_policy/mediacodec-arm64.policy
+@@ -58,6 +58,8 @@ ugetrlimit: 1
+ getdents64: 1
+ getrandom: 1
+ 
++uname: 1
++
+ @include /system/etc/seccomp_policy/crash_dump.arm.policy
+ 
+ @include /system/etc/seccomp_policy/code_coverage.arm.policy
+diff --git a/services/mediacodec/seccomp_policy/mediacodec-x86.policy b/services/mediacodec/seccomp_policy/mediacodec-x86.policy
+index 4bcc077ce8c90dfdf14e5d695f0f2e327379710b..3a08ff6f09b245e81daa2b100da36c8858a8e6c8 100644
+--- a/services/mediacodec/seccomp_policy/mediacodec-x86.policy
++++ b/services/mediacodec/seccomp_policy/mediacodec-x86.policy
+@@ -69,5 +69,7 @@ sched_yield: 1
+ getpid: 1
+ gettid: 1
+ 
++uname: 1
++
+ @include /system/etc/seccomp_policy/crash_dump.x86.policy
+ @include /system/etc/seccomp_policy/code_coverage.x86.policy
+diff --git a/services/mediacodec/seccomp_policy/mediacodec-x86_64.policy b/services/mediacodec/seccomp_policy/mediacodec-x86_64.policy
+index 4bcc077ce8c90dfdf14e5d695f0f2e327379710b..3a08ff6f09b245e81daa2b100da36c8858a8e6c8 100644
+--- a/services/mediacodec/seccomp_policy/mediacodec-x86_64.policy
++++ b/services/mediacodec/seccomp_policy/mediacodec-x86_64.policy
+@@ -69,5 +69,7 @@ sched_yield: 1
+ getpid: 1
+ gettid: 1
+ 
++uname: 1
++
+ @include /system/etc/seccomp_policy/crash_dump.x86.policy
+ @include /system/etc/seccomp_policy/code_coverage.x86.policy
+diff --git a/services/mediacodec/seccomp_policy/mediaswcodec-arm.policy b/services/mediacodec/seccomp_policy/mediaswcodec-arm.policy
+index 41efce08b1fa5881b86da5df6b32bdb95a2d006b..3c74e077c670750f1ac01a0021adc80dc897f7ad 100644
+--- a/services/mediacodec/seccomp_policy/mediaswcodec-arm.policy
++++ b/services/mediacodec/seccomp_policy/mediaswcodec-arm.policy
+@@ -86,4 +86,6 @@ getegid32: 1
+ getgroups32: 1
+ sysinfo: 1
+ 
++uname: 1
++
+ @include /apex/com.android.media.swcodec/etc/seccomp_policy/code_coverage.arm.policy
+diff --git a/services/mediacodec/seccomp_policy/mediaswcodec-arm64.policy b/services/mediacodec/seccomp_policy/mediaswcodec-arm64.policy
+index 4317cccfdd19800c8ef7038c8be8710ab6a3061c..9d9b11538fff48b04fabdc7b05571fd70435aa92 100644
+--- a/services/mediacodec/seccomp_policy/mediaswcodec-arm64.policy
++++ b/services/mediacodec/seccomp_policy/mediaswcodec-arm64.policy
+@@ -90,4 +90,6 @@ sysinfo: 1
+ setsockopt: 1
+ sendmsg: 1
+ 
++uname: 1
++
+ @include /apex/com.android.media.swcodec/etc/seccomp_policy/code_coverage.arm64.policy
+diff --git a/services/mediacodec/seccomp_policy/mediaswcodec-x86.policy b/services/mediacodec/seccomp_policy/mediaswcodec-x86.policy
+index 9bafe7bc55c63a9521ce1ad61e48f0b710e6c19f..4d9192cfe977963cbd6adbeaf617f9d445ef8ddb 100644
+--- a/services/mediacodec/seccomp_policy/mediaswcodec-x86.policy
++++ b/services/mediacodec/seccomp_policy/mediaswcodec-x86.policy
+@@ -69,5 +69,7 @@ sched_yield: 1
+ getpid: 1
+ gettid: 1
+ 
++uname: 1
++
+ @include /apex/com.android.media.swcodec/etc/seccomp_policy/crash_dump.x86.policy
+ @include /apex/com.android.media.swcodec/etc/seccomp_policy/code_coverage.x86.policy
+diff --git a/services/mediacodec/seccomp_policy/mediaswcodec-x86_64.policy b/services/mediacodec/seccomp_policy/mediaswcodec-x86_64.policy
+index b0ed0402bb605002f91abc62a3318b4e740af4ab..607d8dadd8ca3c9d49905a3aed17bcd902595dcb 100644
+--- a/services/mediacodec/seccomp_policy/mediaswcodec-x86_64.policy
++++ b/services/mediacodec/seccomp_policy/mediaswcodec-x86_64.policy
+@@ -69,5 +69,7 @@ sched_yield: 1
+ getpid: 1
+ gettid: 1
+ 
++uname: 1
++
+ @include /apex/com.android.media.swcodec/etc/seccomp_policy/crash_dump.x86_64.policy
+ @include /apex/com.android.media.swcodec/etc/seccomp_policy/code_coverage.x86_64.policy
+diff --git a/services/mediaextractor/seccomp_policy/mediaextractor-arm.policy b/services/mediaextractor/seccomp_policy/mediaextractor-arm.policy
+index e1f7fe726515f088e6d21880a6a4d907eb3a7046..435f76cf9d2b4d51621501b45d67b3147db55feb 100644
+--- a/services/mediaextractor/seccomp_policy/mediaextractor-arm.policy
++++ b/services/mediaextractor/seccomp_policy/mediaextractor-arm.policy
+@@ -60,5 +60,7 @@ mremap: arg3 == 3 || arg3 == MREMAP_MAYMOVE
+ readlinkat: 1
+ _llseek: 1
+ 
++uname: 1
++
+ @include /apex/com.android.media/etc/seccomp_policy/crash_dump.arm.policy
+ @include /apex/com.android.media/etc/seccomp_policy/code_coverage.arm.policy
+diff --git a/services/mediaextractor/seccomp_policy/mediaextractor-arm64.policy b/services/mediaextractor/seccomp_policy/mediaextractor-arm64.policy
+index e54c9187e7e6e7ecc7b412fa12f0ac382df0a9ad..c2be7cf820feaef760f23c5da2d9ef6eb8b2fc64 100644
+--- a/services/mediaextractor/seccomp_policy/mediaextractor-arm64.policy
++++ b/services/mediaextractor/seccomp_policy/mediaextractor-arm64.policy
+@@ -57,5 +57,7 @@ setsockopt: 1
+ sendmsg: 1
+ set_tid_address: 1
+ 
++uname: 1
++
+ @include /apex/com.android.media/etc/seccomp_policy/crash_dump.arm64.policy
+ @include /apex/com.android.media/etc/seccomp_policy/code_coverage.arm64.policy
+diff --git a/services/mediaextractor/seccomp_policy/mediaextractor-x86.policy b/services/mediaextractor/seccomp_policy/mediaextractor-x86.policy
+index 5b3762712d49e57d36aa59e04613e89e2dbc5e01..5897402ca153a78d13047c3b1dde084db44f05f8 100644
+--- a/services/mediaextractor/seccomp_policy/mediaextractor-x86.policy
++++ b/services/mediaextractor/seccomp_policy/mediaextractor-x86.policy
+@@ -59,5 +59,7 @@ sched_yield: 1
+ getpid: 1
+ gettid: 1
+ 
++uname: 1
++
+ @include /apex/com.android.media/etc/seccomp_policy/crash_dump.x86.policy
+ @include /apex/com.android.media/etc/seccomp_policy/code_coverage.x86.policy
+diff --git a/services/mediaextractor/seccomp_policy/mediaextractor-x86_64.policy b/services/mediaextractor/seccomp_policy/mediaextractor-x86_64.policy
+index 51df1a238d4a070612b97dea0e70ff7b0c4ae80e..6846c01d0ef5edee7c94dca9a6c3a92fcc2d52af 100644
+--- a/services/mediaextractor/seccomp_policy/mediaextractor-x86_64.policy
++++ b/services/mediaextractor/seccomp_policy/mediaextractor-x86_64.policy
+@@ -53,5 +53,7 @@ sched_yield: 1
+ getpid: 1
+ gettid: 1
+ 
++uname: 1
++
+ @include /apex/com.android.media/etc/seccomp_policy/crash_dump.x86_64.policy
+ @include /apex/com.android.media/etc/seccomp_policy/code_coverage.x86_64.policy

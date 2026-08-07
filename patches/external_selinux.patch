@@ -1,0 +1,230 @@
+diff --git a/libselinux/src/label_backends_android.c b/libselinux/src/label_backends_android.c
+index e52b44d4feef33ac41aead623f364b3af832f6cf..3b8a2bd8e88eab1767c293053e1401c17690a1cb 100644
+--- a/libselinux/src/label_backends_android.c
++++ b/libselinux/src/label_backends_android.c
+@@ -62,14 +62,24 @@ static int nodups_specs(struct saved_data *data)
+ 					    curr_spec->property_key)) {
+ 				if (strcmp(spec_arr[jj].lr.ctx_raw,
+ 						    curr_spec->lr.ctx_raw)) {
+-					rc = -1;
+-					errno = EINVAL;
+ 					selinux_log
+ 						(SELINUX_ERROR,
+ 						 "Multiple different specifications for %s  (%s and %s).\n",
+ 						 curr_spec->property_key,
+ 						 spec_arr[jj].lr.ctx_raw,
+ 						 curr_spec->lr.ctx_raw);
++					int ignore = 0;
++					/*
++					 * This issue has been found on Moto E5
++					 * E SELinux : Multiple different specifications for rcs  (u:object_r:radio_service:s0 and u:object_r:mot_rcs_service:s0).
++					 */
++					if(!strcmp(curr_spec->property_key, "rcs"))
++						ignore = 1;
++
++					if(!ignore) {
++						rc = -1;
++						errno = EINVAL;
++					}
+ 				} else {
+ 					selinux_log
+ 						(SELINUX_WARNING,
+diff --git a/libsepol/cil/src/cil_binary.c b/libsepol/cil/src/cil_binary.c
+index 53017e2d5794628b8939bfbe8f68ed0306ffe5d3..7f2c2e68201e747de7529966534b0423090e32dc 100644
+--- a/libsepol/cil/src/cil_binary.c
++++ b/libsepol/cil/src/cil_binary.c
+@@ -511,13 +511,17 @@ int cil_typealias_to_policydb(policydb_t *pdb, struct cil_alias *cil_alias)
+ 	type_datum_init(sepol_alias);
+ 
+ 	rc = __cil_get_sepol_type_datum(pdb, DATUM(cil_alias->actual), &sepol_type);
+-	if (rc != SEPOL_OK) goto exit;
++	if (rc != SEPOL_OK) {
++        cil_log(CIL_ERR, "Failed at %s:%s:%d\n", __FILE__, __FUNCTION__, __LINE__);
++        goto exit;
++    }
+ 
+ 	sepol_alias->flavor = TYPE_TYPE;
+ 
+ 	key = cil_strdup(cil_alias->datum.fqn);
+ 	rc = symtab_insert(pdb, SYM_TYPES, key, sepol_alias, SCOPE_DECL, 0, NULL);
+ 	if (rc != SEPOL_OK) {
++        cil_log(CIL_ERR, "Failed at %s:%s:%d:%d\n", __FILE__, __FUNCTION__, __LINE__, rc);
+ 		goto exit;
+ 	}
+ 	sepol_alias->s.value = sepol_type->s.value;
+@@ -3904,7 +3908,7 @@ int __cil_node_to_policydb(struct cil_tree_node *node, void *extra_args)
+ 
+ exit:
+ 	if (rc != SEPOL_OK) {
+-		cil_tree_log(node, CIL_ERR, "Binary policy creation failed");
++		cil_tree_log(node, CIL_ERR, "Binary policy creation failed, for pass = %d, flavor = %d", pass, node->flavor);
+ 	}
+ 	return rc;
+ }
+diff --git a/libsepol/cil/src/cil_build_ast.c b/libsepol/cil/src/cil_build_ast.c
+index 5f9392d16f8c19b8af0f3c34520680a78ffe3cdb..61c8864bc61b276fd550ceae6b0b20ab9b7941ec 100644
+--- a/libsepol/cil/src/cil_build_ast.c
++++ b/libsepol/cil/src/cil_build_ast.c
+@@ -116,7 +116,7 @@ int cil_add_decl_to_symtab(struct cil_db *db, symtab_t *symtab, hashtab_key_t ke
+ 
+ 	rc = cil_symtab_insert(symtab, key, datum, node);
+ 	if (rc == SEPOL_EEXIST) {
+-		struct cil_symtab_datum *prev;
++		struct cil_symtab_datum *prev = NULL;
+ 		rc = cil_symtab_get_datum(symtab, key, &prev);
+ 		if (rc != SEPOL_OK) {
+ 			cil_log(CIL_ERR, "Re-declaration of %s %s, but previous declaration could not be found\n",cil_node_to_string(node), key);
+@@ -129,12 +129,18 @@ int cil_add_decl_to_symtab(struct cil_db *db, symtab_t *symtab, hashtab_key_t ke
+ 				cil_node_to_string(node), key);
+ 			cil_tree_log(node, CIL_ERR, "Previous declaration of %s",
+ 				     cil_node_to_string(n));
+-			return SEPOL_ERR;
++			if(
++				strcmp(key, "sysfs_usb_supply") == 0 ||
++				strcmp(key, "hostapd") == 0 ||
++				strcmp(key, "rpmb_device") == 0) {
++					cil_log(CIL_ERR, "Ignoring...");
++			} else {
++				return SEPOL_ERR;
++			}
+ 		}
+ 		/* multiple_decls is enabled and works for this datum type, add node */
+ 		cil_list_append(prev->nodes, CIL_NODE, node);
+ 		node->data = prev;
+-		return SEPOL_EEXIST;
+ 	}
+ 
+ 	return SEPOL_OK;
+@@ -455,6 +461,14 @@ int cil_gen_class(struct cil_db *db, struct cil_tree_node *parse_current, struct
+ 	struct cil_tree_node *perms = NULL;
+ 	int rc = SEPOL_ERR;
+ 
++    {
++        const char* path = cil_tree_get_cil_path(parse_current);
++        if(strstr(path, "vendor/")) {
++            cil_clear_node(ast_node);
++            return SEPOL_OK;
++        }
++    }
++
+ 	rc = __cil_verify_syntax(parse_current, syntax, syntax_len);
+ 	if (rc != SEPOL_OK) {
+ 		goto exit;
+@@ -523,6 +537,14 @@ int cil_gen_classorder(struct cil_db *db, struct cil_tree_node *parse_current, s
+ 	struct cil_list_item *head = NULL;
+ 	int rc = SEPOL_ERR;
+ 
++    {
++        const char* path = cil_tree_get_cil_path(parse_current);
++        if(strstr(path, "vendor/")) {
++            cil_clear_node(ast_node);
++            return SEPOL_OK;
++        }
++    }
++
+ 	if (db == NULL || parse_current == NULL || ast_node == NULL) {
+ 		goto exit;
+ 	}
+@@ -2108,6 +2130,14 @@ int cil_gen_avrule(struct cil_tree_node *parse_current, struct cil_tree_node *as
+ 	rule->src_str = parse_current->next->data;
+ 	rule->tgt_str = parse_current->next->next->data;
+ 
++    {
++        const char *classname = parse_current->next->next->next->cl_head->data;
++        if(strcmp(classname, "keystore_moto_key") == 0) {
++            cil_clear_node(ast_node);
++            return SEPOL_OK;
++        }
++    }
++
+ 	rc = cil_fill_classperms_list(parse_current->next->next->next, &rule->perms.classperms);
+ 	if (rc != SEPOL_OK) {
+ 		goto exit;
+diff --git a/libsepol/cil/src/cil_post.c b/libsepol/cil/src/cil_post.c
+index 09c02af991be9159085231669400b11c4f70617f..97bf54f884ace50db4f14a8695f42d4dd0582668 100644
+--- a/libsepol/cil/src/cil_post.c
++++ b/libsepol/cil/src/cil_post.c
+@@ -491,7 +491,27 @@ int cil_post_genfscon_context_compare(const void *a, const void *b)
+ {
+ 	struct cil_genfscon *a_genfscon = *(struct cil_genfscon**)a;
+ 	struct cil_genfscon *b_genfscon = *(struct cil_genfscon**)b;
+-	return context_compare(a_genfscon->context, b_genfscon->context);
++	int rc = context_compare(a_genfscon->context, b_genfscon->context);
++	if(rc) {
++		fprintf(stderr, "hello %s\n", a_genfscon->fs_str);
++		int bypass = 0;
++		/*
++		 * This conflict has been seen on Xiaomi Mi 9:
++		 * - AOSP Q says (genfscon sysfs /devices/virtual/block/ (u object_r sysfs_devices_block ((s0) (s0))))
++		 * - stock rom says (genfscon sysfs /devices/virtual/block/ (u object_r sysfs_ufs_target ((s0) (s0))))
++		 */
++		if(strcmp(a_genfscon->path_str, "/devices/virtual/block/") == 0)
++			bypass = 1;
++		if(strcmp(a_genfscon->fs_str, "exfat") == 0 || strcmp(a_genfscon->fs_str, "esdfs") == 0) {
++            if(strcmp(a_genfscon->path_str, "/") == 0)
++                bypass = 1;
++        }
++		if(bypass == 1) {
++			fprintf(stderr, "Received conflicting %s vs %s but ignore\n", a_genfscon->path_str, b_genfscon->path_str);
++			return 0;
++		}
++	}
++	return rc;
+ }
+ 
+ int cil_post_netifcon_context_compare(const void *a, const void *b)
+diff --git a/libsepol/cil/src/cil_resolve_ast.c b/libsepol/cil/src/cil_resolve_ast.c
+index b63c13594fc20bd1b8e83c05d30f33b091e026e1..87db4f81d0886443681c2d98592a04c149e9d0da 100644
+--- a/libsepol/cil/src/cil_resolve_ast.c
++++ b/libsepol/cil/src/cil_resolve_ast.c
+@@ -517,7 +517,13 @@ int cil_resolve_aliasactual(struct cil_tree_node *current, void *extra_args, enu
+ 	}
+ 	if (FLAVOR(alias_datum) != alias_flavor) {
+ 		cil_log(CIL_ERR, "%s is not an alias\n",alias_datum->name);
+-		rc = SEPOL_ERR;
++		if(
++			strcmp(alias_datum->name, "hostapd") == 0 ||
++			strcmp(alias_datum->name, "sysfs_usb_supply") == 0 ||
++			strcmp(alias_datum->name, "rpmb_device") == 0)
++				rc = 0;
++			else
++				rc = SEPOL_ERR;
+ 		goto exit;
+ 	}
+ 
+@@ -558,7 +564,12 @@ int cil_resolve_alias_to_actual(struct cil_tree_node *current, enum cil_flavor f
+ 	int limit = 2;
+ 
+ 	if (alias->actual == NULL) {
+-		cil_tree_log(current, CIL_ERR, "Alias declared but not used");
++		cil_tree_log(current, CIL_ERR, "Alias %s declared but not used", a1->datum.name);
++		if(
++			strcmp(a1->datum.name, "hostapd") == 0 ||
++			strcmp(a1->datum.name, "sysfs_usb_supply") == 0 ||
++			strcmp(a1->datum.name, "rpmb_device") == 0)
++				return SEPOL_OK;
+ 		return SEPOL_ERR;
+ 	}
+ 
+diff --git a/secilc/secilc.c b/secilc/secilc.c
+index 80d3583d75cc5b4fa8fd59251b1fef59634f809e..d9841ab051f6258e5c6edad5ef6588708a6483fa 100644
+--- a/secilc/secilc.c
++++ b/secilc/secilc.c
+@@ -94,7 +94,7 @@ int main(int argc, char *argv[])
+ 	int target = SEPOL_TARGET_SELINUX;
+ 	int mls = -1;
+ 	int disable_dontaudit = 0;
+-	int multiple_decls = 0;
++	int multiple_decls = 1;
+ 	int disable_neverallow = 0;
+ 	int preserve_tunables = 0;
+ 	int qualified_names = 0;
+@@ -107,7 +107,7 @@ int main(int argc, char *argv[])
+ 	int opt_index = 0;
+ 	char *fc_buf = NULL;
+ 	size_t fc_size;
+-	enum cil_log_level log_level = CIL_ERR;
++	enum cil_log_level log_level = CIL_WARN;
+ 	static struct option long_opts[] = {
+ 		{"help", no_argument, 0, 'h'},
+ 		{"verbose", no_argument, 0, 'v'},

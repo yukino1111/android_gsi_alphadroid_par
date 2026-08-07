@@ -1,0 +1,27 @@
+diff --git a/common/native/bpf_headers/include/bpf/BpfMap.h b/common/native/bpf_headers/include/bpf/BpfMap.h
+index 2bee2ee4a9b7cfb0e73494b8f83cb0d29a9efb1c..9e8a783693633f55c1e0575d46c57f67a3ed8644 100644
+--- a/common/native/bpf_headers/include/bpf/BpfMap.h
++++ b/common/native/bpf_headers/include/bpf/BpfMap.h
+@@ -50,14 +50,17 @@ class BpfMap {
+     // flag must be within BPF_OBJ_FLAG_MASK, ie. 0, BPF_F_RDONLY, BPF_F_WRONLY
+     BpfMap<Key, Value>(const char* pathname, uint32_t flags) {
+         mMapFd.reset(mapRetrieve(pathname, flags));
+-        if (mMapFd < 0) abort();
+-        if (isAtLeastKernelVersion(4, 14, 0)) {
+-            if (bpfGetFdKeySize(mMapFd) != sizeof(Key)) abort();
+-            if (bpfGetFdValueSize(mMapFd) != sizeof(Value)) abort();
+-        }
+     }
+ 
+   public:
++    bool isOk() {
++        if (mMapFd < 0) return false;
++        if (isAtLeastKernelVersion(4, 14, 0)) {
++            if (bpfGetFdKeySize(mMapFd) != sizeof(Key)) return false;
++            if (bpfGetFdValueSize(mMapFd) != sizeof(Value)) return false;
++        }
++        return true;
++    }
+     explicit BpfMap<Key, Value>(const char* pathname) : BpfMap<Key, Value>(pathname, 0) {}
+ 
+     BpfMap<Key, Value>(bpf_map_type map_type, uint32_t max_entries, uint32_t map_flags = 0) {

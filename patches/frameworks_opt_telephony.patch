@@ -1,0 +1,289 @@
+diff --git a/src/java/com/android/internal/telephony/GsmCdmaPhone.java b/src/java/com/android/internal/telephony/GsmCdmaPhone.java
+index 1da9f4bba1d82bb0eabf719088bf93385812a2f7..a5eeeccdff5dce01f90129db4548a270427d6db2 100644
+--- a/src/java/com/android/internal/telephony/GsmCdmaPhone.java
++++ b/src/java/com/android/internal/telephony/GsmCdmaPhone.java
+@@ -2833,7 +2833,11 @@ public class GsmCdmaPhone extends Phone {
+         if (found != null) {
+             // Complete pending USSD
+             if (isUssdRelease) {
+-                found.onUssdRelease();
++                if (SystemProperties.getBoolean("persist.sys.radio.huawei", false)) {
++                    found.onUssdFinished(ussdMessage, isUssdRequest);
++                } else {
++                    found.onUssdRelease();
++                }
+             } else if (isUssdError) {
+                 found.onUssdFinishedError();
+             } else {
+@@ -3123,7 +3127,7 @@ public class GsmCdmaPhone extends Phone {
+                 String version = (String)ar.result;
+                 if (version != null) {
+                     int length = version.length();
+-                    final int MAX_VERSION_LEN = SystemProperties.PROP_VALUE_MAX/2;
++                    final int MAX_VERSION_LEN = SystemProperties.PROP_VALUE_MAX/2 - 2;
+                     TelephonyManager.from(mContext).setBasebandVersionForPhone(getPhoneId(),
+                             length <= MAX_VERSION_LEN ? version
+                                 : version.substring(length - MAX_VERSION_LEN, length));
+diff --git a/src/java/com/android/internal/telephony/RIL.java b/src/java/com/android/internal/telephony/RIL.java
+index 70431f6a0c27285bdb31b0c9a7dfdf2c8a83cf75..182b33565662145bfb043ecbe81d990ff7a3ff0f 100644
+--- a/src/java/com/android/internal/telephony/RIL.java
++++ b/src/java/com/android/internal/telephony/RIL.java
+@@ -5940,6 +5940,130 @@ public class RIL extends BaseCommands implements CommandsInterface {
+                 new CellSignalStrengthNr());
+     }
+ 
++    /**
++     * Fixup for SignalStrength for Huawei device
++     * @param signalStrength the initial signal strength
++     * @return a new SignalStrength
++     */
++    public SignalStrength fixupSignalStrengthHuawei(android.hardware.radio.V1_0.SignalStrength signalStrength) {
++        int gsmSignalStrength = signalStrength.gw.signalStrength;
++        int gsmBitErrorRate = signalStrength.gw.bitErrorRate;
++        int gsmTimingAdvance = signalStrength.gw.timingAdvance;
++        int mWcdmaRscp = CellInfo.UNAVAILABLE;
++        int mWcdmaEcio = CellInfo.UNAVAILABLE;
++        int mWcdmaRssi = CellInfo.UNAVAILABLE;
++        int mWcdmabErrorRate = CellInfo.UNAVAILABLE;
++        int cdmaDbm = signalStrength.cdma.dbm;
++        int cdmaEcio = signalStrength.cdma.ecio;
++        int evdoDbm = signalStrength.evdo.dbm;
++        int evdoEcio = signalStrength.evdo.ecio;
++        int evdoSnr = signalStrength.evdo.signalNoiseRatio;
++        int lteSignalStrength = signalStrength.lte.signalStrength;
++        int lteRsrp = signalStrength.lte.rsrp; //4G signal
++        int lteRsrq = signalStrength.lte.rsrq;
++        int lteRssnr = signalStrength.lte.rssnr;
++        int lteCqi = signalStrength.lte.cqi;
++        int lteTimingAdvance = signalStrength.lte.timingAdvance;
++        int mGsm = 0;
++        int mRat = 0;
++        //int tdScdmaDbm = signalStrength.tdScdma.dbm; // TD-SCDMA is the 3G standard developed for and used by China Mobile
++
++
++
++        // 3G (UMTS) have a lot of protocol (WCDMA, TDSCDMA, CDMA, EVDO, CDMA-EVDO) - only WCDMA, TDSCDMA, CDMA on Android
++        // [UNSL]< UNSOL_SIGNAL_STRENGTH {
++        //.gw = {.signalStrength = -100, .bitErrorRate = -1, .timingAdvance = 0},
++        //.cdma = {.dbm = 0, .ecio = 0},
++        //.evdo = {.dbm = 32767, .ecio = -1, .signalNoiseRatio = 32767},
++        //.lte = {.signalStrength = 99, .rsrp = 2147483647, .rsrq = 0, .rssnr = 0, .cqi = 2147483647, .timingAdvance = -1},
++        //.tdScdma = {.rscp = 2147483647}} [PHONE0]
++        //public CellSignalStrengthWcdma(int rssi, int ber, int rscp, int ecno) {
++
++        CellSignalStrengthWcdma wcdmaStrength=null;         // Europe use WCDMA norme
++        if ((lteSignalStrength!=SignalStrength.INVALID) && (lteRsrq==0) && (gsmSignalStrength!=0))
++        {
++           // 3G UMTS found - wcdma
++           mWcdmaRscp = CellInfo.UNAVAILABLE;
++           mWcdmaEcio = CellInfo.UNAVAILABLE;
++           mWcdmaRssi = gsmSignalStrength; // Just copy level gw to CDMA
++           mWcdmabErrorRate=gsmBitErrorRate;
++
++           // use rssi calcul method
++           wcdmaStrength = new CellSignalStrengthWcdma(mWcdmaRssi, mWcdmabErrorRate, mWcdmaRscp, mWcdmaEcio);
++        }
++        else
++        {
++           // 3G not present
++           wcdmaStrength = new CellSignalStrengthWcdma();
++        }
++
++
++        // 4G - LTE
++        // [UNSL]< UNSOL_SIGNAL_STRENGTH {
++        //.gw = {.signalStrength = 0, .bitErrorRate = -1, .timingAdvance = 0}, .cdma = {.dbm = 0, .ecio = 0},
++        //.evdo = {.dbm = 32767, .ecio = -1, .signalNoiseRatio = 32767},
++        //.lte = {.signalStrength = 99, .rsrp = -105, .rsrq = -12, .rssnr = -10, .cqi = 2147483647, .timingAdvance = -1},
++        //.tdScdma = {.rscp = 2147483647}} [PHONE0]
++        // public CellSignalStrengthLte(int rssi, int rsrp, int rsrq, int rssnr, int cqi, int timingAdvance) {
++
++        CellSignalStrengthLte lteStrength=null;
++        if ((lteSignalStrength!=SignalStrength.INVALID) && ( lteRsrp!=0) && (lteRsrq!=0) && (lteRssnr!=0))
++        {
++           lteStrength = new CellSignalStrengthLte(SignalStrength.INVALID,
++                                      lteRsrp,
++                                      lteRsrq,
++                                      lteRssnr,
++                                      lteCqi,
++                                      lteTimingAdvance);
++        }
++        else
++        {
++           // 4G-LTE not present
++           lteStrength = new CellSignalStrengthLte();
++        }
++
++
++        // GSM
++        // .gw = {.signalStrength = -91, .bitErrorRate = -1, .timingAdvance = 0}
++        // public CellSignalStrengthGsm(int rssi, int ber, int ta) {
++        // rssi in dBm [-113, -51] or UNAVAILABLE
++        // bit error rate (0-7, 99) TS 27.007 8.5 or UNAVAILABLE
++        CellSignalStrengthGsm gsmStrength = new CellSignalStrengthGsm(gsmSignalStrength,
++                                                    gsmBitErrorRate,
++                                                    gsmTimingAdvance);
++
++
++        if (RILJ_LOGD) {
++           riljLog("Huawei signal : LTE dbm : " + String.valueOf(lteStrength.getDbm()) +
++                               ", level : " + String.valueOf(lteStrength.getLevel()) +
++                               ", rsrp  : " + String.valueOf(lteStrength.getRsrp()) +
++                               ", rsrq  : " + String.valueOf(lteStrength.getRsrq()) +
++                               ", rssi  : " + String.valueOf(lteStrength.getRssi()) +
++                               ", rssnr  : " + String.valueOf(lteStrength.getRssnr()));
++
++           riljLog("Huawei signal : WCDMA dbm : " + String.valueOf(wcdmaStrength.getDbm()) +
++                               ", asulevel : " + String.valueOf(wcdmaStrength.getAsuLevel()) +
++                               ", rssi  : " + String.valueOf(wcdmaStrength.getRssi()) +
++                               ", errorrate  : " + String.valueOf(wcdmaStrength.getBitErrorRate()) +
++                               ", rscp  : " + String.valueOf(wcdmaStrength.getRscp()) +
++                               ", ecno  : " + String.valueOf(wcdmaStrength.getEcNo()));
++
++           riljLog("Huawei signal : GSM dbm : " + String.valueOf(gsmStrength.getDbm()) +
++                               ", errorrate : " + String.valueOf(gsmStrength.getBitErrorRate()) +
++                               ", timingadvance  : " + String.valueOf(gsmStrength.getTimingAdvance()));
++        }
++
++        // Perhaps add also gsm signalStrength
++        return new SignalStrength(
++                       new CellSignalStrengthCdma(),
++                       gsmStrength,
++                       wcdmaStrength,
++                       new CellSignalStrengthTdscdma(),
++                       lteStrength,
++                       new CellSignalStrengthNr());
++    }
++
++
+     /**
+      * Get the HAL version.
+      *
+diff --git a/src/java/com/android/internal/telephony/RadioDataProxy.java b/src/java/com/android/internal/telephony/RadioDataProxy.java
+index cbc762a59d7bcf3e71b96f55f516ec8ef2db7cc8..868a9266679be05d572e8b8c7235bc69a1a83c32 100644
+--- a/src/java/com/android/internal/telephony/RadioDataProxy.java
++++ b/src/java/com/android/internal/telephony/RadioDataProxy.java
+@@ -21,6 +21,7 @@ import android.net.LinkProperties;
+ import android.os.AsyncResult;
+ import android.os.Message;
+ import android.os.RemoteException;
++import android.os.SystemProperties;
+ import android.telephony.Rlog;
+ import android.telephony.ServiceState;
+ import android.telephony.data.DataProfile;
+@@ -234,7 +235,8 @@ public class RadioDataProxy extends RadioServiceProxy {
+         } else {
+             ArrayList<android.hardware.radio.V1_0.DataProfileInfo> dpis = new ArrayList<>();
+             for (DataProfile dp : profiles) {
+-                if (dp.isPersistent()) {
++                boolean forceCognitive = SystemProperties.getBoolean("persist.sys.phh.radio.force_cognitive", false);
++                        if (dp.isPersistent() || forceCognitive) {
+                     dpis.add(RILUtils.convertToHalDataProfile10(dp));
+                 }
+             }
+diff --git a/src/java/com/android/internal/telephony/RadioIndication.java b/src/java/com/android/internal/telephony/RadioIndication.java
+index d947d5361150e823d38eebfbc51b1b459e3b7a5e..b74103f594a556bd2a7f803e52432bc1cd9a3604 100644
+--- a/src/java/com/android/internal/telephony/RadioIndication.java
++++ b/src/java/com/android/internal/telephony/RadioIndication.java
+@@ -241,13 +241,26 @@ public class RadioIndication extends IRadioIndication.Stub {
+ 
+     public void currentSignalStrength(int indicationType,
+                                       android.hardware.radio.V1_0.SignalStrength signalStrength) {
+-        mRil.processIndication(RIL.RADIO_SERVICE, indicationType);
+ 
+-        SignalStrength ssInitial = RILUtils.convertHalSignalStrength(signalStrength);
++        SignalStrength ss = null;
++
++        mRil.processIndication(RIL.RADIO_SERVICE, indicationType);
+ 
+-        SignalStrength ss = mRil.fixupSignalStrength10(ssInitial);
+         // Note this is set to "verbose" because it happens frequently
+-        if (mRil.isLogvOrTrace()) mRil.unsljLogvRet(RIL_UNSOL_SIGNAL_STRENGTH, ss);
++        if (mRil.isLogvOrTrace()) mRil.unsljLogvRet(RIL_UNSOL_SIGNAL_STRENGTH, signalStrength);
++
++        // Fix signalStrength for Huawei
++        String hardware = android.os.SystemProperties.get("ro.hardware", "");
++        if(hardware.contains("hi3660") || hardware.contains("hi6250") || hardware.contains("hi3670") || hardware.contains("kirin"))
++        {
++            if (RIL.RILJ_LOGV) mRil.riljLog("currentSignalStrength Found Huawei device");
++            ss = mRil.fixupSignalStrengthHuawei(signalStrength);
++        }
++        else
++        {
++            SignalStrength ssInitial = RILUtils.convertHalSignalStrength(signalStrength);
++            ss = mRil.fixupSignalStrength10(ssInitial);
++        }
+ 
+         if (mRil.mSignalStrengthRegistrant != null) {
+             mRil.mSignalStrengthRegistrant.notifyRegistrant(new AsyncResult (null, ss, null));
+diff --git a/src/java/com/android/internal/telephony/RadioResponse.java b/src/java/com/android/internal/telephony/RadioResponse.java
+index 81abbe6284080bb63dacfbee2901ab0d062ab8fc..b2259d3698c8db77efb78c31477ef61e472010f4 100644
+--- a/src/java/com/android/internal/telephony/RadioResponse.java
++++ b/src/java/com/android/internal/telephony/RadioResponse.java
+@@ -1934,6 +1934,8 @@ public class RadioResponse extends IRadioResponse.Stub {
+ 
+         if (rr != null) {
+             IccCardStatus iccCardStatus = RILUtils.convertHalCardStatus(cardStatus);
++            IccSlotPortMapping slotPortMapping = new IccSlotPortMapping();
++            iccCardStatus.mSlotPortMapping = slotPortMapping;
+             mRil.riljLog("responseIccCardStatus: from HIDL: " + iccCardStatus);
+             if (responseInfo.error == RadioError.NONE) {
+                 sendMessageResponse(rr.mResult, iccCardStatus);
+diff --git a/src/java/com/android/internal/telephony/SubscriptionController.java b/src/java/com/android/internal/telephony/SubscriptionController.java
+index 8373681005e4b3116c0129e3de86449e031711d5..a08a780189dd3ad980d88eed05ddb28dc190e7e0 100644
+--- a/src/java/com/android/internal/telephony/SubscriptionController.java
++++ b/src/java/com/android/internal/telephony/SubscriptionController.java
+@@ -2855,9 +2855,22 @@ public class SubscriptionController extends ISub.Stub {
+                         subId);
+ 
+         TelecomManager telecomManager = mContext.getSystemService(TelecomManager.class);
+-
+-        telecomManager.setUserSelectedOutgoingPhoneAccount(newHandle);
+-        logd("[setDefaultVoiceSubId] requesting change to phoneAccountHandle=" + newHandle);
++        PhoneAccountHandle currentHandle = telecomManager.getUserSelectedOutgoingPhoneAccount();
++        logd("[setDefaultVoiceSubId] current phoneAccountHandle=" + currentHandle);
++
++        String currentPackageName =
++            currentHandle == null ? null : currentHandle.getComponentName().getPackageName();
++        boolean currentIsSim = "com.android.phone".equals(currentPackageName);
++        // Do not override user selected outgoing calling account
++        // if the user has selected a third-party app as default
++        boolean shouldKeepOutgoingAccount = currentHandle != null && !currentIsSim;
++
++        if (!shouldKeepOutgoingAccount) {
++            telecomManager.setUserSelectedOutgoingPhoneAccount(newHandle);
++            logd("[setDefaultVoiceSubId] change to phoneAccountHandle=" + newHandle);
++        } else {
++            logd("[setDefaultVoiceSubId] default phoneAccountHandle not changed.");
++        }
+ 
+         if (previousDefaultSub != getDefaultSubId()) {
+             sendDefaultChangedBroadcast(getDefaultSubId());
+diff --git a/src/java/com/android/internal/telephony/dataconnection/DcTracker.java b/src/java/com/android/internal/telephony/dataconnection/DcTracker.java
+index 28f69dcdc9159dea7c2f3b16a53a1402927007ef..3e73e2b9efc0f983c9503f58241c0f1bfc42fb8a 100755
+--- a/src/java/com/android/internal/telephony/dataconnection/DcTracker.java
++++ b/src/java/com/android/internal/telephony/dataconnection/DcTracker.java
+@@ -2160,8 +2160,9 @@ public class DcTracker extends Handler {
+         }
+ 
+         // profile id is only meaningful when the profile is persistent on the modem.
++	boolean forceCognitive = SystemProperties.getBoolean("persist.sys.phh.radio.force_cognitive", false);
+         int profileId = DATA_PROFILE_INVALID;
+-        if (apnSetting.isPersistent()) {
++        if (apnSetting.isPersistent() || forceCognitive) {
+             profileId = apnSetting.getProfileId();
+             if (profileId == DATA_PROFILE_DEFAULT) {
+                 profileId = getApnProfileID(apnContext.getApnType());
+diff --git a/src/java/com/android/internal/telephony/metrics/TelephonyMetrics.java b/src/java/com/android/internal/telephony/metrics/TelephonyMetrics.java
+index 9479e77dc6bfdb50f2ea6f60da8c93607f2a5ca4..fb8011c3df15509ee294778806672b7a4a34a084 100644
+--- a/src/java/com/android/internal/telephony/metrics/TelephonyMetrics.java
++++ b/src/java/com/android/internal/telephony/metrics/TelephonyMetrics.java
+@@ -2330,7 +2330,7 @@ public class TelephonyMetrics {
+      *         {@link SmsMessage#FORMAT_3GPP2}.
+      */
+     public void writeRilSendSms(int phoneId, int rilSerial, int tech, int format) {
+-    	writeRilSendSms(phoneId, rilSerial, tech, format, 0);
++        writeRilSendSms(phoneId, rilSerial, tech, format, 0);
+     }
+ 
+     /**
