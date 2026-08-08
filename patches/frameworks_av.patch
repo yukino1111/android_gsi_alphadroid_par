@@ -126,44 +126,6 @@ index 4069a6bdbdfec3b72b605a269ddde65e33e54b36..e9d2af5d2cafcb44114c1c1304dc5d3c
  #if MAJOR_VERSION == 7 && MINOR_VERSION == 1
              ret = factory->openDevice_7_1(
  #else
-diff --git a/media/libstagefright/MediaCodecList.cpp b/media/libstagefright/MediaCodecList.cpp
-index afd5c608a4968d5d612258865129129624447968..03c2c95be8d8738cc26ea24855e7d0ed73b0a2b5 100644
---- a/media/libstagefright/MediaCodecList.cpp
-+++ b/media/libstagefright/MediaCodecList.cpp
-@@ -219,6 +219,33 @@ MediaCodecList::MediaCodecList(std::vector<MediaCodecListBuilderBase*> builders)
-     }
-     writer.writeGlobalSettings(mGlobalSettings);
-     writer.writeCodecInfos(&mCodecInfos);
-+
-+    // Kirin 970's Huawei VDEC driver can issue a fatal reserved-memory access
-+    // while decoding web video. Do not advertise the affected vendor
-+    // decoders to framework clients; software decoders remain available and
-+    // Huawei encoders are intentionally left untouched.
-+    static constexpr char kBrokenHisiDecoderPrefix[] = "OMX.hisi.video.decoder.";
-+    mCodecInfos.erase(
-+            std::remove_if(
-+                    mCodecInfos.begin(),
-+                    mCodecInfos.end(),
-+                    [](const sp<MediaCodecInfo>& info) {
-+                        if (info == nullptr) {
-+                            return false;
-+                        }
-+                        const std::string codecName = info->getCodecName();
-+                        if (codecName.compare(
-+                                    0,
-+                                    sizeof(kBrokenHisiDecoderPrefix) - 1,
-+                                    kBrokenHisiDecoderPrefix)
-+                                == 0) {
-+                            ALOGW("Ignoring unsafe Huawei VDEC codec %s", codecName.c_str());
-+                            return true;
-+                        }
-+                        return false;
-+                    }),
-+            mCodecInfos.end());
-+
-     std::stable_sort(
-             mCodecInfos.begin(),
-             mCodecInfos.end(),
 diff --git a/services/audiopolicy/common/managerdefinitions/src/HwModule.cpp b/services/audiopolicy/common/managerdefinitions/src/HwModule.cpp
 index a1f4e9cc5e7d5044ffdec7b0c4cd91af6e022653..544e66effca82cf75591169db83f47e8770eec76 100644
 --- a/services/audiopolicy/common/managerdefinitions/src/HwModule.cpp
