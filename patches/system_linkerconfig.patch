@@ -1,3 +1,5 @@
+# Provenance: TrebleDroid ci-20230706; original patch authors: Pierre-Hugues Husson.
+# See ../ATTRIBUTION.md. This import is not authored by yukino1111.
 diff --git a/modules/environment.cc b/modules/environment.cc
 index 82801f325624d0438d6a9664708b34ef65a1b0bf..e05341b7c38f017891c36a253a6a1643dff04f11 100644
 --- a/modules/environment.cc

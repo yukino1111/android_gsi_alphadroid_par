@@ -1,3 +1,5 @@
+# Provenance: TrebleDroid ci-20230706; original patch authors: Andy CrossGate Yan and Pierre-Hugues Husson.
+# See ../ATTRIBUTION.md. This import is not authored by yukino1111.
 diff --git a/bpfloader/BpfLoader.cpp b/bpfloader/BpfLoader.cpp
 index 5cd80b7adfdef67358a626a7429e1acc562803f0..9ace0fa6f4adc6e7c9eee3829ba3893cb07cba46 100644
 --- a/bpfloader/BpfLoader.cpp

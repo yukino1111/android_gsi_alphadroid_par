@@ -1,3 +1,5 @@
+# Provenance: TrebleDroid ci-20230706; original patch authors: TrebleDroid contributors listed in ../ATTRIBUTION.md.
+# See ../ATTRIBUTION.md. This import is not authored by yukino1111.
 diff --git a/cmds/bootanimation/BootAnimation.cpp b/cmds/bootanimation/BootAnimation.cpp
 index 3e42a501ea004fa90be5c140ee9e1278dbcb5453..0bffeedc7c55ccd9b22091f16bd8f017b5ba015d 100644
 --- a/cmds/bootanimation/BootAnimation.cpp

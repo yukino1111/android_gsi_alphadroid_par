@@ -1,3 +1,5 @@
+# Provenance: TrebleDroid ci-20230706 (Alberto Ponces, Andy CrossGate Yan, and sooti) plus PAR/release follow-ups
+# maintained by yukino1111. See ../ATTRIBUTION.md for the ownership boundary.
 diff --git a/target/board/gsi_system_ext.prop b/target/board/gsi_system_ext.prop
 index 780aadc0aec5270c90f835076a3c94239c094354..d22253336214f2ef9eaf83930ef910e66fe7d03f 100644
 --- a/target/board/gsi_system_ext.prop

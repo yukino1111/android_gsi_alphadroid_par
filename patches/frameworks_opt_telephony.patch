@@ -1,3 +1,5 @@
+# Provenance: TrebleDroid ci-20230706; original patch authors: TrebleDroid contributors listed in ../ATTRIBUTION.md.
+# See ../ATTRIBUTION.md. This import is not authored by yukino1111.
 diff --git a/src/java/com/android/internal/telephony/GsmCdmaPhone.java b/src/java/com/android/internal/telephony/GsmCdmaPhone.java
 index 1da9f4bba1d82bb0eabf719088bf93385812a2f7..a5eeeccdff5dce01f90129db4548a270427d6db2 100644
 --- a/src/java/com/android/internal/telephony/GsmCdmaPhone.java

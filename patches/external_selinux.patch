@@ -1,3 +1,5 @@
+# Provenance: TrebleDroid ci-20230706 (Pierre-Hugues Husson and ponces) plus PAR/release follow-ups
+# maintained by yukino1111. See ../ATTRIBUTION.md for the ownership boundary.
 diff --git a/libselinux/src/label_backends_android.c b/libselinux/src/label_backends_android.c
 index e52b44d4feef33ac41aead623f364b3af832f6cf..3b8a2bd8e88eab1767c293053e1401c17690a1cb 100644
 --- a/libselinux/src/label_backends_android.c

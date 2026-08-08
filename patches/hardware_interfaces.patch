@@ -1,3 +1,5 @@
+# Provenance: TrebleDroid ci-20230706; original patch authors: Pierre-Hugues Husson.
+# See ../ATTRIBUTION.md. This import is not authored by yukino1111.
 diff --git a/graphics/composer/2.1/utils/command-buffer/include/composer-command-buffer/2.1/ComposerCommandBuffer.h b/graphics/composer/2.1/utils/command-buffer/include/composer-command-buffer/2.1/ComposerCommandBuffer.h
 index 499d3b96e32cc740ca54657515da9cb5d67ffa21..489578468ffe97eaa075beb9655e7e9ead9ed213 100644
 --- a/graphics/composer/2.1/utils/command-buffer/include/composer-command-buffer/2.1/ComposerCommandBuffer.h

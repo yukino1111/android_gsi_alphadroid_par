@@ -18,6 +18,8 @@ if [[ ! -d "$source_root/.repo" ]]; then
   exit 2
 fi
 
+# Validate the complete series before changing any project. This avoids leaving
+# a half-applied Android tree when a later base revision or patch is wrong.
 while IFS=$'\t' read -r patch_name project base_revision; do
   [[ -z "$patch_name" || "$patch_name" == \#* ]] && continue
 
@@ -37,11 +39,22 @@ while IFS=$'\t' read -r patch_name project base_revision; do
   fi
 
   if git -C "$project_dir" apply --reverse --check "$patch_file" >/dev/null 2>&1; then
-    echo "already applied: $project"
     continue
   fi
 
   git -C "$project_dir" apply --check "$patch_file"
+done < "$patch_dir/series.tsv"
+
+while IFS=$'\t' read -r patch_name project base_revision; do
+  [[ -z "$patch_name" || "$patch_name" == \#* ]] && continue
+
+  project_dir="$source_root/$project"
+  patch_file="$patch_dir/$patch_name"
+  if git -C "$project_dir" apply --reverse --check "$patch_file" >/dev/null 2>&1; then
+    echo "already applied: $project"
+    continue
+  fi
+
   git -C "$project_dir" apply "$patch_file"
   echo "applied: $project"
 done < "$patch_dir/series.tsv"

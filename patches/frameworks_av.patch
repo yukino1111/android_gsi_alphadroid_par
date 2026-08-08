@@ -1,3 +1,5 @@
+# Provenance: TrebleDroid ci-20230706; original patch authors: Alberto Ponces, Emilian Peev, Peter Cai, Pierre-Hugues Husson, and ponces.
+# See ../ATTRIBUTION.md. This import is not authored by yukino1111.
 diff --git a/media/libaudiohal/Android.bp b/media/libaudiohal/Android.bp
 index 5f63e8de04916060a7fb9c9b3d0369c219f19d99..aa1d825d2f38aa56688d2d155fc5c8e0f67a6336 100644
 --- a/media/libaudiohal/Android.bp

@@ -1,3 +1,5 @@
+# Provenance: TrebleDroid ci-20230706; original patch authors: ChonDoit and Pierre-Hugues Husson.
+# See ../ATTRIBUTION.md. This import is not authored by yukino1111.
 diff --git a/server/Controllers.cpp b/server/Controllers.cpp
 index 00ee186d6f72109f3f4e80de076667d09664ce9d..faa6f135597155298aca38797c0e5f4b58a8a3c6 100644
 --- a/server/Controllers.cpp

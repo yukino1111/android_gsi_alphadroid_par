@@ -1,3 +1,5 @@
+# Provenance: PAR/release integration maintained by yukino1111 against the
+# pinned upstream project. Upstream file copyrights and licenses still apply.
 diff --git a/Android.mk b/Android.mk
 index b698b0eec57f581fac71e92112daac3526ad8b0f..ee2c23faae2683b0779a7fe36962daea2899b0ec 100644
 --- a/Android.mk

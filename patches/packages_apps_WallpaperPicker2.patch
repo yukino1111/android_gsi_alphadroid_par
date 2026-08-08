@@ -1,3 +1,5 @@
+# Provenance: PAR/release integration maintained by yukino1111 against the
+# pinned upstream project. Upstream file copyrights and licenses still apply.
 diff --git a/res/layout/collapsing_toolbar_container_layout.xml b/res/layout/collapsing_toolbar_container_layout.xml
 index b10e101d9e8e820fb9bbbb3504194fe2f8c0fb57..5aaaa09a07c0a1beb4bc84700436819e3eed78e4 100644
 --- a/res/layout/collapsing_toolbar_container_layout.xml

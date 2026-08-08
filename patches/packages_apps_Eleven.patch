@@ -1,3 +1,5 @@
+# Provenance: PAR/release integration maintained by yukino1111 against the
+# pinned upstream project. Upstream file copyrights and licenses still apply.
 diff --git a/Android.bp b/Android.bp
 index 9e49821560d94e103e5a9033e34681de610a1c9f..f2a0c612a85368a49cc9231936781e36ccc4f818 100644
 --- a/Android.bp

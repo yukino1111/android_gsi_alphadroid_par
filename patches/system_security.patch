@@ -1,3 +1,5 @@
+# Provenance: PAR/release integration maintained by yukino1111 against the
+# pinned upstream project. Upstream file copyrights and licenses still apply.
 diff --git a/keystore/keystore_attestation_id.cpp b/keystore/keystore_attestation_id.cpp
 index ccd3808578ebaabceb1d6d760704099956a6e68a..bcea1859aa5f8539d07a304366118e5b83f32d5b 100644
 --- a/keystore/keystore_attestation_id.cpp

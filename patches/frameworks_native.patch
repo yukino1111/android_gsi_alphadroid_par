@@ -1,3 +1,5 @@
+# Provenance: TrebleDroid ci-20230706 (Andy CrossGate Yan and Pierre-Hugues Husson) plus PAR/release follow-ups
+# maintained by yukino1111. See ../ATTRIBUTION.md for the ownership boundary.
 diff --git a/cmds/installd/migrate_legacy_obb_data.sh b/cmds/installd/migrate_legacy_obb_data.sh
 index 7399681c3e65d650cca698a602f4e63d768f5650..9d5b73eae2fb2e797a17507f8a1ee5dcb6538297 100644
 --- a/cmds/installd/migrate_legacy_obb_data.sh

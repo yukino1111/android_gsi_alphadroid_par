@@ -1,3 +1,5 @@
+# Provenance: PAR/release integration maintained by yukino1111 against the
+# pinned upstream project. Upstream file copyrights and licenses still apply.
 diff --git a/build/core/config.mk b/build/core/config.mk
 index f2e595ff92dc2e5cc63aabb632b27ba668b471e1..75d845c781fc40a870bc2f8515ea932e217fc94b 100644
 --- a/build/core/config.mk

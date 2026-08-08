@@ -1,3 +1,6 @@
 *.orig
 *.rej
 .DS_Store
+
+# Locally extracted proprietary inputs never belong in this patch archive.
+/proprietary/

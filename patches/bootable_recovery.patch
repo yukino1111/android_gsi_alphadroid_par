@@ -1,3 +1,5 @@
+# Provenance: TrebleDroid ci-20230706; original patch authors: Pierre-Hugues Husson.
+# See ../ATTRIBUTION.md. This import is not authored by yukino1111.
 diff --git a/update_verifier/update_verifier.cpp b/update_verifier/update_verifier.cpp
 index 88fcfa5025d6e6810ea9feb634ea733a18c29943..097a2c4e5a8236fb6ee0b2f8469da6bb76557957 100644
 --- a/update_verifier/update_verifier.cpp

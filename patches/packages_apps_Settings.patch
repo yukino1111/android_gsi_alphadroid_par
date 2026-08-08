@@ -1,3 +1,5 @@
+# Provenance: TrebleDroid ci-20230706 (Pierre-Hugues Husson) plus PAR/release follow-ups
+# maintained by yukino1111. See ../ATTRIBUTION.md for the ownership boundary.
 diff --git a/src/com/android/settings/biometrics/fingerprint/FingerprintEnrollEnrolling.java b/src/com/android/settings/biometrics/fingerprint/FingerprintEnrollEnrolling.java
 index 2348141dee..fb9d9a7b14 100644
 --- a/src/com/android/settings/biometrics/fingerprint/FingerprintEnrollEnrolling.java
@@ -149,21 +151,13 @@ index 688c29af81..1d40e32478 100644
      }
  }
 diff --git a/src/com/android/settings/homepage/TopMenu.java b/src/com/android/settings/homepage/TopMenu.java
-index b07be93acf..243ab34839 100644
+index b07be93acf..e45fa21f18 100644
 --- a/src/com/android/settings/homepage/TopMenu.java
 +++ b/src/com/android/settings/homepage/TopMenu.java
-@@ -28,10 +28,19 @@ import java.util.Random;
- import java.util.concurrent.ExecutionException;
- import java.util.concurrent.FutureTask;
+@@ -32,6 +32,15 @@ public class TopMenu extends Preference {
  
--public class TopMenu extends Preference {
--
--    private long lastTouchTime = 0;
--    private long currentTouchTime = 0;
-+public class TopMenu extends Preference {
-+
-+    private long lastTouchTime = 0;
-+    private long currentTouchTime = 0;
+     private long lastTouchTime = 0;
+     private long currentTouchTime = 0;
 +    private TextView mBatteryText;
 +    private boolean mBatteryReceiverRegistered;
 +
@@ -176,27 +170,10 @@ index b07be93acf..243ab34839 100644
  
      public TopMenu(Context context, AttributeSet attrs) {
          super(context, attrs);
-@@ -42,7 +51,7 @@ public class TopMenu extends Preference {
+@@ -54,6 +63,56 @@ public class TopMenu extends Preference {
+         return value;
+     }
  
- 
-     // system prop
--    public static String getSystemProperty(String key) {
-+    public static String getSystemProperty(String key) {
-         String value = null;
- 
-         try {
-@@ -51,59 +60,74 @@ public class TopMenu extends Preference {
-         } catch (Exception e) {
-             e.printStackTrace();
-         }
--        return value;
--    }
--
--    @Override
--    public void onBindViewHolder(PreferenceViewHolder holder) {
-+        return value;
-+    }
-+
 +    @Override
 +    public void onAttached() {
 +        super.onAttached();
@@ -247,17 +224,16 @@ index b07be93acf..243ab34839 100644
 +        }
 +    }
 +
-+    @Override
-+    public void onBindViewHolder(PreferenceViewHolder holder) {
+     @Override
+     public void onBindViewHolder(PreferenceViewHolder holder) {
          super.onBindViewHolder(holder);
- 
+@@ -61,49 +120,14 @@ public class TopMenu extends Preference {
          final boolean selectable = false;
          final Context context = getContext();
  
 -        TextView mBatteryText = holder.itemView.findViewById(context.getResources().
--                getIdentifier("id/battery_title", null, context.getPackageName()));
 +        mBatteryText = holder.itemView.findViewById(context.getResources().
-+                getIdentifier("id/battery_title", null, context.getPackageName()));
+                 getIdentifier("id/battery_title", null, context.getPackageName()));
  
          //TextView deviceName = holder.itemView.findViewById(context.getResources().
          //        getIdentifier("id/device_name", null, context.getPackageName()));

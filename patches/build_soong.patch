@@ -1,3 +1,5 @@
+# Provenance: PAR/release integration maintained by yukino1111 against the
+# pinned upstream project. Upstream file copyrights and licenses still apply.
 diff --git a/ui/build/kati.go b/ui/build/kati.go
 index dad68fac2f4d62df8c61b2d3bd59f39a7c8ed13b..1235f316cd7a70b2e51aae9403847358b37fbe46 100644
 --- a/ui/build/kati.go

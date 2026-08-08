@@ -1,3 +1,5 @@
+# Provenance: PAR/release integration maintained by yukino1111 against the
+# pinned upstream project. Upstream file copyrights and licenses still apply.
 diff --git a/common/private/seapp_contexts b/common/private/seapp_contexts
 index fc26e985154f85d98301bea5fff03ca4f3e3f093..e0e4addc4d01e30e75635a941c82da7fd3129c24 100644
 --- a/common/private/seapp_contexts
