@@ -4651,7 +4651,7 @@ index 185a08bc3442cbc6d9bed0c593222500bfc6c696..76c4c503e09125bc7e286ebb995b234d
  hwc.exynos.vsync_mode      u:object_r:vendor_hwc_prop:s0
 +ro.kirin.config.hw_perfgenius u:object_r:kirin_perfgenius_prop:s0 exact bool
 diff --git a/system.prop b/system.prop
-index 986cb0921ed27a0487fbdd283246aad0e82c7006..bf78ffcd32d8334f187c64f8fc643373007fd2e7 100644
+index 986cb0921ed27a0487fbdd283246aad0e82c7006..151948bb70671446c7990c4cf56bfb4449eb9ca3 100644
 --- a/system.prop
 +++ b/system.prop
 @@ -1,4 +1,10 @@
@@ -4666,6 +4666,19 @@ index 986cb0921ed27a0487fbdd283246aad0e82c7006..bf78ffcd32d8334f187c64f8fc643373
  #Some devices have sdcardfs kernel panicing on 8.0
  #Disable for everyone for the moment
  ro.sys.sdcardfs=0
+@@ -12,8 +18,10 @@ fw.max_users=10
+ persist.sys.max_profiles=10
+ ro.boot.realme.lockstate=0
+ 
+-#Fixes fingerprint unlock delay
+-persist.wm.enable_remote_keyguard_animation=0
++# Android 13 swipe-to-unlock requires the remote keyguard going-away path.
++# PAR uses a rear fingerprint sensor and does not need PHH's global workaround
++# for delayed wake-up on some fingerprint implementations.
++persist.wm.enable_remote_keyguard_animation=1
+ 
+ # Enable support of one-handed mode
+ ro.support_one_handed_mode=true
 diff --git a/tdgsi_arm64_ab/BoardConfig.mk b/tdgsi_arm64_ab/BoardConfig.mk
 index 2fddc5240c4a44e9a7dbed945b29fd9e1489f3e4..4601c4513645582a2953c5f06f4c31dd8bd38523 100644
 --- a/tdgsi_arm64_ab/BoardConfig.mk

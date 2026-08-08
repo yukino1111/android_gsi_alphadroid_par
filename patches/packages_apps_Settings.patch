@@ -1,5 +1,5 @@
 diff --git a/src/com/android/settings/biometrics/fingerprint/FingerprintEnrollEnrolling.java b/src/com/android/settings/biometrics/fingerprint/FingerprintEnrollEnrolling.java
-index 2348141dee260fe85ae39a2ea115958c07e79cb1..fb9d9a7b142d0f3d6ba0d7817dc03f6c0ccb0193 100644
+index 2348141dee..fb9d9a7b14 100644
 --- a/src/com/android/settings/biometrics/fingerprint/FingerprintEnrollEnrolling.java
 +++ b/src/com/android/settings/biometrics/fingerprint/FingerprintEnrollEnrolling.java
 @@ -772,6 +772,9 @@ public class FingerprintEnrollEnrolling extends BiometricsEnrollEnrolling {
@@ -20,7 +20,7 @@ index 2348141dee260fe85ae39a2ea115958c07e79cb1..fb9d9a7b142d0f3d6ba0d7817dc03f6c
 \ No newline at end of file
 +}
 diff --git a/src/com/android/settings/biometrics/fingerprint/FingerprintEnrollFindSensor.java b/src/com/android/settings/biometrics/fingerprint/FingerprintEnrollFindSensor.java
-index a34643145274f1e855d2ff0f28f8b839f716eefa..73ec2c0c404b1e1ae9ded11011336dc09533f8eb 100644
+index a346431452..73ec2c0c40 100644
 --- a/src/com/android/settings/biometrics/fingerprint/FingerprintEnrollFindSensor.java
 +++ b/src/com/android/settings/biometrics/fingerprint/FingerprintEnrollFindSensor.java
 @@ -341,6 +341,7 @@ public class FingerprintEnrollFindSensor extends BiometricEnrollBase implements
@@ -32,7 +32,7 @@ index a34643145274f1e855d2ff0f28f8b839f716eefa..73ec2c0c404b1e1ae9ded11011336dc0
              proceedToEnrolling(false /* cancelEnrollment */);
          } else {
 diff --git a/src/com/android/settings/connecteddevice/usb/UsbConnectionBroadcastReceiver.java b/src/com/android/settings/connecteddevice/usb/UsbConnectionBroadcastReceiver.java
-index 1a1f8ba414279af3457570fbc49da1de4e78d0d4..b3981e38658fbd368f6439776cd98db14d1c6a05 100644
+index 1a1f8ba414..b3981e3865 100644
 --- a/src/com/android/settings/connecteddevice/usb/UsbConnectionBroadcastReceiver.java
 +++ b/src/com/android/settings/connecteddevice/usb/UsbConnectionBroadcastReceiver.java
 @@ -90,6 +90,13 @@ public class UsbConnectionBroadcastReceiver extends BroadcastReceiver implements
@@ -49,8 +49,107 @@ index 1a1f8ba414279af3457570fbc49da1de4e78d0d4..b3981e38658fbd368f6439776cd98db1
          } else if (UsbManager.ACTION_USB_PORT_CHANGED.equals(intent.getAction())) {
              UsbPortStatus portStatus = intent.getExtras()
                      .getParcelable(UsbManager.EXTRA_PORT_STATUS);
+diff --git a/src/com/android/settings/deviceinfo/DeviceNamePreferenceController.java b/src/com/android/settings/deviceinfo/DeviceNamePreferenceController.java
+index 225e350372..a32af37a07 100644
+--- a/src/com/android/settings/deviceinfo/DeviceNamePreferenceController.java
++++ b/src/com/android/settings/deviceinfo/DeviceNamePreferenceController.java
+@@ -23,6 +23,7 @@ import android.net.wifi.WifiManager;
+ import android.os.Build;
+ import android.os.Bundle;
+ import android.provider.Settings;
++import android.text.TextUtils;
+ import android.text.SpannedString;
+ 
+ import androidx.annotation.VisibleForTesting;
+@@ -84,8 +85,8 @@ public class DeviceNamePreferenceController extends BasePreferenceController
+     private void initializeDeviceName() {
+         mDeviceName = Settings.Global.getString(mContext.getContentResolver(),
+                 Settings.Global.DEVICE_NAME);
+-        if (mDeviceName == null) {
+-            mDeviceName = Build.MODEL;
++        if (TextUtils.isEmpty(mDeviceName) || TextUtils.equals(mDeviceName, Build.MODEL)) {
++            mDeviceName = HardwareInfoPreferenceController.getDeviceModelName();
+         }
+     }
+ 
+diff --git a/src/com/android/settings/deviceinfo/HardwareInfoPreferenceController.java b/src/com/android/settings/deviceinfo/HardwareInfoPreferenceController.java
+index 5f760bfa00..b31bb05c8b 100644
+--- a/src/com/android/settings/deviceinfo/HardwareInfoPreferenceController.java
++++ b/src/com/android/settings/deviceinfo/HardwareInfoPreferenceController.java
+@@ -17,6 +17,8 @@ package com.android.settings.deviceinfo;
+ 
+ import android.content.Context;
+ import android.os.Build;
++import android.os.SystemProperties;
++import android.text.TextUtils;
+ import android.util.Log;
+ 
+ import androidx.preference.PreferenceScreen;
+@@ -31,6 +33,7 @@ import java.util.concurrent.FutureTask;
+ public class HardwareInfoPreferenceController extends BasePreferenceController {
+ 
+     private static final String TAG = "DeviceModelPrefCtrl";
++    private static final String KEY_MARKETING_NAME_PROP = "ro.config.marketing_name";
+ 
+     public HardwareInfoPreferenceController(Context context, String key) {
+         super(context, key);
+@@ -59,7 +62,7 @@ public class HardwareInfoPreferenceController extends BasePreferenceController {
+         try {
+             // Wait for msv suffix value.
+             final String msvSuffix = msvSuffixTask.get();
+-            return Build.MODEL + msvSuffix;
++            return getDeviceModelName() + msvSuffix;
+         } catch (ExecutionException e) {
+             Log.e(TAG, "Execution error, so we only show model name");
+         } catch (InterruptedException e) {
+@@ -67,6 +70,12 @@ public class HardwareInfoPreferenceController extends BasePreferenceController {
+         }
+         // If we can't get an msv suffix value successfully,
+         // it's better to return model name.
+-        return Build.MODEL;
++        return getDeviceModelName();
++    }
++
++    /** Returns the OEM marketing name when provided, otherwise the platform model. */
++    public static String getDeviceModelName() {
++        final String marketingName = SystemProperties.get(KEY_MARKETING_NAME_PROP);
++        return TextUtils.isEmpty(marketingName) ? Build.MODEL : marketingName;
+     }
+ }
+diff --git a/src/com/android/settings/deviceinfo/firmwareversion/AboutDeviceNamePreferenceController.java b/src/com/android/settings/deviceinfo/firmwareversion/AboutDeviceNamePreferenceController.java
+index 688c29af81..1d40e32478 100644
+--- a/src/com/android/settings/deviceinfo/firmwareversion/AboutDeviceNamePreferenceController.java
++++ b/src/com/android/settings/deviceinfo/firmwareversion/AboutDeviceNamePreferenceController.java
+@@ -20,7 +20,6 @@ import android.content.Context;
+ import android.content.Intent;
+ import android.content.pm.PackageManager;
+ import android.net.Uri;
+-import android.os.Build;
+ import android.os.SystemProperties;
+ import android.text.TextUtils;
+ import android.util.Log;
+@@ -29,6 +28,7 @@ import androidx.preference.Preference;
+ 
+ import com.android.settings.R;
+ import com.android.settings.core.BasePreferenceController;
++import com.android.settings.deviceinfo.HardwareInfoPreferenceController;
+ 
+ public class AboutDeviceNamePreferenceController extends BasePreferenceController {
+ 
+@@ -52,7 +52,9 @@ public class AboutDeviceNamePreferenceController extends BasePreferenceControlle
+                 mContext.getString(R.string.device_info_default));
+         String deviceCodename = SystemProperties.get(KEY_DEVICE_NAME_PROP,
+                 mContext.getString(R.string.device_info_default));
+-        String deviceModel = Build.MODEL;
+-        return deviceBrand + " " + deviceModel + " | " + deviceCodename;
++        String deviceModel = HardwareInfoPreferenceController.getDeviceModelName();
++        String displayName = deviceModel.regionMatches(true, 0, deviceBrand, 0,
++                deviceBrand.length()) ? deviceModel : deviceBrand + " " + deviceModel;
++        return displayName + " | " + deviceCodename;
+     }
+ }
 diff --git a/src/com/android/settings/homepage/TopMenu.java b/src/com/android/settings/homepage/TopMenu.java
-index b07be93acf69252f92e3e5faa5648db2a2f03482..243ab3483902a3cf909e3a8555b606276f5cfced 100644
+index b07be93acf..243ab34839 100644
 --- a/src/com/android/settings/homepage/TopMenu.java
 +++ b/src/com/android/settings/homepage/TopMenu.java
 @@ -28,10 +28,19 @@ import java.util.Random;
@@ -206,7 +305,7 @@ index b07be93acf69252f92e3e5faa5648db2a2f03482..243ab3483902a3cf909e3a8555b60627
          holder.itemView.setFocusable(selectable);
          holder.itemView.setClickable(selectable);
 diff --git a/src/com/android/settings/widget/HighlightableTopLevelPreferenceAdapter.java b/src/com/android/settings/widget/HighlightableTopLevelPreferenceAdapter.java
-index 8084a4811d6879a826684a774e0b2d4888e095d7..40ddf6702f7599b7a8eaea659bffc6431a10be95 100644
+index 8084a4811d..40ddf6702f 100644
 --- a/src/com/android/settings/widget/HighlightableTopLevelPreferenceAdapter.java
 +++ b/src/com/android/settings/widget/HighlightableTopLevelPreferenceAdapter.java
 @@ -230,22 +230,40 @@ public class HighlightableTopLevelPreferenceAdapter extends PreferenceGroupAdapt
