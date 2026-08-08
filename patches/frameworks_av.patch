@@ -126,8 +126,46 @@ index 4069a6bdbdfec3b72b605a269ddde65e33e54b36..e9d2af5d2cafcb44114c1c1304dc5d3c
  #if MAJOR_VERSION == 7 && MINOR_VERSION == 1
              ret = factory->openDevice_7_1(
  #else
+diff --git a/media/libstagefright/MediaCodecList.cpp b/media/libstagefright/MediaCodecList.cpp
+index afd5c608a4968d5d612258865129129624447968..03c2c95be8d8738cc26ea24855e7d0ed73b0a2b5 100644
+--- a/media/libstagefright/MediaCodecList.cpp
++++ b/media/libstagefright/MediaCodecList.cpp
+@@ -219,6 +219,33 @@ MediaCodecList::MediaCodecList(std::vector<MediaCodecListBuilderBase*> builders)
+     }
+     writer.writeGlobalSettings(mGlobalSettings);
+     writer.writeCodecInfos(&mCodecInfos);
++
++    // Kirin 970's Huawei VDEC driver can issue a fatal reserved-memory access
++    // while decoding web video. Do not advertise the affected vendor
++    // decoders to framework clients; software decoders remain available and
++    // Huawei encoders are intentionally left untouched.
++    static constexpr char kBrokenHisiDecoderPrefix[] = "OMX.hisi.video.decoder.";
++    mCodecInfos.erase(
++            std::remove_if(
++                    mCodecInfos.begin(),
++                    mCodecInfos.end(),
++                    [](const sp<MediaCodecInfo>& info) {
++                        if (info == nullptr) {
++                            return false;
++                        }
++                        const std::string codecName = info->getCodecName();
++                        if (codecName.compare(
++                                    0,
++                                    sizeof(kBrokenHisiDecoderPrefix) - 1,
++                                    kBrokenHisiDecoderPrefix)
++                                == 0) {
++                            ALOGW("Ignoring unsafe Huawei VDEC codec %s", codecName.c_str());
++                            return true;
++                        }
++                        return false;
++                    }),
++            mCodecInfos.end());
++
+     std::stable_sort(
+             mCodecInfos.begin(),
+             mCodecInfos.end(),
 diff --git a/services/audiopolicy/common/managerdefinitions/src/HwModule.cpp b/services/audiopolicy/common/managerdefinitions/src/HwModule.cpp
-index 418b7ebe886ea1a4ff1929207c93a24735dc9fc0..a97f76be595ff37caa185ddc5eff6fa24833c608 100644
+index a1f4e9cc5e7d5044ffdec7b0c4cd91af6e022653..544e66effca82cf75591169db83f47e8770eec76 100644
 --- a/services/audiopolicy/common/managerdefinitions/src/HwModule.cpp
 +++ b/services/audiopolicy/common/managerdefinitions/src/HwModule.cpp
 @@ -311,6 +311,27 @@ sp<HwModule> HwModuleCollection::getModuleForDeviceType(audio_devices_t type,
@@ -511,7 +549,7 @@ index d446e9667b8dcfe5c8854fc3ad29a76b8a5149b1..da2842656a6f51aca3828b790cca37d0
  
      // Global Configuration
 diff --git a/services/audiopolicy/engine/common/src/EngineBase.cpp b/services/audiopolicy/engine/common/src/EngineBase.cpp
-index 99507eee5d3bb94d3883734e9bd151fd4680c146..e31cc21b17c9418f0ca374d6b3f48a1778a80e80 100644
+index 83a8e4d0fa9cbb3b2f9734584040f63a530a2ef3..14d62dcd2544ebef4f57e159ba4963df0be8c70e 100644
 --- a/services/audiopolicy/engine/common/src/EngineBase.cpp
 +++ b/services/audiopolicy/engine/common/src/EngineBase.cpp
 @@ -222,9 +222,9 @@ engineConfig::ParsingResult EngineBase::loadAudioPolicyEngineConfig()
@@ -546,7 +584,7 @@ index 6f560d558da114f2ceb1cb00579d7e0a27bc9cee..92cf03e418dd6a507edffff9f8c07166
          ALOGE("No readable audio policy config file found");
          return BAD_VALUE;
 diff --git a/services/audiopolicy/managerdefault/AudioPolicyManager.cpp b/services/audiopolicy/managerdefault/AudioPolicyManager.cpp
-index f625fdb3bee62765f77799e825293e6de60ee62a..6c456960056b80e864ffb32ee5bbde3ec1ff3f0c 100644
+index be58c648d4be1a2a316b3cab622e957d887c9c33..8bd8ae656dda8032d0a3c1b03d62c58e03854531 100644
 --- a/services/audiopolicy/managerdefault/AudioPolicyManager.cpp
 +++ b/services/audiopolicy/managerdefault/AudioPolicyManager.cpp
 @@ -675,6 +675,17 @@ status_t AudioPolicyManager::updateCallRoutingInternal(
@@ -658,7 +696,7 @@ index f625fdb3bee62765f77799e825293e6de60ee62a..6c456960056b80e864ffb32ee5bbde3e
  bool AudioPolicyManager::isDeviceOfModule(
          const sp<DeviceDescriptor>& devDesc, const char *moduleId) const {
      sp<HwModule> module = mHwModules.getModuleFromName(moduleId);
-@@ -4550,78 +4614,97 @@ status_t AudioPolicyManager::createAudioPatchInternal(const struct audio_patch *
+@@ -4555,78 +4619,97 @@ status_t AudioPolicyManager::createAudioPatchInternal(const struct audio_patch *
                  // in config XML to reach the sink so that is can be declared as available.
                  audio_io_handle_t output = AUDIO_IO_HANDLE_NONE;
                  sp<SwAudioOutputDescriptor> outputDesc;
@@ -823,10 +861,10 @@ index a69e08871ba7e2ddfba4adbdad16f7a27b3d1a44..f8762016db3d62b9e4e68636d65f74af
          SourceClientCollection mAudioSources;
  
 diff --git a/services/camera/libcameraservice/Android.bp b/services/camera/libcameraservice/Android.bp
-index 981c56942c37b66119eef07dab2360449b5289af..769862aaa2853e1090474d089043394d4b204e7a 100644
+index 0592cd94cf6978696e62df0011c291fac5760c98..85cb4edfbfd862bd2e434425740f2c67c374e0d4 100644
 --- a/services/camera/libcameraservice/Android.bp
 +++ b/services/camera/libcameraservice/Android.bp
-@@ -164,6 +164,10 @@ cc_library_shared {
+@@ -171,6 +171,10 @@ cc_library_shared {
          "android.hardware.camera.device@3.6",
          "android.hardware.camera.device@3.7",
          "android.hardware.camera.device-V1-ndk",
@@ -838,7 +876,7 @@ index 981c56942c37b66119eef07dab2360449b5289af..769862aaa2853e1090474d089043394d
      ],
  
 diff --git a/services/camera/libcameraservice/CameraService.cpp b/services/camera/libcameraservice/CameraService.cpp
-index bfd3120f73bee7fb052a11b709c1647b743bc2a6..653666b15c738767ad505db667dff39e95abb0e2 100644
+index 6c3c28d0038b85dd0aee34a1991ba1fb1ac419c6..bb3e2bebed07faf11f18b9eef75f007b43b493d7 100644
 --- a/services/camera/libcameraservice/CameraService.cpp
 +++ b/services/camera/libcameraservice/CameraService.cpp
 @@ -26,6 +26,7 @@
@@ -849,15 +887,15 @@ index bfd3120f73bee7fb052a11b709c1647b743bc2a6..653666b15c738767ad505db667dff39e
  #include <inttypes.h>
  #include <pthread.h>
  #include <poll.h>
-@@ -143,6 +144,7 @@ const String16 CameraService::kWatchAllClientsFlag("all");
- static std::set<String8> sServiceErrorEventSet;
+@@ -166,6 +167,7 @@ static std::set<String8> sServiceErrorEventSet;
+ static std::string sCurrPackageName;
  
  CameraService::CameraService() :
 +        mPhysicalFrontCamStatus(false),
          mEventLog(DEFAULT_EVENT_LOG_LENGTH),
          mNumberOfCameras(0),
          mNumberOfCamerasWithoutSystemCamera(0),
-@@ -2044,6 +2046,7 @@ Status CameraService::connectHelper(const sp<CALLBACK>& cameraCb, const String8&
+@@ -2073,6 +2075,7 @@ Status CameraService::connectHelper(const sp<CALLBACK>& cameraCb, const String8&
              mServiceLock.lock();
          } else {
              // Otherwise, add client to active clients list
@@ -865,7 +903,7 @@ index bfd3120f73bee7fb052a11b709c1647b743bc2a6..653666b15c738767ad505db667dff39e
              finishConnectLocked(client, partial, oomScoreOffset, systemNativeClient);
          }
  
-@@ -2163,6 +2166,27 @@ status_t CameraService::addOfflineClient(String8 cameraId, sp<BasicClient> offli
+@@ -2192,6 +2195,27 @@ status_t CameraService::addOfflineClient(String8 cameraId, sp<BasicClient> offli
      return OK;
  }
  
@@ -893,7 +931,7 @@ index bfd3120f73bee7fb052a11b709c1647b743bc2a6..653666b15c738767ad505db667dff39e
  Status CameraService::turnOnTorchWithStrengthLevel(const String16& cameraId, int32_t torchStrength,
          const sp<IBinder>& clientBinder) {
      Mutex::Autolock lock(mServiceLock);
-@@ -3394,6 +3418,8 @@ binder::Status CameraService::BasicClient::disconnect() {
+@@ -3429,6 +3453,8 @@ binder::Status CameraService::BasicClient::disconnect() {
      }
      mDisconnected = true;
  
@@ -903,7 +941,7 @@ index bfd3120f73bee7fb052a11b709c1647b743bc2a6..653666b15c738767ad505db667dff39e
      sCameraService->logDisconnected(mCameraIdStr, mClientPid, String8(mClientPackageName));
      sCameraService->mCameraProviderManager->removeRef(CameraProviderManager::DeviceMode::CAMERA,
 diff --git a/services/camera/libcameraservice/CameraService.h b/services/camera/libcameraservice/CameraService.h
-index 70293f4c5b3dbacab136c5227e749ce2c0f3942f..4ab725230cb2a6d13032122364c332d631874207 100644
+index ec65ed0e48fd676d1bc1ee0eab9536945ccf1aa6..df48b589f9cfbcc3b6139f60aad20a88e6eb2255 100644
 --- a/services/camera/libcameraservice/CameraService.h
 +++ b/services/camera/libcameraservice/CameraService.h
 @@ -227,6 +227,9 @@ public:
@@ -917,7 +955,7 @@ index 70293f4c5b3dbacab136c5227e749ce2c0f3942f..4ab725230cb2a6d13032122364c332d6
      // Client functionality
  
 diff --git a/services/camera/libcameraservice/common/CameraProviderManager.cpp b/services/camera/libcameraservice/common/CameraProviderManager.cpp
-index 43f92a9927cc8c4c7d3147a69213ef2a549ae8e7..4a2fb94da39823a4938605e5ace85a99dd21ba24 100644
+index 21c04135f40b3152067672289853e6af8afdb513..829021de670ac1c8fd1694c096381c9e78617344 100644
 --- a/services/camera/libcameraservice/common/CameraProviderManager.cpp
 +++ b/services/camera/libcameraservice/common/CameraProviderManager.cpp
 @@ -36,6 +36,7 @@
@@ -974,7 +1012,7 @@ index 43f92a9927cc8c4c7d3147a69213ef2a549ae8e7..4a2fb94da39823a4938605e5ace85a99
      return deviceIds;
  }
  
-@@ -954,10 +978,12 @@ SystemCameraKind CameraProviderManager::ProviderInfo::DeviceInfo3::getSystemCame
+@@ -958,10 +982,12 @@ SystemCameraKind CameraProviderManager::ProviderInfo::DeviceInfo3::getSystemCame
  
      // Go through the capabilities and check if it has
      // ANDROID_REQUEST_AVAILABLE_CAPABILITIES_SYSTEM_CAMERA
@@ -992,7 +1030,7 @@ index 43f92a9927cc8c4c7d3147a69213ef2a549ae8e7..4a2fb94da39823a4938605e5ace85a99
      }
      return SystemCameraKind::PUBLIC;
 diff --git a/services/camera/libcameraservice/common/hidl/HidlProviderInfo.cpp b/services/camera/libcameraservice/common/hidl/HidlProviderInfo.cpp
-index 630090b4acade2892f8aad238b9311e179a66cf3..62c57cd4f7eafe34a26996d8defac51d1c4c87fd 100644
+index e71f43ce9f147c00c7512df0b567715efd17abd4..999c8855ee38955b194b420d516809d97f894df2 100644
 --- a/services/camera/libcameraservice/common/hidl/HidlProviderInfo.cpp
 +++ b/services/camera/libcameraservice/common/hidl/HidlProviderInfo.cpp
 @@ -27,6 +27,10 @@
@@ -1057,7 +1095,7 @@ index 630090b4acade2892f8aad238b9311e179a66cf3..62c57cd4f7eafe34a26996d8defac51d
      if (!ret.isOk()) {
          ALOGE("%s: Transaction error in getting camera ID list from provider '%s': %s",
                  __FUNCTION__, mProviderName.c_str(), linked.description().c_str());
-@@ -765,7 +783,23 @@ HidlProviderInfo::HidlDeviceInfo3::HidlDeviceInfo3(
+@@ -762,7 +780,23 @@ HidlProviderInfo::HidlDeviceInfo3::HidlDeviceInfo3(
  status_t HidlProviderInfo::HidlDeviceInfo3::setTorchMode(bool enabled) {
      using hardware::camera::common::V1_0::TorchMode;
      const sp<hardware::camera::device::V3_2::ICameraDevice> interface = startDeviceInterface();
@@ -1083,10 +1121,10 @@ index 630090b4acade2892f8aad238b9311e179a66cf3..62c57cd4f7eafe34a26996d8defac51d
  }
  
 diff --git a/services/camera/libcameraservice/device3/Camera3Device.cpp b/services/camera/libcameraservice/device3/Camera3Device.cpp
-index 6fb7dfd71fecf533255f424728ca3951af8f8185..082428beb0d991015597624e3c5fddfb486221df 100644
+index 3e9b18cada386a986f8968196f8f799ca0ed1847..64682f9525d71359dd6623fc072239845978dc73 100644
 --- a/services/camera/libcameraservice/device3/Camera3Device.cpp
 +++ b/services/camera/libcameraservice/device3/Camera3Device.cpp
-@@ -194,8 +194,16 @@ status_t Camera3Device::initializeCommonLocked() {
+@@ -201,8 +201,16 @@ status_t Camera3Device::initializeCommonLocked() {
      mTimestampOffset = getMonoToBoottimeOffset();
      camera_metadata_entry timestampSource =
              mDeviceInfo.find(ANDROID_SENSOR_INFO_TIMESTAMP_SOURCE);

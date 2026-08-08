@@ -1,26 +1,18 @@
-diff --git a/core/build_id.mk b/core/build_id.mk
-index e70e58b0cef8a327c015cae5095abd79255b8867..049bd2ac99a7f2cfdd01257d1a8e742a1fdff6b8 100644
---- a/core/build_id.mk
-+++ b/core/build_id.mk
-@@ -18,4 +18,4 @@
- # (like "CRB01").  It must be a single word, and is
- # capitalized by convention.
+diff --git a/target/board/gsi_system_ext.prop b/target/board/gsi_system_ext.prop
+index 780aadc0aec5270c90f835076a3c94239c094354..d22253336214f2ef9eaf83930ef910e66fe7d03f 100644
+--- a/target/board/gsi_system_ext.prop
++++ b/target/board/gsi_system_ext.prop
+@@ -1,8 +1,8 @@
+ # GSI always generate dex pre-opt in system image
+ ro.cp_system_other_odex=0
  
--BUILD_ID=TQ3A.230805.001
-+BUILD_ID=TQ3A.230705.001.B4
-diff --git a/core/version_defaults.mk b/core/version_defaults.mk
-index 4fa5425a4bf99756a13a8510b3d6b1eeea503a01..23dce804406c619cd1c6d8fa1dda97bc382dd848 100644
---- a/core/version_defaults.mk
-+++ b/core/version_defaults.mk
-@@ -103,7 +103,7 @@ ifndef PLATFORM_SECURITY_PATCH
-     #  It must be of the form "YYYY-MM-DD" on production devices.
-     #  It must match one of the Android Security Patch Level strings of the Public Security Bulletins.
-     #  If there is no $PLATFORM_SECURITY_PATCH set, keep it empty.
--    PLATFORM_SECURITY_PATCH := 2023-08-05
-+    PLATFORM_SECURITY_PATCH := 2023-07-05
- endif
+-# GSI always disables adb authentication
+-ro.adb.secure=0
++# PAR keeps ADB authentication enabled in production builds.
++ro.adb.secure=1
  
- include $(BUILD_SYSTEM)/version_util.mk
+ # GSI disables non-AOSP nnapi extensions on product partition
+ ro.nnapi.extensions.deny_on_product=true
 diff --git a/target/product/aosp_arm64.mk b/target/product/aosp_arm64.mk
 index 01897b77d2af0c7d9e2c542d4cadb89b3647f20d..a0a7c0d2fc7d58b66dd6f65f861edaeb3d27870e 100644
 --- a/target/product/aosp_arm64.mk
@@ -39,7 +31,7 @@ index 01897b77d2af0c7d9e2c542d4cadb89b3647f20d..a0a7c0d2fc7d58b66dd6f65f861edaeb
  #
  # Special settings for GSI releasing
 diff --git a/target/product/base_system.mk b/target/product/base_system.mk
-index b0870c32aa4e82cc6ece7c11f4750d855541a19a..310876804c813b59c6b94920a12a47b1d49e9e13 100644
+index d8c8da6ae68d7293cc67bd8b8d8e34385999af11..cbd7ec5a2e6390112573ca385134f990782ba707 100644
 --- a/target/product/base_system.mk
 +++ b/target/product/base_system.mk
 @@ -203,7 +203,6 @@ PRODUCT_PACKAGES += \

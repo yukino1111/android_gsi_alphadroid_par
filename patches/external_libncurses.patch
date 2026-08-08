@@ -1,5 +1,5 @@
 diff --git a/Android.mk b/Android.mk
-index b698b0eec57f581fac71e92112daac3526ad8b0f..b915b58fc70f54c67c8f13e79b4037607d202aa5 100644
+index b698b0eec57f581fac71e92112daac3526ad8b0f..ee2c23faae2683b0779a7fe36962daea2899b0ec 100644
 --- a/Android.mk
 +++ b/Android.mk
 @@ -45,26 +45,27 @@ LOCAL_SYSTEM_EXT_MODULE := true
@@ -42,7 +42,7 @@ index b698b0eec57f581fac71e92112daac3526ad8b0f..b915b58fc70f54c67c8f13e79b403760
 +# 	x/xterm x/xterm-256color x/xterm-color x/xterm-mono \
 +# 	x/xterm-r5 x/xterm-r6 x/xterm-vt220 x/xterm-xfree86 E/Eterm \
 +# 	E/Eterm-color
-+# 
++#
 +# TERMINFO_SOURCE := $(LOCAL_PATH)/lib/terminfo
 +# TERMINFO_TARGET := $(TARGET_OUT_SYSTEM_EXT_ETC)/terminfo
 +# $(TERMINFO_TARGET): $(ACP)

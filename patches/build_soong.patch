@@ -1,5 +1,5 @@
 diff --git a/ui/build/kati.go b/ui/build/kati.go
-index dad68fac2f4d62df8c61b2d3bd59f39a7c8ed13b..224fa9d14ccc34f7e8d24de34d5e81164a4aa70e 100644
+index dad68fac2f4d62df8c61b2d3bd59f39a7c8ed13b..1235f316cd7a70b2e51aae9403847358b37fbe46 100644
 --- a/ui/build/kati.go
 +++ b/ui/build/kati.go
 @@ -19,7 +19,6 @@ import (
@@ -34,7 +34,7 @@ index dad68fac2f4d62df8c61b2d3bd59f39a7c8ed13b..224fa9d14ccc34f7e8d24de34d5e8116
 -			hostname = "unknown"
 -		}
 -		cmd.Environment.Set("BUILD_HOSTNAME", hostname)
-+		cmd.Environment.Set("BUILD_HOSTNAME", "localhost")
++		cmd.Environment.Set("BUILD_HOSTNAME", "android-build")
  	}
  
  	cmd.StartOrFatal()

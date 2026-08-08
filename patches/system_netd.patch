@@ -12,10 +12,10 @@ index 00ee186d6f72109f3f4e80de076667d09664ce9d..faa6f135597155298aca38797c0e5f4b
      gLog.info("Enabling bandwidth control: %" PRId64 "us", s.getTimeAndResetUs());
  
 diff --git a/server/TetherController.cpp b/server/TetherController.cpp
-index 791935746427a3ab17ed1a5ef66f61d5d0d37f4e..00c979d82173e15159265a8a1aecda3dcf13929e 100644
+index 47496fcd9b7150611600dc62a6b5d5a859e81ebd..a03dba454b08f4d14af4296d8da5e272ccaed4cb 100644
 --- a/server/TetherController.cpp
 +++ b/server/TetherController.cpp
-@@ -718,17 +718,23 @@ int TetherController::setForwardRules(bool add, const char *intIface, const char
+@@ -719,17 +719,23 @@ int TetherController::setForwardRules(bool add, const char *intIface, const char
          "*raw\n"
          "%s %s -i %s -m rpfilter --invert ! -s fe80::/64 -j DROP\n"
          "COMMIT\n", op, LOCAL_RAW_PREROUTING, intIface);

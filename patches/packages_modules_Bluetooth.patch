@@ -191,34 +191,31 @@ index 143e230a39cdb9d382b8a86bbe84d1ca03a53db6..431aaacf17c0e990f0890802673d2b02
    return default_esco_parameters[codec];
  }
 diff --git a/system/gd/hci/controller.cc b/system/gd/hci/controller.cc
-index 18f881369e9166ef633585fa46031fc683b63964..e6eca91aa179cd1d1fcfca9e42da804f7cdb3649 100644
+index 10023e3dd97a085a498c19f42e63d7007b9c2e4d..5a3aed649b591334f40c596806900662acfeee9b 100644
 --- a/system/gd/hci/controller.cc
 +++ b/system/gd/hci/controller.cc
-@@ -16,6 +16,7 @@
- 
+@@ -17,6 +17,7 @@
  #include "hci/controller.h"
  
+ #include <android-base/strings.h>
 +#include <base/strings/string_split.h>
  #include <future>
  #include <memory>
  #include <string>
-@@ -25,6 +26,8 @@
- #include "hci/hci_layer.h"
+@@ -27,6 +28,7 @@
  #include "hci_controller_generated.h"
  #include "os/metrics.h"
-+#include "os/system_properties.h"
+ #include "os/system_properties.h"
 +using bluetooth::os::GetSystemProperty;
  
  namespace bluetooth {
  namespace hci {
-@@ -259,7 +262,23 @@ struct Controller::impl {
-     ASSERT(complete_view.IsValid());
-     ErrorCode status = complete_view.GetStatus();
-     ASSERT_LOG(status == ErrorCode::SUCCESS, "Status 0x%02hhx, %s", status, ErrorCodeText(status).c_str());
--    local_supported_commands_ = complete_view.GetSupportedCommands();
-+    //local_supported_commands_ = complete_view.GetSupportedCommands();
+@@ -274,6 +276,22 @@ struct Controller::impl {
+         local_supported_commands_[byte_index] &= ~(1 << bit_index);
+       }
+     }
 +
-+    auto local_commands = complete_view.GetSupportedCommands();
++    auto local_commands = local_supported_commands_;
 +    std::string ignored_commands = GetSystemProperty("persist.sys.bt.unsupported.commands").value_or("");
 +
 +    if (ignored_commands != "") {
@@ -236,7 +233,7 @@ index 18f881369e9166ef633585fa46031fc683b63964..e6eca91aa179cd1d1fcfca9e42da804f
    }
  
    void read_local_extended_features_complete_handler(std::promise<void> promise, CommandCompleteView view) {
-@@ -268,7 +287,25 @@ struct Controller::impl {
+@@ -282,7 +300,25 @@ struct Controller::impl {
      ErrorCode status = complete_view.GetStatus();
      ASSERT_LOG(status == ErrorCode::SUCCESS, "Status 0x%02hhx, %s", status, ErrorCodeText(status).c_str());
      uint8_t page_number = complete_view.GetPageNumber();
@@ -263,7 +260,7 @@ index 18f881369e9166ef633585fa46031fc683b63964..e6eca91aa179cd1d1fcfca9e42da804f
      bluetooth::os::LogMetricBluetoothLocalSupportedFeatures(page_number, complete_view.GetExtendedLmpFeatures());
      // Query all extended features
      if (page_number < complete_view.GetMaximumPageNumber()) {
-@@ -348,7 +385,21 @@ struct Controller::impl {
+@@ -362,7 +398,21 @@ struct Controller::impl {
      ASSERT(complete_view.IsValid());
      ErrorCode status = complete_view.GetStatus();
      ASSERT_LOG(status == ErrorCode::SUCCESS, "Status 0x%02hhx, %s", status, ErrorCodeText(status).c_str());
@@ -286,7 +283,7 @@ index 18f881369e9166ef633585fa46031fc683b63964..e6eca91aa179cd1d1fcfca9e42da804f
    }
  
    void le_read_supported_states_handler(CommandCompleteView view) {
-@@ -356,7 +407,21 @@ struct Controller::impl {
+@@ -370,7 +420,21 @@ struct Controller::impl {
      ASSERT(complete_view.IsValid());
      ErrorCode status = complete_view.GetStatus();
      ASSERT_LOG(status == ErrorCode::SUCCESS, "Status 0x%02hhx, %s", status, ErrorCodeText(status).c_str());
@@ -309,7 +306,7 @@ index 18f881369e9166ef633585fa46031fc683b63964..e6eca91aa179cd1d1fcfca9e42da804f
    }
  
    void le_read_connect_list_size_handler(CommandCompleteView view) {
-@@ -438,6 +503,13 @@ struct Controller::impl {
+@@ -452,6 +516,13 @@ struct Controller::impl {
      if (complete_view.IsValid()) {
        vendor_capabilities_.is_supported_ = 0x01;
  
@@ -323,7 +320,7 @@ index 18f881369e9166ef633585fa46031fc683b63964..e6eca91aa179cd1d1fcfca9e42da804f
        // v0.55
        BaseVendorCapabilities base_vendor_capabilities = complete_view.GetBaseVendorCapabilities();
        vendor_capabilities_.max_advt_instances_ = base_vendor_capabilities.max_advt_instances_;
-@@ -453,6 +525,8 @@ struct Controller::impl {
+@@ -467,6 +538,8 @@ struct Controller::impl {
          return;
        }
  
@@ -332,7 +329,7 @@ index 18f881369e9166ef633585fa46031fc683b63964..e6eca91aa179cd1d1fcfca9e42da804f
        // v0.95
        auto v95 = LeGetVendorCapabilitiesComplete095View::Create(complete_view);
        if (!v95.IsValid()) {
-@@ -467,6 +541,7 @@ struct Controller::impl {
+@@ -481,6 +554,7 @@ struct Controller::impl {
          return;
        }
  
@@ -340,7 +337,7 @@ index 18f881369e9166ef633585fa46031fc683b63964..e6eca91aa179cd1d1fcfca9e42da804f
        // v0.96
        auto v96 = LeGetVendorCapabilitiesComplete096View::Create(v95);
        if (!v96.IsValid()) {
-@@ -478,6 +553,7 @@ struct Controller::impl {
+@@ -492,6 +566,7 @@ struct Controller::impl {
          return;
        }
  
@@ -348,42 +345,6 @@ index 18f881369e9166ef633585fa46031fc683b63964..e6eca91aa179cd1d1fcfca9e42da804f
        // v0.98
        auto v98 = LeGetVendorCapabilitiesComplete098View::Create(v96);
        if (!v98.IsValid()) {
-@@ -547,26 +623,25 @@ struct Controller::impl {
- 
-   void le_set_event_mask(uint64_t le_event_mask) {
-     std::unique_ptr<LeSetEventMaskBuilder> packet = LeSetEventMaskBuilder::Create(le_event_mask);
--    hci_->EnqueueCommand(
--        std::move(packet), module_.GetHandler()->BindOnceOn(this, &Controller::impl::check_le_set_event_mask_status));
-+    hci_->EnqueueCommand(std::move(packet), module_.GetHandler()->BindOnceOn(
-+                                                this, &Controller::impl::check_event_mask_status<LeSetEventMaskCompleteView>));
-   }
- 
--  void check_le_set_event_mask_status(CommandCompleteView view) {
-+  template <class T>
-+  void check_status(CommandCompleteView view) {
-     ASSERT(view.IsValid());
--    auto status_view = LeSetEventMaskCompleteView::Create(view);
-+    auto status_view = T::Create(view);
-     ASSERT(status_view.IsValid());
--    auto status = status_view.GetStatus();
--    if (status != ErrorCode::SUCCESS) {
--      LOG_WARN("Unexpected return status %s", ErrorCodeText(status).c_str());
--    }
-+    ASSERT(status_view.GetStatus() == ErrorCode::SUCCESS);
-   }
- 
-   template <class T>
--  void check_status(CommandCompleteView view) {
-+  void check_event_mask_status(CommandCompleteView view) {
-     ASSERT(view.IsValid());
-     auto status_view = T::Create(view);
-     ASSERT(status_view.IsValid());
--    ASSERT(status_view.GetStatus() == ErrorCode::SUCCESS);
-+    ASSERT(status_view.GetStatus() == ErrorCode::SUCCESS ||
-+           status_view.GetStatus() == ErrorCode::UNSUPPORTED_LMP_OR_LL_PARAMETER);
-   }
- 
- #define OP_CODE_MAPPING(name)                                                  \
 diff --git a/system/osi/src/alarm.cc b/system/osi/src/alarm.cc
 index 19baacbd68226e4a0944663ba9787f19addf6736..6db41099b833ffb00d024a38d718269477bca146 100644
 --- a/system/osi/src/alarm.cc

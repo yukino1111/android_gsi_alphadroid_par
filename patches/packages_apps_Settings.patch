@@ -1,15 +1,3 @@
-diff --git a/src/com/android/settings/CustomDashboardFragment.kt b/src/com/android/settings/CustomDashboardFragment.kt
-index e59358b7d09e4e817a405edd99bcd32d65e2e2b4..5e6b02b5d8d68d51dc77992634e6c998c7d7bfe3 100644
---- a/src/com/android/settings/CustomDashboardFragment.kt
-+++ b/src/com/android/settings/CustomDashboardFragment.kt
-@@ -21,6 +21,6 @@ import com.android.settings.dashboard.DashboardFragment
- 
- abstract class CustomDashboardFragment : DashboardFragment() {
- 
--    override fun getMetricsCategory(): Int = MetricsProto.MetricsEvent.ALPHA
-+    override fun getMetricsCategory(): Int = MetricsProto.MetricsEvent.MAIN_SETTINGS
- 
- }
 diff --git a/src/com/android/settings/biometrics/fingerprint/FingerprintEnrollEnrolling.java b/src/com/android/settings/biometrics/fingerprint/FingerprintEnrollEnrolling.java
 index 2348141dee260fe85ae39a2ea115958c07e79cb1..fb9d9a7b142d0f3d6ba0d7817dc03f6c0ccb0193 100644
 --- a/src/com/android/settings/biometrics/fingerprint/FingerprintEnrollEnrolling.java
@@ -43,28 +31,6 @@ index a34643145274f1e855d2ff0f28f8b839f716eefa..73ec2c0c404b1e1ae9ded11011336dc0
          if (mNextClicked && errMsgId == FingerprintManager.FINGERPRINT_ERROR_CANCELED) {
              proceedToEnrolling(false /* cancelEnrollment */);
          } else {
-diff --git a/src/com/android/settings/bluetooth/BluetoothTimeoutPreferenceController.java b/src/com/android/settings/bluetooth/BluetoothTimeoutPreferenceController.java
-index ab565727b6dbdce4ce4c087aff6503afb82564ba..2de567923fb3be5c19e151c5ae4f7772fe1ed02c 100644
---- a/src/com/android/settings/bluetooth/BluetoothTimeoutPreferenceController.java
-+++ b/src/com/android/settings/bluetooth/BluetoothTimeoutPreferenceController.java
-@@ -63,7 +63,7 @@ public class BluetoothTimeoutPreferenceController extends BasePreferenceControll
-     public void updateState(Preference preference) {
-         final ListPreference timeoutListPreference = (ListPreference) preference;
-         final long currentTimeout = Settings.Global.getLong(mContext.getContentResolver(),
--                Settings.Global.BLUETOOTH_OFF_TIMEOUT, FALLBACK_BLUETOOTH_TIMEOUT_VALUE);
-+                Settings.System.BLUETOOTH_OFF_TIMEOUT, FALLBACK_BLUETOOTH_TIMEOUT_VALUE);
-         timeoutListPreference.setValue(String.valueOf(currentTimeout));
-         updateTimeoutPreferenceDescription(timeoutListPreference,
-                 Long.parseLong(timeoutListPreference.getValue()));
-@@ -73,7 +73,7 @@ public class BluetoothTimeoutPreferenceController extends BasePreferenceControll
-     public boolean onPreferenceChange(Preference preference, Object newValue) {
-         try {
-             int value = Integer.parseInt((String) newValue);
--            Settings.Global.putInt(mContext.getContentResolver(), Settings.Global.BLUETOOTH_OFF_TIMEOUT, value);
-+            Settings.Global.putInt(mContext.getContentResolver(), Settings.System.BLUETOOTH_OFF_TIMEOUT, value);
-             updateTimeoutPreferenceDescription((ListPreference) preference, value);
-         } catch (NumberFormatException e) {
-             Log.e(TAG, "could not persist bluetooth timeout setting", e);
 diff --git a/src/com/android/settings/connecteddevice/usb/UsbConnectionBroadcastReceiver.java b/src/com/android/settings/connecteddevice/usb/UsbConnectionBroadcastReceiver.java
 index 1a1f8ba414279af3457570fbc49da1de4e78d0d4..b3981e38658fbd368f6439776cd98db14d1c6a05 100644
 --- a/src/com/android/settings/connecteddevice/usb/UsbConnectionBroadcastReceiver.java
@@ -83,77 +49,214 @@ index 1a1f8ba414279af3457570fbc49da1de4e78d0d4..b3981e38658fbd368f6439776cd98db1
          } else if (UsbManager.ACTION_USB_PORT_CHANGED.equals(intent.getAction())) {
              UsbPortStatus portStatus = intent.getExtras()
                      .getParcelable(UsbManager.EXTRA_PORT_STATUS);
-diff --git a/src/com/android/settings/security/applock/AppLockPackageConfigFragment.kt b/src/com/android/settings/security/applock/AppLockPackageConfigFragment.kt
-index 3c1e33b141d92399211952f3a795b21cde6a86d3..d140ac5bbb956220c55e12389adb135b8d1b6de2 100644
---- a/src/com/android/settings/security/applock/AppLockPackageConfigFragment.kt
-+++ b/src/com/android/settings/security/applock/AppLockPackageConfigFragment.kt
-@@ -72,7 +72,7 @@ class AppLockPackageConfigFragment : DashboardFragment() {
-         AppLockHideAppPC(context, packageInfo.packageName, lifecycleScope)
-     )
+diff --git a/src/com/android/settings/homepage/TopMenu.java b/src/com/android/settings/homepage/TopMenu.java
+index b07be93acf69252f92e3e5faa5648db2a2f03482..243ab3483902a3cf909e3a8555b606276f5cfced 100644
+--- a/src/com/android/settings/homepage/TopMenu.java
++++ b/src/com/android/settings/homepage/TopMenu.java
+@@ -28,10 +28,19 @@ import java.util.Random;
+ import java.util.concurrent.ExecutionException;
+ import java.util.concurrent.FutureTask;
  
--    override fun getMetricsCategory(): Int = MetricsProto.MetricsEvent.CRDROID_SETTINGS
-+    override fun getMetricsCategory(): Int = MetricsProto.MetricsEvent.MAIN_SETTINGS
+-public class TopMenu extends Preference {
+-
+-    private long lastTouchTime = 0;
+-    private long currentTouchTime = 0;
++public class TopMenu extends Preference {
++
++    private long lastTouchTime = 0;
++    private long currentTouchTime = 0;
++    private TextView mBatteryText;
++    private boolean mBatteryReceiverRegistered;
++
++    private final BroadcastReceiver mBatteryReceiver = new BroadcastReceiver() {
++        @Override
++        public void onReceive(Context context, Intent intent) {
++            updateBatteryStatus(intent);
++        }
++    };
  
-     override protected fun getPreferenceScreenResId() = R.xml.app_lock_package_config_settings
+     public TopMenu(Context context, AttributeSet attrs) {
+         super(context, attrs);
+@@ -42,7 +51,7 @@ public class TopMenu extends Preference {
  
-diff --git a/src/com/android/settings/security/applock/AppLockPackageListFragment.kt b/src/com/android/settings/security/applock/AppLockPackageListFragment.kt
-index d8c5c84319ff7239db8f9636f489e8d5ce59f35d..0b48b79e80c4f517f3c2148f65b4e9fc43332716 100644
---- a/src/com/android/settings/security/applock/AppLockPackageListFragment.kt
-+++ b/src/com/android/settings/security/applock/AppLockPackageListFragment.kt
-@@ -140,7 +140,7 @@ class AppLockPackageListFragment : DashboardFragment() {
+ 
+     // system prop
+-    public static String getSystemProperty(String key) {
++    public static String getSystemProperty(String key) {
+         String value = null;
+ 
+         try {
+@@ -51,59 +60,74 @@ public class TopMenu extends Preference {
+         } catch (Exception e) {
+             e.printStackTrace();
+         }
+-        return value;
+-    }
+-
+-    @Override
+-    public void onBindViewHolder(PreferenceViewHolder holder) {
++        return value;
++    }
++
++    @Override
++    public void onAttached() {
++        super.onAttached();
++        if (!mBatteryReceiverRegistered) {
++            final Intent batteryStatus = getContext().registerReceiver(mBatteryReceiver,
++                    new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
++            mBatteryReceiverRegistered = true;
++            updateBatteryStatus(batteryStatus);
++        }
++    }
++
++    @Override
++    public void onDetached() {
++        if (mBatteryReceiverRegistered) {
++            getContext().unregisterReceiver(mBatteryReceiver);
++            mBatteryReceiverRegistered = false;
++        }
++        mBatteryText = null;
++        super.onDetached();
++    }
++
++    private void updateBatteryStatus(Intent intent) {
++        if (intent == null || mBatteryText == null) {
++            return;
++        }
++
++        final int scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
++        final int level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
++        if (scale <= 0 || level < 0) {
++            return;
++        }
++
++        final int status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, 0);
++        final int chargePlug = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1);
++        final boolean usbCharge = chargePlug == BatteryManager.BATTERY_PLUGGED_USB;
++        final boolean acCharge = chargePlug == BatteryManager.BATTERY_PLUGGED_AC;
++        final boolean isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING
++                || status == BatteryManager.BATTERY_STATUS_FULL;
++        final int percentage = (int) (level / (float) scale * 100);
++
++        if (isCharging && usbCharge) {
++            mBatteryText.setText("⚡ USB " + percentage + "%");
++        } else if (isCharging && acCharge) {
++            mBatteryText.setText("⚡ AC " + percentage + "%");
++        } else {
++            mBatteryText.setText(getContext().getString(R.string.power_usage_summary_title)
++                    + " " + percentage + "%");
++        }
++    }
++
++    @Override
++    public void onBindViewHolder(PreferenceViewHolder holder) {
+         super.onBindViewHolder(holder);
+ 
+         final boolean selectable = false;
+         final Context context = getContext();
+ 
+-        TextView mBatteryText = holder.itemView.findViewById(context.getResources().
+-                getIdentifier("id/battery_title", null, context.getPackageName()));
++        mBatteryText = holder.itemView.findViewById(context.getResources().
++                getIdentifier("id/battery_title", null, context.getPackageName()));
+ 
+         //TextView deviceName = holder.itemView.findViewById(context.getResources().
+         //        getIdentifier("id/device_name", null, context.getPackageName()));
+ 
+-        context.registerReceiver(new BroadcastReceiver() {
+-            @Override
+-            public void onReceive(Context context, Intent intent) {
+-                // Get the battery scale
+-                int mProgressStatus = 0;
+-                int scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+-                int status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, 0);
+-                int chargePlug = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1);
+-                boolean usbCharge = chargePlug == BatteryManager.BATTERY_PLUGGED_USB;
+-                boolean acCharge = chargePlug == BatteryManager.BATTERY_PLUGGED_AC;
+-                boolean isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
+-                        status == BatteryManager.BATTERY_STATUS_FULL;
+-
+-                // get the battery level
+-                int level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+-
+-                // Calculate the battery charged percentage
+-                float percentage = level / (float) scale;
+-                // Update the progress bar to display current battery charged percentage
+-                mProgressStatus = (int) ((percentage) * 100);
+-
+-                // Show the battery charged percentage text
+-                if (isCharging) {
+-                    if (usbCharge) {
+-                        mBatteryText.setText("⚡ USB " + mProgressStatus + "%");
+-                    } else if (acCharge) {
+-                        mBatteryText.setText("⚡ AC " + mProgressStatus + "%");
+-                    } else {
+-                        mBatteryText.setText(context.getString(R.string.power_usage_summary_title) + " " + mProgressStatus + "%");
+-                    }
+-                } else {
+-                    mBatteryText.setText(context.getString(R.string.power_usage_summary_title) + " " + mProgressStatus + "%");
+-
+-                }
+-            }
+-
+-        }, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
++        updateBatteryStatus(context.registerReceiver(null,
++                new IntentFilter(Intent.ACTION_BATTERY_CHANGED)));
+ 
+         holder.itemView.setFocusable(selectable);
+         holder.itemView.setClickable(selectable);
+diff --git a/src/com/android/settings/widget/HighlightableTopLevelPreferenceAdapter.java b/src/com/android/settings/widget/HighlightableTopLevelPreferenceAdapter.java
+index 8084a4811d6879a826684a774e0b2d4888e095d7..40ddf6702f7599b7a8eaea659bffc6431a10be95 100644
+--- a/src/com/android/settings/widget/HighlightableTopLevelPreferenceAdapter.java
++++ b/src/com/android/settings/widget/HighlightableTopLevelPreferenceAdapter.java
+@@ -230,22 +230,40 @@ public class HighlightableTopLevelPreferenceAdapter extends PreferenceGroupAdapt
+     private void addHighlightBackground(PreferenceViewHolder holder) {
+         final View v = holder.itemView;
+         v.setBackgroundResource(RES_HIGHLIGHTED_BACKGROUND);
+-        ((TextView) v.findViewById(android.R.id.title)).setTextColor(mTitleColorHighlight);
+-        ((TextView) v.findViewById(android.R.id.summary)).setTextColor(mSummaryColorHighlight);
+-        final Drawable drawable = ((ImageView) v.findViewById(android.R.id.icon)).getDrawable();
+-        if (drawable != null) {
+-            drawable.setTint(mIconColorHighlight);
++        final TextView title = v.findViewById(android.R.id.title);
++        if (title != null) {
++            title.setTextColor(mTitleColorHighlight);
++        }
++        final TextView summary = v.findViewById(android.R.id.summary);
++        if (summary != null) {
++            summary.setTextColor(mSummaryColorHighlight);
++        }
++        final ImageView icon = v.findViewById(android.R.id.icon);
++        if (icon != null) {
++            final Drawable drawable = icon.getDrawable();
++            if (drawable != null) {
++                drawable.setTint(mIconColorHighlight);
++            }
          }
      }
  
--    override fun getMetricsCategory(): Int = MetricsProto.MetricsEvent.CRDROID_SETTINGS
-+    override fun getMetricsCategory(): Int = MetricsProto.MetricsEvent.MAIN_SETTINGS
- 
-     override protected fun getPreferenceScreenResId() = R.xml.app_lock_package_list_settings
- 
-diff --git a/src/com/android/settings/security/applock/AppLockSettingsFragment.kt b/src/com/android/settings/security/applock/AppLockSettingsFragment.kt
-index 43dcc9dc0a01fab379957c7078c6dfe1d8932cc6..e953bb911b2a03bf7e3e59551a20dd3e747c45ee 100644
---- a/src/com/android/settings/security/applock/AppLockSettingsFragment.kt
-+++ b/src/com/android/settings/security/applock/AppLockSettingsFragment.kt
-@@ -40,7 +40,7 @@ class AppLockSettingsFragment : DashboardFragment(),
- 
-     override protected fun getPreferenceScreenResId() = R.xml.app_lock_settings
- 
--    override fun getMetricsCategory() = MetricsProto.MetricsEvent.CRDROID_SETTINGS
-+    override fun getMetricsCategory() = MetricsProto.MetricsEvent.MAIN_SETTINGS
- 
-     override protected fun getLogTag() = TAG
- 
-diff --git a/src/com/android/settings/sound/CustomVibrationPreferenceFragment.java b/src/com/android/settings/sound/CustomVibrationPreferenceFragment.java
-index f0c95ceb2d3ef4fa8c5f76dde04558d3ed32a422..42d0a6a2027a70ff8ed1a66f4e6f8c232c175783 100644
---- a/src/com/android/settings/sound/CustomVibrationPreferenceFragment.java
-+++ b/src/com/android/settings/sound/CustomVibrationPreferenceFragment.java
-@@ -34,7 +34,7 @@ public class CustomVibrationPreferenceFragment extends DashboardFragment {
- 
-     @Override
-     public int getMetricsCategory() {
--        return MetricsEvent.ALPHA;
-+        return MetricsEvent.MAIN_SETTINGS;
+     private void removeHighlightBackground(PreferenceViewHolder holder) {
+         final View v = holder.itemView;
+         v.setBackgroundResource(RES_NORMAL_BACKGROUND);
+-        ((TextView) v.findViewById(android.R.id.title)).setTextColor(mTitleColorNormal);
+-        ((TextView) v.findViewById(android.R.id.summary)).setTextColor(mSummaryColorNormal);
+-        final Drawable drawable = ((ImageView) v.findViewById(android.R.id.icon)).getDrawable();
+-        if (drawable != null) {
+-            drawable.setTint(mIconColorNormal);
++        final TextView title = v.findViewById(android.R.id.title);
++        if (title != null) {
++            title.setTextColor(mTitleColorNormal);
++        }
++        final TextView summary = v.findViewById(android.R.id.summary);
++        if (summary != null) {
++            summary.setTextColor(mSummaryColorNormal);
++        }
++        final ImageView icon = v.findViewById(android.R.id.icon);
++        if (icon != null) {
++            final Drawable drawable = icon.getDrawable();
++            if (drawable != null) {
++                drawable.setTint(mIconColorNormal);
++            }
+         }
      }
  
-     @Override
-diff --git a/src/com/android/settings/wifi/WifiTimeoutPreferenceController.java b/src/com/android/settings/wifi/WifiTimeoutPreferenceController.java
-index 29e040350303ff77a63ed3297243e40ce287c1dd..d139518e5028962268a32c8dc6b9aa3b9f808f45 100644
---- a/src/com/android/settings/wifi/WifiTimeoutPreferenceController.java
-+++ b/src/com/android/settings/wifi/WifiTimeoutPreferenceController.java
-@@ -63,7 +63,7 @@ public class WifiTimeoutPreferenceController extends BasePreferenceController im
-     public void updateState(Preference preference) {
-         final ListPreference timeoutListPreference = (ListPreference) preference;
-         final long currentTimeout = Settings.Global.getLong(mContext.getContentResolver(),
--                Settings.Global.WIFI_OFF_TIMEOUT, FALLBACK_WIFI_TIMEOUT_VALUE);
-+                Settings.System.WIFI_OFF_TIMEOUT, FALLBACK_WIFI_TIMEOUT_VALUE);
-         timeoutListPreference.setValue(String.valueOf(currentTimeout));
-         updateTimeoutPreferenceDescription(timeoutListPreference,
-                 Long.parseLong(timeoutListPreference.getValue()));
-@@ -73,7 +73,7 @@ public class WifiTimeoutPreferenceController extends BasePreferenceController im
-     public boolean onPreferenceChange(Preference preference, Object newValue) {
-         try {
-             int value = Integer.parseInt((String) newValue);
--            Settings.Global.putInt(mContext.getContentResolver(), Settings.Global.WIFI_OFF_TIMEOUT, value);
-+            Settings.Global.putInt(mContext.getContentResolver(), Settings.System.WIFI_OFF_TIMEOUT, value);
-             updateTimeoutPreferenceDescription((ListPreference) preference, value);
-         } catch (NumberFormatException e) {
-             Log.e(TAG, "could not persist wifi timeout setting", e);

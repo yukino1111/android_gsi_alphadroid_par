@@ -1,59 +1,96 @@
 diff --git a/base.mk b/base.mk
-index c26a5339310c9d8f57f6033ee0b0e02bffbe16e6..d94b7cf5f44d6e4bb9c2470ab3f4c1433fea7375 100644
+index bf8f11783566c82395ae57b77acfa0a2d9d8fc86..cdd9ede1517af1dc0a7f281615c8ed4939d7f05b 100644
 --- a/base.mk
 +++ b/base.mk
-@@ -259,3 +259,12 @@ PRODUCT_PACKAGES += \
+@@ -37,7 +37,6 @@ PRODUCT_SYSTEM_DEFAULT_PROPERTIES += \
+ 	ro.build.version.all_codenames=$(PLATFORM_VERSION_ALL_CODENAMES) \
+ 	ro.build.version.release=$(PLATFORM_VERSION) \
+ 	ro.build.version.security_patch=$(PLATFORM_SECURITY_PATCH) \
+-	ro.adb.secure=0 \
+ 	ro.logd.auditd=true \
+ 	ro.logd.kernel=true \
  
+@@ -150,6 +149,9 @@ PRODUCT_COPY_FILES += \
+ 	device/phh/treble/files/tecno-touchpanel.kl:system/phh/tecno-touchpanel.kl \
+ 	device/phh/treble/files/rosemary-excluded-input-devices.xml:system/phh/rosemary-excluded-input-devices.xml
+ 
++# PHH's privileged compatibility helper predates Android 13 neverallow rules
++# and is also used by rw-system/hardware fixups, not only by legacy PHH su.
++# Keep this explicit until the helper domain is split and tightened for PAR.
+ SELINUX_IGNORE_NEVERALLOWS := true
+ 
+ # Universal NoCutoutOverlay
+@@ -260,6 +262,14 @@ PRODUCT_PACKAGES += \
  PRODUCT_PACKAGES += \
  	slsi-booted
-+
-+# Build fix: register LineageOS soong variables (KERNEL_*, PATH_OVERRIDE_SOONG)
-+# for GSI builds; values stay empty as GSI has no kernel build.
+ 
++# Register LineageOS Soong variables for this GSI product. Values such as
++# kernel paths remain empty because the GSI does not build a device kernel.
 +include vendor/lineage/config/BoardConfigSoong.mk
 +
-+# Build fix: disable legacy QCOM wlan (conflicts with qcom-caf libcld80211)
++# The AOSP legacy QCOM WLAN path conflicts with the qcom-caf libcld80211 used
++# by this AlphaDroid tree.
 +TARGET_USES_HARDWARE_QCOM_WLAN := false
 +
-+# Build fix: drop AOSP charger_res_images (conflicts with TrebleDroid pixel charger)
+ # Two-pane layout in Settings
+ PRODUCT_PACKAGES += \
+     androidx.window.extensions
 diff --git a/lineage.mk b/lineage.mk
-index 172bb012af4e1e21bcfdf25476583b88fd005507..2a906b8286934d4b707b27bcbe8e4852567cb85b 100644
+index 172bb012af4e1e21bcfdf25476583b88fd005507..20667b60ed19bbe066b40922c0b558062950b6ac 100644
 --- a/lineage.mk
 +++ b/lineage.mk
-@@ -1,3 +1,29 @@
-+# Match the known-good AlphaDroid GSI product composition.  These packages are
-+# consumed while vendor/addons/config.mk is inherited below.
+@@ -1,3 +1,32 @@
++# Match the validated PAR vanilla product composition.
 +TARGET_HAS_UDFPS := true
 +TARGET_EXCLUDE_LINEAGE_ADDON_D := true
 +TARGET_ENABLE_BLUR := true
++
++# PAR release builds use a private key directory mounted read-only by the
++# build wrapper. Keep private signing material outside the Android tree.
++ifneq ($(PAR_SIGNING_KEYS_DIR),)
++PRODUCT_DEFAULT_DEV_CERTIFICATE := $(PAR_SIGNING_KEYS_DIR)/releasekey
++endif
 +
  $(call inherit-product, vendor/lineage/config/common_full_phone.mk)
  -include vendor/lineage/build/core/config.mk
  -include vendor/lineage/build/core/apicheck.mk
 +
-+# Build fix: drop AOSP charger_res_images; TrebleDroid pixel charger covers it.
++# Use the TrebleDroid charger and APN configuration for this GSI.
 +PRODUCT_PACKAGES -= charger_res_images
-+
-+# Build fix: use TrebleDroid pixel charger on GSI (skip LineageOS charger images)
 +TARGET_GSI_CHARGER := true
 +TARGET_GSI_APNS := true
 +
-+# KoysX's working vanilla GSI ships AOSP Music and omits the Lineage/AOSP demo
-+# applications below. Product inheritance has already tagged these entries, so
-+# a plain `PRODUCT_PACKAGES -=` does not remove them from the resolved product.
++# Keep the vanilla image composition used by the working PAR build.
 +PRODUCT_PACKAGES += \
 +    par-vanilla-overrides \
 +    Music \
 +    TurboAdapter
 +
-+# Hide the OEM-unlock capability. TARGET_ENABLE_BLUR makes crdroid.mk emit the
-+# same pair of system_ext blur properties shipped by the known-good GSI.
++# The APKs live outside the source tree and are bind-mounted by the PAR build
++# wrapper. A missing mount keeps ordinary TrebleDroid builds on AOSP WebView.
++-include vendor/par/chromium/product.mk
++
 +PRODUCT_SYSTEM_DEFAULT_PROPERTIES += \
 +    ro.oem_unlock_supported=0
+diff --git a/overlay/frameworks/base/core/res/res/xml/config_webview_packages.xml b/overlay/frameworks/base/core/res/res/xml/config_webview_packages.xml
+index 3f96e59a7cd1816c5c47b52c0efd16c815512d7b..b6ae0a583317edb2f0e6d53b2fc4bc5979c405dc 100644
+--- a/overlay/frameworks/base/core/res/res/xml/config_webview_packages.xml
++++ b/overlay/frameworks/base/core/res/res/xml/config_webview_packages.xml
+@@ -16,6 +16,9 @@
+ 
+ <webviewproviders>
+ 
++    <!-- Current Chromium prebuilt supplied by the PAR build wrapper. -->
++    <webviewprovider description="CalyxOS WebView" packageName="org.calyxos.webview" availableByDefault="true" />
++
+     <webviewprovider description="Chrome Stable" packageName="com.android.chrome" availableByDefault="true">
+         <signature>MIIEQzCCAyugAwIBAgIJAMLgh0ZkSjCNMA0GCSqGSIb3DQEBBAUAMHQxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpDYWxpZm9ybmlhMRYwFAYDVQQHEw1Nb3VudGFpbiBWaWV3MRQwEgYDVQQKEwtHb29nbGUgSW5jLjEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDAeFw0wODA4MjEyMzEzMzRaFw0zNjAxMDcyMzEzMzRaMHQxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpDYWxpZm9ybmlhMRYwFAYDVQQHEw1Nb3VudGFpbiBWaWV3MRQwEgYDVQQKEwtHb29nbGUgSW5jLjEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDCCASAwDQYJKoZIhvcNAQEBBQADggENADCCAQgCggEBAKtWLgDYO6IIrgqWbxJOKdoR8qtW0I9Y4sypEwPpt1TTcvZApxsdyxMJZ2JORland2qSGT2y5b+3JKkedxiLDmpHpDsz2WCbdxgxRczfey5YZnTJ4VZbH0xqWVW/8lGmPav5xVwnIiJS6HXk+BVKZF+JcWjAsb/GEuq/eFdpuzSqeYTcfi6idkyugwfYwXFU1+5fZKUaRKYCwkkFQVfcAs1fXA5V+++FGfvjJ/CxURaSxaBvGdGDhfXE28LWuT9ozCl5xw4Yq5OGazvV24mZVSoOO0yZ31j7kYvtwYK6NeADwbSxDdJEqO4k//0zOHKrUiGYXtqw/A0LFFtqoZKFjnkCAQOjgdkwgdYwHQYDVR0OBBYEFMd9jMIhF1Ylmn/Tgt9r45jk14alMIGmBgNVHSMEgZ4wgZuAFMd9jMIhF1Ylmn/Tgt9r45jk14aloXikdjB0MQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEUMBIGA1UEChMLR29vZ2xlIEluYy4xEDAOBgNVBAsTB0FuZHJvaWQxEDAOBgNVBAMTB0FuZHJvaWSCCQDC4IdGZEowjTAMBgNVHRMEBTADAQH/MA0GCSqGSIb3DQEBBAUAA4IBAQBt0lLO74UwLDYKqs6Tm8/yzKkEu116FmH4rkaymUIE0P9KaMftGlMexFlaYjzmB2OxZyl6euNXEsQH8gjwyxCUKRJNexBiGcCEyj6z+a1fuHHvkiaai+KL8W1EyNmgjmyy8AW7P+LLlkR+ho5zEHatRbM/YAnqGcFh5iZBqpknHf1SKMXFh4dd239FJ1jWYfbMDMy3NS5CTMQ2XFI1MvcyUTdZPErjQfTbQe3aDQsQcafEQPD+nqActifKZ0Np0IS9L9kR/wbNvyz6ENwPiTrjV2KRkEjH78ZMcUQXg0L3BYHJ3lc69Vs5Ddf9uUGGMYldX3WfMBEmh/9iFBDAaTCK</signature>
+     </webviewprovider>
 diff --git a/overrides/Android.mk b/overrides/Android.mk
-index 813d66bc4d2e4fb2eb1afe77a723e69d1867b2b7..8756bc1d7941c23e5cbafbea720cb72a8cb97d4c 100644
+index 813d66bc4d2e4fb2eb1afe77a723e69d1867b2b7..1cd7c9fd226337e5ce9091a8e552169a8403a77c 100644
 --- a/overrides/Android.mk
 +++ b/overrides/Android.mk
-@@ -1,5 +1,20 @@
+@@ -1,5 +1,21 @@
  LOCAL_PATH := $(call my-dir)
  
 +include $(CLEAR_VARS)
@@ -63,6 +100,7 @@ index 813d66bc4d2e4fb2eb1afe77a723e69d1867b2b7..8756bc1d7941c23e5cbafbea720cb72a
 +	Etar \
 +	Gallery2 \
 +	Jelly \
++	su \
 +	Traceur
 +LOCAL_MODULE_TAGS := optional
 +LOCAL_MODULE_CLASS := ETC
@@ -74,102 +112,6 @@ index 813d66bc4d2e4fb2eb1afe77a723e69d1867b2b7..8756bc1d7941c23e5cbafbea720cb72a
  include $(CLEAR_VARS)
  LOCAL_MODULE := phh-gapps-go-overrides
  PACKAGES.$(LOCAL_MODULE).OVERRIDES := \
-diff --git a/rw-system.sh b/rw-system.sh
-index e986b038d39388fd1bd5f6772e282dd7460f94c1..49dc1d80d0c9679e08ed044cd76f660064d1e25d 100644
---- a/rw-system.sh
-+++ b/rw-system.sh
-@@ -771,17 +771,8 @@ if [ -f /system/phh/secure ] || [ -f /metadata/phh/secure ];then
-         [ -n "$v" ] && resetprop_phh ro.build.version.security_patch "$v"
-     done
- 
--    resetprop_phh ro.build.tags release-keys
--    resetprop_phh ro.boot.vbmeta.device_state locked
--    resetprop_phh ro.boot.verifiedbootstate green
--    resetprop_phh ro.boot.flash.locked 1
--    resetprop_phh ro.boot.veritymode enforcing
--    resetprop_phh ro.boot.warranty_bit 0
--    resetprop_phh ro.warranty_bit 0
-     resetprop_phh ro.debuggable 0
-     resetprop_phh ro.secure 1
--    resetprop_phh ro.build.type user
--    resetprop_phh ro.build.selinux 0
- 
-     resetprop_phh ro.adb.secure 1
- 
-@@ -801,6 +792,19 @@ else
-     mount -o bind /mnt/phh/xbin /system/xbin
- fi
- 
-+# COMMON: match the known-good GSI and hide the unlocked boot state regardless
-+# of whether PHH secure mode is enabled. Keep keymaster-specific redirects in
-+# bionic separate so init still sees the real early-boot properties.
-+resetprop_phh ro.build.tags release-keys
-+resetprop_phh ro.boot.vbmeta.device_state locked
-+resetprop_phh ro.boot.verifiedbootstate green
-+resetprop_phh ro.boot.flash.locked 1
-+resetprop_phh ro.boot.veritymode enforcing
-+resetprop_phh ro.boot.warranty_bit 0
-+resetprop_phh ro.warranty_bit 0
-+resetprop_phh ro.build.type user
-+resetprop_phh ro.build.selinux 0
-+
- for abi in "" 64;do
-     f=/vendor/lib$abi/libstagefright_foundation.so
-     if [ -f "$f" ];then
-diff --git a/sepolicy/hal_audio_sysbta.te b/sepolicy/hal_audio_sysbta.te
-index d871ed3b93b396e84275ea43b30a7e2a3a36b00d..1e468fd0a2baebdb1dfea23e3325e7432e0efb22 100644
---- a/sepolicy/hal_audio_sysbta.te
-+++ b/sepolicy/hal_audio_sysbta.te
-@@ -1,5 +1,6 @@
- type hal_audio_sysbta, domain, coredomain;
- hal_server_domain(hal_audio_sysbta, hal_audio)
-+binder_use(hal_audio_sysbta)
- 
- type hal_audio_sysbta_exec, exec_type, system_file_type, file_type;
- init_daemon_domain(hal_audio_sysbta)
-diff --git a/tdgsi_arm64_ab/BoardConfig.mk b/tdgsi_arm64_ab/BoardConfig.mk
-index 2fddc5240c4a44e9a7dbed945b29fd9e1489f3e4..8c8101173364fd2bf9c6baabf5f3c85c5fe820df 100644
---- a/tdgsi_arm64_ab/BoardConfig.mk
-+++ b/tdgsi_arm64_ab/BoardConfig.mk
-@@ -1,8 +1,29 @@
- include build/make/target/board/generic_arm64/BoardConfig.mk
- include device/phh/treble/board-base.mk
- 
-+# AlphaDroid/Lineage services live on system_ext and require their matching
-+# service, property, file and domain policy. Normal Lineage device trees include
-+# this from their BoardConfig; the generated PHH GSI target has no such include.
-+# Without it system_server reaches the boot animation but cannot register the
-+# Lineage/Alpha services (parallel space, app lock, profiles, trust, etc.).
-+TARGET_USES_PREBUILT_VENDOR_SEPOLICY := true
-+TARGET_HAS_FUSEBLK_SEPOLICY_ON_VENDOR := true
-+include device/lineage/sepolicy/common/sepolicy.mk
-+
- ifeq ($(BOARD_SYSTEMIMAGE_PARTITION_RESERVED_SIZE),)
- BOARD_SYSTEMIMAGE_PARTITION_SIZE := 2147483648
- else
- BOARD_SYSTEMIMAGE_PARTITION_RESERVED_SIZE := 33554432
- endif
-+
-+# Build fix: ro.adb.secure is assigned 0 (device/phh/treble base.mk, system.prop)
-+# and 1 (vendor/lineage/config/alpha.mk) in the frozen snapshot; the differing
-+# duplicates fail post_process_props. Official escape hatch: keep first (0),
-+# pass --allow-dup to post_process_props. NOTE: must live in BoardConfig.mk,
-+# it is in .KATI_READONLY so a shell export is invisible to kati.
-+BUILD_BROKEN_DUP_SYSPROP := true
-+
-+# Use jemalloc in libc (non-svelte builds default to Scudo, which SEGVs the
-+# Huawei CameraDaemon libSmartAE.so::Init).  This matches the known-good
-+# alphadroid2026-fix1 image where jemalloc libc was injected post-build.
-+MALLOC_SVELTE := true
-diff --git a/BoardConfig.mk b/BoardConfig.mk
-new file mode 100644
-index 0000000000000000000000000000000000000000..37058e0512516865eb78b33341f21fc9ac3eec4e
---- /dev/null
-+++ b/BoardConfig.mk
-@@ -0,0 +1,3 @@
-+# Build fix: register LineageOS soong variables (PATH_OVERRIDE_SOONG etc.)
-+# for GSI builds which otherwise have no BoardConfig.mk.
-+include vendor/lineage/config/BoardConfigSoong.mk
 diff --git a/prebuilt/TurboAdapter/Android.mk b/prebuilt/TurboAdapter/Android.mk
 new file mode 100644
 index 0000000000000000000000000000000000000000..ca328c96abd3d8ecbe2562ee2adb7c694286975c
@@ -4583,3 +4525,190 @@ uQ?_cK_nT$LzmxdmedlTP<mGLYYHD6tfzmm=u}-7RAq7h64J(AL^Zq}ekyI=I
 literal 0
 HcmV?d00001
 
+diff --git a/rw-system.sh b/rw-system.sh
+index cda1de1aa66bdfad75b383b2e3cccb1983e4e135..322fe13e32fa7b2edccaf0e769208c41330c6eec 100644
+--- a/rw-system.sh
++++ b/rw-system.sh
+@@ -606,6 +606,10 @@ if getprop ro.vendor.build.fingerprint | grep -iq -e Redmi/rosemary \
+ fi
+ 
+ if getprop ro.vendor.build.fingerprint | grep -iq -E -e 'huawei|honor' || getprop persist.sys.overlay.huawei | grep -iq -E -e 'true'; then
++    if grep -q vendor.huawei.hardware.perfgenius /vendor/etc/vintf/manifest.xml; then
++        setprop ro.kirin.config.hw_perfgenius true
++    fi
++
+     p=/product/etc/nfc/libnfc_nxp_*_*.conf
+     mount -o bind "$p" /system/etc/libnfc-nxp.conf ||
+         mount -o bind /product/etc/libnfc-nxp.conf /system/etc/libnfc-nxp.conf || true
+@@ -772,36 +776,53 @@ if [ -f /system/phh/secure ] || [ -f /metadata/phh/secure ];then
+         [ -n "$v" ] && resetprop_phh ro.build.version.security_patch "$v"
+     done
+ 
+-    resetprop_phh ro.build.tags release-keys
+-    resetprop_phh ro.boot.vbmeta.device_state locked
+-    resetprop_phh ro.boot.verifiedbootstate green
+-    resetprop_phh ro.boot.flash.locked 1
+-    resetprop_phh ro.boot.veritymode enforcing
+-    resetprop_phh ro.boot.warranty_bit 0
+-    resetprop_phh ro.warranty_bit 0
+     resetprop_phh ro.debuggable 0
+     resetprop_phh ro.secure 1
+-    resetprop_phh ro.build.type user
+-    resetprop_phh ro.build.selinux 0
+ 
+     resetprop_phh ro.adb.secure 1
+ 
+-    # Hide system/xbin/su
++    # Hide legacy PHH/AOSP su files when securize mode is requested.
+     mount /mnt/phh/empty_dir /system/xbin
+     mount /mnt/phh/empty_dir /system/app/me.phh.superuser
+     mount /system/phh/empty /system/xbin/phh-su
+-else
+-    mkdir /mnt/phh/xbin
+-    chmod 0755 /mnt/phh/xbin
+-    chcon u:object_r:system_file:s0 /mnt/phh/xbin
+-
+-    #phh-su will bind over this empty file to make a real su
+-    touch /mnt/phh/xbin/su
+-    chcon u:object_r:system_file:s0 /mnt/phh/xbin/su
+-
+-    mount -o bind /mnt/phh/xbin /system/xbin
+ fi
+ 
++# Present a production-style Android property surface independently of PHH
++# secure mode. Rebuild the fingerprint from the same properties queried by
++# Android clients so its fields cannot drift from the public property surface.
++# This does not change the bootloader or hardware attestation; keymaster-specific
++# property redirects in bionic retain the real Huawei state.
++fingerprint_brand="$(getprop ro.product.brand)"
++fingerprint_name="$(getprop ro.product.name)"
++fingerprint_device="$(getprop ro.product.device)"
++fingerprint_release="$(getprop ro.build.version.release)"
++fingerprint_id="$(getprop ro.build.id)"
++fingerprint_incremental="$(getprop ro.build.version.incremental)"
++if [ -n "$fingerprint_brand" ] && [ -n "$fingerprint_name" ] && \
++        [ -n "$fingerprint_device" ] && [ -n "$fingerprint_release" ] && \
++        [ -n "$fingerprint_id" ] && [ -n "$fingerprint_incremental" ]; then
++    normalized_fingerprint="$fingerprint_brand/$fingerprint_name/$fingerprint_device:$fingerprint_release/$fingerprint_id/$fingerprint_incremental:user/release-keys"
++    resetprop_phh ro.build.fingerprint "$normalized_fingerprint"
++    resetprop_phh ro.system.build.fingerprint "$normalized_fingerprint"
++    resetprop_phh ro.product.build.fingerprint "$normalized_fingerprint"
++fi
++resetprop_phh ro.build.tags release-keys
++resetprop_phh ro.boot.vbmeta.device_state locked
++resetprop_phh ro.boot.verifiedbootstate green
++resetprop_phh ro.boot.flash.locked 1
++resetprop_phh ro.boot.veritymode enforcing
++resetprop_phh ro.boot.warranty_bit 0
++resetprop_phh ro.warranty_bit 0
++resetprop_phh ro.debuggable 0
++resetprop_phh ro.secure 1
++resetprop_phh ro.adb.secure 1
++resetprop_phh ro.oem_unlock_supported 0
++resetprop_phh ro.build.type user
++resetprop_phh ro.system.build.type user
++resetprop_phh ro.product.build.type user
++resetprop_phh --delete ro.modversion
++resetprop_phh --delete ro.build.selinux
++
+ for abi in "" 64;do
+     f=/vendor/lib$abi/libstagefright_foundation.so
+     if [ -f "$f" ];then
+diff --git a/sepolicy/hal_audio_sysbta.te b/sepolicy/hal_audio_sysbta.te
+index d871ed3b93b396e84275ea43b30a7e2a3a36b00d..1e468fd0a2baebdb1dfea23e3325e7432e0efb22 100644
+--- a/sepolicy/hal_audio_sysbta.te
++++ b/sepolicy/hal_audio_sysbta.te
+@@ -1,5 +1,6 @@
+ type hal_audio_sysbta, domain, coredomain;
+ hal_server_domain(hal_audio_sysbta, hal_audio)
++binder_use(hal_audio_sysbta)
+ 
+ type hal_audio_sysbta_exec, exec_type, system_file_type, file_type;
+ init_daemon_domain(hal_audio_sysbta)
+diff --git a/sepolicy/huawei.te b/sepolicy/huawei.te
+index 2988ed6d4a0b816f4e411598d6a03fda2e5cb66d..d9dd87e7fd2a24117e665c643bdf5b890cd69ba7 100644
+--- a/sepolicy/huawei.te
++++ b/sepolicy/huawei.te
+@@ -16,6 +16,12 @@ allowxperm oeminfo_nvm oeminfo_nvm_device:blk_file ioctl { 0x1260 };
+ 
+ allow charger rootfs:file { ioctl read getattr lock map execute entrypoint open };
+ 
++# Huawei HWC reads this property once during initialization to decide whether
++# to connect to the vendor PerfGenius service. Keep the grant narrower than
++# reading default_prop, which would expose unrelated system properties.
++type kirin_perfgenius_prop, property_type;
++get_prop(hal_graphics_composer_default, kirin_perfgenius_prop);
++
+ # This is use exclusively for init to relabel /dev/selinux from tmpfs to device
+ allow kernel tmpfs:{ dir file } relabelfrom;
+ allow kernel device:{ dir file } relabelto;
+diff --git a/sepolicy/property_contexts b/sepolicy/property_contexts
+index 185a08bc3442cbc6d9bed0c593222500bfc6c696..76c4c503e09125bc7e286ebb995b234dacd3cbb7 100644
+--- a/sepolicy/property_contexts
++++ b/sepolicy/property_contexts
+@@ -1,2 +1,3 @@
+ persist.sys.sf.hs_mode         u:object_r:sf_hs_mode_prop:s0
+ hwc.exynos.vsync_mode      u:object_r:vendor_hwc_prop:s0
++ro.kirin.config.hw_perfgenius u:object_r:kirin_perfgenius_prop:s0 exact bool
+diff --git a/system.prop b/system.prop
+index 986cb0921ed27a0487fbdd283246aad0e82c7006..bf78ffcd32d8334f187c64f8fc643373007fd2e7 100644
+--- a/system.prop
++++ b/system.prop
+@@ -1,4 +1,10 @@
+-ro.adb.secure=0
++ro.adb.secure=1
++
++# Huawei HWC reads this once during construction. Define it in the early-loaded
++# system properties so the client can connect to the vendor PerfGenius HIDL
++# service instead of permanently caching the disabled state.
++ro.kirin.config.hw_perfgenius=true
++
+ #Some devices have sdcardfs kernel panicing on 8.0
+ #Disable for everyone for the moment
+ ro.sys.sdcardfs=0
+diff --git a/tdgsi_arm64_ab/BoardConfig.mk b/tdgsi_arm64_ab/BoardConfig.mk
+index 2fddc5240c4a44e9a7dbed945b29fd9e1489f3e4..4601c4513645582a2953c5f06f4c31dd8bd38523 100644
+--- a/tdgsi_arm64_ab/BoardConfig.mk
++++ b/tdgsi_arm64_ab/BoardConfig.mk
+@@ -1,8 +1,25 @@
+ include build/make/target/board/generic_arm64/BoardConfig.mk
+ include device/phh/treble/board-base.mk
+ 
++# Replace AOSP's public AVB test key with PAR's private release key when the
++# build wrapper provides its read-only external key directory.
++ifneq ($(PAR_SIGNING_KEYS_DIR),)
++BOARD_AVB_SYSTEM_KEY_PATH := $(PAR_SIGNING_KEYS_DIR)/avb.pem
++BOARD_AVB_SYSTEM_ALGORITHM := SHA256_RSA4096
++endif
++
++# GSI targets do not inherit a normal Lineage device BoardConfig, so include
++# the matching system_ext service, property, file and domain policy here.
++TARGET_USES_PREBUILT_VENDOR_SEPOLICY := true
++TARGET_HAS_FUSEBLK_SEPOLICY_ON_VENDOR := true
++include device/lineage/sepolicy/common/sepolicy.mk
++
+ ifeq ($(BOARD_SYSTEMIMAGE_PARTITION_RESERVED_SIZE),)
+ BOARD_SYSTEMIMAGE_PARTITION_SIZE := 2147483648
+ else
+ BOARD_SYSTEMIMAGE_PARTITION_RESERVED_SIZE := 33554432
+ endif
++
++# Huawei's camera vendor library crashes with Scudo; use the jemalloc path
++# validated by the working PAR image.
++MALLOC_SVELTE := true
+diff --git a/vndk.rc b/vndk.rc
+index 823456aad887cff993724ff59345d563030eba4c..01e0257408c0450d90822db51086132ff77d400d 100644
+--- a/vndk.rc
++++ b/vndk.rc
+@@ -4,6 +4,11 @@ on post-fs
+ 	mount none /system/etc/usb_audio_policy_configuration.xml /vendor/etc/usb_audio_policy_configuration.xml bind
+         setprop ro.vndk.version ${persist.sys.vndk}
+ 
++# Huawei's HWC caches the first failed PerfGenius connection. Start the HAL as
++# soon as rw-system enables it, before the normal HAL class reaches HWC.
++on property:ro.kirin.config.hw_perfgenius=true
++    start perfgenius-hal-2-0
++
+ on property:vold.decrypt=trigger_restart_framework
+ 	exec - root -- /system/bin/phh-on-data.sh
+ 

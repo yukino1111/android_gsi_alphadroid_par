@@ -226,10 +226,10 @@ index 2af51a722cd9218285b5922ad6f2e996a2bf7931..1533f5ea7add618d3b6d3f91c2b07c43
  
      shared_libs: [
 diff --git a/services/inputflinger/reader/EventHub.cpp b/services/inputflinger/reader/EventHub.cpp
-index 68dcfc3a548071d396d58919ffd1be798308d24e..daffda6280c0481aef8c7e1fe68884245b005841 100644
+index bf8e7e12fc4cd102664f8e7daf1bd12e56a3b93f..4a6313cb153021920bbaea9411212cd042b3040e 100644
 --- a/services/inputflinger/reader/EventHub.cpp
 +++ b/services/inputflinger/reader/EventHub.cpp
-@@ -2156,7 +2156,13 @@ void EventHub::openDeviceLocked(const std::string& devicePath) {
+@@ -2166,7 +2166,13 @@ void EventHub::openDeviceLocked(const std::string& devicePath) {
  
      // Check whether this device is an accelerometer.
      if (device->propBitmask.test(INPUT_PROP_ACCELEROMETER)) {
@@ -538,10 +538,10 @@ index 2129dfed29e237ecbf32ae7fdb72f3bbaff42dfe..9b0a117a3fb68dbe5d8d6efd85050aa4
            displayFrame.right, displayFrame.bottom);
  
 diff --git a/services/surfaceflinger/DisplayHardware/AidlComposerHal.cpp b/services/surfaceflinger/DisplayHardware/AidlComposerHal.cpp
-index 79dcd159d3d94bf584ac11c152386784f7fb4759..922bd8c3642bf7b80ac6483ebe4d21efab0908e9 100644
+index fb5f0cb30fbf1b36a9699eb4442f53f936affaa8..252d9e8165d6f13844df5dc5c961f9f9cf4d74d5 100644
 --- a/services/surfaceflinger/DisplayHardware/AidlComposerHal.cpp
 +++ b/services/surfaceflinger/DisplayHardware/AidlComposerHal.cpp
-@@ -1126,5 +1126,12 @@ Error AidlComposer::getPhysicalDisplayOrientation(Display displayId,
+@@ -1128,5 +1128,12 @@ Error AidlComposer::getPhysicalDisplayOrientation(Display displayId,
      return Error::NONE;
  }
  
@@ -582,10 +582,10 @@ index d266d942fb75ac6db4588a2820babd63f25046d6..b81d01e6d84b1fae6fa08bdc7207fa55
  
  } // namespace Hwc2
 diff --git a/services/surfaceflinger/DisplayHardware/HWC2.cpp b/services/surfaceflinger/DisplayHardware/HWC2.cpp
-index 8364ed9d28ffd7636a290529a54cce60a35ca46d..e4e16d11d4ffa92ed40fd199c7cf41b46d793e64 100644
+index c52e96d14636c467986743c3f72d18546b1f3f1c..82f60516ae3f10a55ba80b1f47ab24fe716ae156 100644
 --- a/services/surfaceflinger/DisplayHardware/HWC2.cpp
 +++ b/services/surfaceflinger/DisplayHardware/HWC2.cpp
-@@ -987,6 +987,14 @@ Error Layer::setBlockingRegion(const Region& region) {
+@@ -988,6 +988,14 @@ Error Layer::setBlockingRegion(const Region& region) {
      return static_cast<Error>(intError);
  }
  
@@ -655,31 +655,13 @@ index d0d3c2e6d7d2ef128306ba5ce4234f4e2d514eaf..c40986fae9bbd30d7635306c73ae92ff
      class CommandWriter : public CommandWriterBase {
      public:
 diff --git a/services/vibratorservice/VibratorHalController.cpp b/services/vibratorservice/VibratorHalController.cpp
-index c1795f5c329f47ced53a87fb711b7db4db0743fd..f41a8c0061a69e305f62a9236d2c98aeec4df31f 100644
+index c1795f5c329f47ced53a87fb711b7db4db0743fd..345016efd6fb78fec866d1d930a2da0e1116382d 100644
 --- a/services/vibratorservice/VibratorHalController.cpp
 +++ b/services/vibratorservice/VibratorHalController.cpp
-@@ -59,6 +59,30 @@ std::shared_ptr<HalWrapper> connectHal(std::shared_ptr<CallbackScheduler> schedu
+@@ -59,6 +59,12 @@ std::shared_ptr<HalWrapper> connectHal(std::shared_ptr<CallbackScheduler> schedu
          return std::make_shared<AidlHalWrapper>(std::move(scheduler), aidlHal);
      }
  
-+    aidlHal = waitForVintfService<Aidl::IVibrator>(String16("vibratorfeature"));
-+    if (aidlHal) {
-+        ALOGV("Successfully connected to Xiaomi Vibrator HAL AIDL service.");
-+        return std::make_shared<AidlHalWrapper>(std::move(scheduler), aidlHal);
-+    }
-+
-+    aidlHal = waitForVintfService<Aidl::IVibrator>(String16("vibratorfeature"));
-+    if (aidlHal) {
-+        ALOGV("Successfully connected to Xiaomi Vibrator HAL AIDL service.");
-+        return std::make_shared<AidlHalWrapper>(std::move(scheduler), aidlHal);
-+    }
-+
-+    aidlHal = waitForVintfService<Aidl::IVibrator>(String16("vibratorfeature"));
-+    if (aidlHal) {
-+        ALOGV("Successfully connected to Xiaomi Vibrator HAL AIDL service.");
-+        return std::make_shared<AidlHalWrapper>(std::move(scheduler), aidlHal);
-+    }
-+
 +    aidlHal = waitForVintfService<Aidl::IVibrator>(String16("vibratorfeature"));
 +    if (aidlHal) {
 +        ALOGV("Successfully connected to Xiaomi Vibrator HAL AIDL service.");

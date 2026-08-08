@@ -1,0 +1,47 @@
+diff --git a/keystore/keystore_attestation_id.cpp b/keystore/keystore_attestation_id.cpp
+index ccd3808578ebaabceb1d6d760704099956a6e68a..bcea1859aa5f8539d07a304366118e5b83f32d5b 100644
+--- a/keystore/keystore_attestation_id.cpp
++++ b/keystore/keystore_attestation_id.cpp
+@@ -56,16 +56,14 @@ std::vector<uint8_t> signature2SHA256(const content::pm::Signature& sig) {
+     return digest_buffer;
+ }
+ 
+-using ::android::security::keymaster::BpKeyAttestationApplicationIdProvider;
++using ::android::security::keymaster::IKeyAttestationApplicationIdProvider;
+ 
+-class KeyAttestationApplicationIdProvider : public BpKeyAttestationApplicationIdProvider {
++class KeyAttestationApplicationIdProvider {
+   public:
+-    KeyAttestationApplicationIdProvider();
+-
+     static KeyAttestationApplicationIdProvider& get();
+-
+-  private:
+-    android::sp<android::IServiceManager> service_manager_;
++    binder::Status getKeyAttestationApplicationId(
++            int32_t uid,
++            security::keymaster::KeyAttestationApplicationId* key_attestation_application_id);
+ };
+ 
+ KeyAttestationApplicationIdProvider& KeyAttestationApplicationIdProvider::get() {
+@@ -73,9 +71,17 @@ KeyAttestationApplicationIdProvider& KeyAttestationApplicationIdProvider::get()
+     return mpm;
+ }
+ 
+-KeyAttestationApplicationIdProvider::KeyAttestationApplicationIdProvider()
+-    : BpKeyAttestationApplicationIdProvider(
+-          android::defaultServiceManager()->getService(String16("sec_key_att_app_id_provider"))) {}
++binder::Status KeyAttestationApplicationIdProvider::getKeyAttestationApplicationId(
++        int32_t uid,
++        security::keymaster::KeyAttestationApplicationId* key_attestation_application_id) {
++    auto provider = android::waitForService<IKeyAttestationApplicationIdProvider>(
++            String16("sec_key_att_app_id_provider"));
++    if (provider == nullptr) {
++        ALOGE("key attestation application ID provider is unavailable");
++        return binder::Status::fromStatusT(NAME_NOT_FOUND);
++    }
++    return provider->getKeyAttestationApplicationId(uid, key_attestation_application_id);
++}
+ 
+ DECLARE_STACK_OF(ASN1_OCTET_STRING);
+ 
