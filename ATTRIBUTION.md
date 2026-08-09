@@ -40,6 +40,13 @@ project-level aggregate format cannot preserve the original per-commit
 metadata, so the upstream bundle remains the authoritative record for
 individual TrebleDroid commits.
 
+## CalyxOS network policy compatibility
+
+`packages_modules_Connectivity.patch` carries the CalyxOS transport-based
+network permission bridge authored by Tommy Webb. The corresponding framework
+side is already part of the pinned AlphaDroid base; the aggregate patch keeps
+the TrebleDroid Connectivity module compatible with it.
+
 ## PAR and release integration
 
 The remaining aggregate patches are local build, product, or PAR integration
