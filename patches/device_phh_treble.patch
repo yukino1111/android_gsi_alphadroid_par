@@ -155,7 +155,7 @@ index 0000000000000000000000000000000000000000..ca328c96abd3d8ecbe2562ee2adb7c69
 +LOCAL_REQUIRED_MODULES := libpowerstatshaldataproviderPrebuilt
 +include $(BUILD_PREBUILT)
 diff --git a/rw-system.sh b/rw-system.sh
-index cda1de1aa66bdfad75b383b2e3cccb1983e4e135..322fe13e32fa7b2edccaf0e769208c41330c6eec 100644
+index cda1de1aa66bdfad75b383b2e3cccb1983e4e135..244ddf3fc0edc6f8cff07a82993ca5c4d02661bf 100644
 --- a/rw-system.sh
 +++ b/rw-system.sh
 @@ -606,6 +606,10 @@ if getprop ro.vendor.build.fingerprint | grep -iq -e Redmi/rosemary \
@@ -243,6 +243,21 @@ index cda1de1aa66bdfad75b383b2e3cccb1983e4e135..322fe13e32fa7b2edccaf0e769208c41
  for abi in "" 64;do
      f=/vendor/lib$abi/libstagefright_foundation.so
      if [ -f "$f" ];then
+@@ -811,7 +832,13 @@ for abi in "" 64;do
+     fi
+ done
+ 
+-setprop ro.product.first_api_level "$vndk"
++if [ "$(getprop ro.product.device)" = HWPAR ]; then
++    # PAR-AL00 launched on API 27. Huawei's 9.0.0.187 ODM declares the same
++    # value; do not replace it with the older vendor VNDK level (26).
++    setprop ro.product.first_api_level 27
++else
++    setprop ro.product.first_api_level "$vndk"
++fi
+ 
+ if getprop ro.boot.boot_devices |grep -v , |grep -qE .;then
+     ln -s /dev/block/platform/$(getprop ro.boot.boot_devices) /dev/block/bootdevice
 diff --git a/sepolicy/hal_audio_sysbta.te b/sepolicy/hal_audio_sysbta.te
 index d871ed3b93b396e84275ea43b30a7e2a3a36b00d..1e468fd0a2baebdb1dfea23e3325e7432e0efb22 100644
 --- a/sepolicy/hal_audio_sysbta.te
