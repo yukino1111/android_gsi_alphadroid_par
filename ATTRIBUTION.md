@@ -33,11 +33,12 @@ The original `From:` authors in that bundle are credited below.
 | `system_nfc.patch` | Pierre-Hugues Husson |
 | `system_vold.patch` | Pierre-Hugues Husson |
 
-`build_make.patch`, `external_selinux.patch`, `frameworks_native.patch`, and
-`packages_apps_Settings.patch` also contain PAR/release-specific follow-up
-changes maintained by yukino1111. The project-level aggregate format cannot
-preserve the original per-commit metadata, so the upstream bundle remains the
-authoritative record for individual TrebleDroid commits.
+`build_make.patch`, `external_selinux.patch`, `frameworks_base.patch`,
+`frameworks_native.patch`, and `packages_apps_Settings.patch` also contain
+PAR/release-specific follow-up changes maintained by yukino1111. The
+project-level aggregate format cannot preserve the original per-commit
+metadata, so the upstream bundle remains the authoritative record for
+individual TrebleDroid commits.
 
 ## PAR and release integration
 
@@ -52,6 +53,7 @@ deltas maintained by yukino1111 against the exact revisions in
 - `external_libncurses.patch`
 - `packages_apps_Eleven.patch`
 - `packages_apps_WallpaperPicker2.patch`
+- `packages_modules_Permission.patch`
 - `system_security.patch`
 - `vendor_lineage.patch`
 

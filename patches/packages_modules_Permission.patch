@@ -1,0 +1,23 @@
+# Provenance: PAR-specific compatibility hardening maintained by yukino1111.
+# Removes the inherited signature-spoofing permission mapping exposed by PermissionController.
+diff --git a/PermissionController/src/com/android/permissioncontroller/permission/utils/Utils.java b/PermissionController/src/com/android/permissioncontroller/permission/utils/Utils.java
+index 139759d41..48793ab51 100644
+--- a/PermissionController/src/com/android/permissioncontroller/permission/utils/Utils.java
++++ b/PermissionController/src/com/android/permissioncontroller/permission/utils/Utils.java
+@@ -21,7 +21,6 @@ import static android.Manifest.permission_group.CALENDAR;
+ import static android.Manifest.permission_group.CALL_LOG;
+ import static android.Manifest.permission_group.CAMERA;
+ import static android.Manifest.permission_group.CONTACTS;
+-import static android.Manifest.permission_group.FAKE_PACKAGE_SIGNATURE;
+ import static android.Manifest.permission_group.LOCATION;
+ import static android.Manifest.permission_group.MICROPHONE;
+ import static android.Manifest.permission_group.NEARBY_DEVICES;
+@@ -342,8 +341,6 @@ public final class Utils {
+             PLATFORM_PERMISSIONS.put(Manifest.permission.BODY_SENSORS_BACKGROUND, SENSORS);
+         }
+ 
+-        PLATFORM_PERMISSIONS.put(Manifest.permission.FAKE_PACKAGE_SIGNATURE, FAKE_PACKAGE_SIGNATURE);
+-
+         PLATFORM_PERMISSION_GROUPS = new ArrayMap<>();
+         int numPlatformPermissions = PLATFORM_PERMISSIONS.size();
+         for (int i = 0; i < numPlatformPermissions; i++) {

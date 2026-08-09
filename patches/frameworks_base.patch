@@ -1,7 +1,7 @@
 # Provenance: TrebleDroid ci-20230706; original patch authors: TrebleDroid contributors listed in ../ATTRIBUTION.md.
 # See ../ATTRIBUTION.md. This import is not authored by yukino1111.
 diff --git a/cmds/bootanimation/BootAnimation.cpp b/cmds/bootanimation/BootAnimation.cpp
-index 3e42a501ea004fa90be5c140ee9e1278dbcb5453..0bffeedc7c55ccd9b22091f16bd8f017b5ba015d 100644
+index 3e42a501e..0bffeedc7 100644
 --- a/cmds/bootanimation/BootAnimation.cpp
 +++ b/cmds/bootanimation/BootAnimation.cpp
 @@ -601,6 +601,28 @@ status_t BootAnimation::readyToRun() {
@@ -34,16 +34,32 @@ index 3e42a501ea004fa90be5c140ee9e1278dbcb5453..0bffeedc7c55ccd9b22091f16bd8f017
      // ro.bootanim.set_orientation_<display_id>. Four values are supported: ORIENTATION_0,
      // ORIENTATION_90, ORIENTATION_180 and ORIENTATION_270.
 diff --git a/core/api/current.txt b/core/api/current.txt
-index d27b1a9cd1e3e4784ca043310043bb705b5a63a8..29163f25d20fc81a5396c4a524666acee6af32fc 100644
+index d27b1a9cd..13b1eca1f 100644
 --- a/core/api/current.txt
 +++ b/core/api/current.txt
-@@ -58984,4 +58984,3 @@ package org.apache.http.params {
+@@ -87,7 +87,6 @@ package android {
+     field public static final String DUMP = "android.permission.DUMP";
+     field public static final String EXPAND_STATUS_BAR = "android.permission.EXPAND_STATUS_BAR";
+     field public static final String FACTORY_TEST = "android.permission.FACTORY_TEST";
+-    field public static final String FAKE_PACKAGE_SIGNATURE = "android.permission.FAKE_PACKAGE_SIGNATURE";
+     field public static final String FOREGROUND_SERVICE = "android.permission.FOREGROUND_SERVICE";
+     field public static final String GET_ACCOUNTS = "android.permission.GET_ACCOUNTS";
+     field public static final String GET_ACCOUNTS_PRIVILEGED = "android.permission.GET_ACCOUNTS_PRIVILEGED";
+@@ -223,7 +222,6 @@ package android {
+     field public static final String CALL_LOG = "android.permission-group.CALL_LOG";
+     field public static final String CAMERA = "android.permission-group.CAMERA";
+     field public static final String CONTACTS = "android.permission-group.CONTACTS";
+-    field public static final String FAKE_PACKAGE_SIGNATURE = "android.permission-group.FAKE_PACKAGE_SIGNATURE";
+     field public static final String LOCATION = "android.permission-group.LOCATION";
+     field public static final String MICROPHONE = "android.permission-group.MICROPHONE";
+     field public static final String NEARBY_DEVICES = "android.permission-group.NEARBY_DEVICES";
+@@ -58984,4 +58982,3 @@ package org.apache.http.params {
    }
  
  }
 -
 diff --git a/core/java/android/content/pm/PackageParser.java b/core/java/android/content/pm/PackageParser.java
-index 69d413769bf1dab3fabadffb96ebcb4cbd9946b1..aaff6e552617ab99aa882b005316440d25257f92 100644
+index 69d413769..aaff6e552 100644
 --- a/core/java/android/content/pm/PackageParser.java
 +++ b/core/java/android/content/pm/PackageParser.java
 @@ -2554,7 +2554,21 @@ public class PackageParser {
@@ -70,7 +86,7 @@ index 69d413769bf1dab3fabadffb96ebcb4cbd9946b1..aaff6e552617ab99aa882b005316440d
              }
          }
 diff --git a/core/java/android/content/pm/parsing/FrameworkParsingPackageUtils.java b/core/java/android/content/pm/parsing/FrameworkParsingPackageUtils.java
-index b75ba82ad091b442ea800684514d1b27a154bd8a..be716c2377cab9536fcb83861846ddb386f63655 100644
+index b75ba82ad..be716c237 100644
 --- a/core/java/android/content/pm/parsing/FrameworkParsingPackageUtils.java
 +++ b/core/java/android/content/pm/parsing/FrameworkParsingPackageUtils.java
 @@ -214,16 +214,25 @@ public class FrameworkParsingPackageUtils {
@@ -103,7 +119,7 @@ index b75ba82ad091b442ea800684514d1b27a154bd8a..be716c2377cab9536fcb83861846ddb3
              }
          }
 diff --git a/core/java/android/hardware/Camera.java b/core/java/android/hardware/Camera.java
-index d6429c433a042bc38a5b055c49246faa975cef6c..185527a26ee8ffb533e06f973e891c433db6f419 100644
+index d6429c433..185527a26 100644
 --- a/core/java/android/hardware/Camera.java
 +++ b/core/java/android/hardware/Camera.java
 @@ -481,6 +481,11 @@ public class Camera {
@@ -119,7 +135,7 @@ index d6429c433a042bc38a5b055c49246faa975cef6c..185527a26ee8ffb533e06f973e891c43
          CameraInfo cameraInfo = new CameraInfo();
          for (int i = 0; i < numberOfCameras; i++) {
 diff --git a/core/java/android/hardware/camera2/CameraManager.java b/core/java/android/hardware/camera2/CameraManager.java
-index 064cbdbce184b3abfda04f56455ad4f340f2574b..65137821c7d81014738155e1577546576397dea2 100644
+index 064cbdbce..65137821c 100644
 --- a/core/java/android/hardware/camera2/CameraManager.java
 +++ b/core/java/android/hardware/camera2/CameraManager.java
 @@ -1834,6 +1834,15 @@ public final class CameraManager {
@@ -139,7 +155,7 @@ index 064cbdbce184b3abfda04f56455ad4f340f2574b..65137821c7d81014738155e157754657
  
          public static boolean cameraStatusesContains(CameraStatus[] cameraStatuses, String id) {
 diff --git a/core/java/android/hardware/display/AmbientDisplayConfiguration.java b/core/java/android/hardware/display/AmbientDisplayConfiguration.java
-index 1ef56e11cb485da0cb99fbabb82d23f4f849ea72..49a5468027ca9b2679c401df8239fd507b015237 100644
+index 1ef56e11c..49a546802 100644
 --- a/core/java/android/hardware/display/AmbientDisplayConfiguration.java
 +++ b/core/java/android/hardware/display/AmbientDisplayConfiguration.java
 @@ -28,6 +28,9 @@ import android.text.TextUtils;
@@ -176,7 +192,7 @@ index 1ef56e11cb485da0cb99fbabb82d23f4f849ea72..49a5468027ca9b2679c401df8239fd50
      /** {@hide} */
      public boolean tiltGestureEnabled(int user) {
 diff --git a/core/java/android/os/Environment.java b/core/java/android/os/Environment.java
-index 5177cb4f85492047aa21bfe7d5fceabfb07e69ad..f593dc38bc1c5331e64a007ff8558bca673c8293 100644
+index 5177cb4f8..f593dc38b 100644
 --- a/core/java/android/os/Environment.java
 +++ b/core/java/android/os/Environment.java
 @@ -1471,7 +1471,7 @@ public class Environment {
@@ -189,7 +205,7 @@ index 5177cb4f85492047aa21bfe7d5fceabfb07e69ad..f593dc38bc1c5331e64a007ff8558bca
  
      @NonNull
 diff --git a/core/java/android/os/storage/StorageManager.java b/core/java/android/os/storage/StorageManager.java
-index f023f65f395ff2e90625bc787dcbce91acdcbcbb..250da39e69e390f8388fdb8b38d01e17a5258c1a 100644
+index f023f65f3..250da39e6 100644
 --- a/core/java/android/os/storage/StorageManager.java
 +++ b/core/java/android/os/storage/StorageManager.java
 @@ -1681,13 +1681,18 @@ public class StorageManager {
@@ -268,7 +284,7 @@ index f023f65f395ff2e90625bc787dcbce91acdcbcbb..250da39e69e390f8388fdb8b38d01e17
      public static boolean isFileEncryptedEmulatedOnly() {
          return SystemProperties.getBoolean(StorageManager.PROP_EMULATE_FBE, false);
 diff --git a/core/java/android/view/DisplayCutout.java b/core/java/android/view/DisplayCutout.java
-index 83a7b3f01a95e1f5b4dfe3d5e3ffe0e85d300c6c..78c74ed51910c48eba7edd6a409b3a6f8e66d24e 100644
+index 83a7b3f01..78c74ed51 100644
 --- a/core/java/android/view/DisplayCutout.java
 +++ b/core/java/android/view/DisplayCutout.java
 @@ -1055,11 +1055,19 @@ public final class DisplayCutout {
@@ -297,7 +313,7 @@ index 83a7b3f01a95e1f5b4dfe3d5e3ffe0e85d300c6c..78c74ed51910c48eba7edd6a409b3a6f
  
      /**
 diff --git a/core/java/android/view/KeyEvent.java b/core/java/android/view/KeyEvent.java
-index 0e818a3fc5add7b64a8b9613cc9947f8350fcc6f..d885f55843b1e7ce92422b36fe5925ad5721c359 100644
+index 0e818a3fc..d885f5584 100644
 --- a/core/java/android/view/KeyEvent.java
 +++ b/core/java/android/view/KeyEvent.java
 @@ -2042,6 +2042,7 @@ public class KeyEvent extends InputEvent implements Parcelable {
@@ -309,7 +325,7 @@ index 0e818a3fc5add7b64a8b9613cc9947f8350fcc6f..d885f55843b1e7ce92422b36fe5925ad
              case KeyEvent.KEYCODE_STEM_1:
              case KeyEvent.KEYCODE_STEM_2:
 diff --git a/core/java/com/android/internal/os/RoSystemProperties.java b/core/java/com/android/internal/os/RoSystemProperties.java
-index cccd80e824209019c4a022e27ac8e722a0f07503..adb5c107bc6287a8657edbbb3ca892706c2fe4e0 100644
+index cccd80e82..adb5c107b 100644
 --- a/core/java/com/android/internal/os/RoSystemProperties.java
 +++ b/core/java/com/android/internal/os/RoSystemProperties.java
 @@ -62,10 +62,14 @@ public class RoSystemProperties {
@@ -328,7 +344,7 @@ index cccd80e824209019c4a022e27ac8e722a0f07503..adb5c107bc6287a8657edbbb3ca89270
      public static final boolean CONTROL_PRIVAPP_PERMISSIONS_LOG =
              "log".equalsIgnoreCase(CONTROL_PRIVAPP_PERMISSIONS);
 diff --git a/core/java/com/android/server/SystemConfig.java b/core/java/com/android/server/SystemConfig.java
-index 00b01051adae9d5fad3846397d3206dee5a79520..ffcc75e63d66a3a15baf3c0dc0c0c07efda6b517 100644
+index 00b01051a..ffcc75e63 100644
 --- a/core/java/com/android/server/SystemConfig.java
 +++ b/core/java/com/android/server/SystemConfig.java
 @@ -979,6 +979,25 @@ public class SystemConfig {
@@ -358,7 +374,7 @@ index 00b01051adae9d5fad3846397d3206dee5a79520..ffcc75e63d66a3a15baf3c0dc0c0c07e
                          if (allowOverrideAppRestrictions) {
                              String pkgname = parser.getAttributeValue(null, "package");
 diff --git a/core/jni/android_hardware_Camera.cpp b/core/jni/android_hardware_Camera.cpp
-index 5843cbf7d4cde906674ff02d94e9ac085a9a5420..ec0ab9f3b260c7a7b5945e71849ea33190827101 100644
+index 5843cbf7d..ec0ab9f3b 100644
 --- a/core/jni/android_hardware_Camera.cpp
 +++ b/core/jni/android_hardware_Camera.cpp
 @@ -454,6 +454,7 @@ void JNICameraContext::postMetadata(JNIEnv *env, int32_t msgType, camera_frame_m
@@ -449,7 +465,7 @@ index 5843cbf7d4cde906674ff02d94e9ac085a9a5420..ec0ab9f3b260c7a7b5945e71849ea331
  
  static void android_hardware_Camera_addCallbackBuffer(JNIEnv *env, jobject thiz, jbyteArray bytes, int msgType) {
 diff --git a/core/res/AndroidManifest.xml b/core/res/AndroidManifest.xml
-index 33ceccc2d87f36bce20a550cb0f97299aa3e82aa..f3e994ed04ccb929b2b9ef2169ef114222a19f09 100644
+index 33ceccc2d..449292e65 100644
 --- a/core/res/AndroidManifest.xml
 +++ b/core/res/AndroidManifest.xml
 @@ -35,6 +35,8 @@
@@ -461,8 +477,30 @@ index 33ceccc2d87f36bce20a550cb0f97299aa3e82aa..f3e994ed04ccb929b2b9ef2169ef1142
      <protected-broadcast android:name="android.intent.action.PACKAGE_INSTALL" />
      <protected-broadcast android:name="android.intent.action.PACKAGE_ADDED" />
      <protected-broadcast android:name="android.intent.action.PACKAGE_REPLACED" />
+@@ -3589,21 +3591,6 @@
+         android:description="@string/permdesc_getPackageSize"
+         android:protectionLevel="normal" />
+ 
+-    <!-- Dummy user-facing group for faking package signature -->
+-    <permission-group android:name="android.permission-group.FAKE_PACKAGE_SIGNATURE"
+-        android:label="@string/permgrouplab_fake_package_signature"
+-        android:description="@string/permgroupdesc_fake_package_signature"
+-        android:request="@string/permgrouprequest_fake_package_signature"
+-        android:priority="100" />
+-
+-    <!-- Allows an application to change the package signature as
+-         seen by applications -->
+-    <permission android:name="android.permission.FAKE_PACKAGE_SIGNATURE"
+-        android:permissionGroup="android.permission-group.UNDEFINED"
+-        android:protectionLevel="dangerous"
+-        android:label="@string/permlab_fakePackageSignature"
+-        android:description="@string/permdesc_fakePackageSignature" />
+-
+     <!-- @deprecated No longer useful, see
+          {@link android.content.pm.PackageManager#addPackageToPreferred}
+          for details. -->
 diff --git a/core/res/res/values/config.xml b/core/res/res/values/config.xml
-index 38d325c40b6122bf6d48bf53b35b9bbb7059bbce..b8ae2284e76f550edd0e60aa4fa04f4fedc89193 100644
+index 38d325c40..b8ae2284e 100644
 --- a/core/res/res/values/config.xml
 +++ b/core/res/res/values/config.xml
 @@ -1090,7 +1090,7 @@
@@ -484,7 +522,7 @@ index 38d325c40b6122bf6d48bf53b35b9bbb7059bbce..b8ae2284e76f550edd0e60aa4fa04f4f
      <!-- Control the behavior when the user long presses the back button.  Non-zero values are only
           valid for watches as part of CDD/CTS.
 diff --git a/packages/SystemUI/Android.bp b/packages/SystemUI/Android.bp
-index a445a85563efa911276afa60bdac6e2ad759384e..8c4b92659953048f01773e74426ae6385566f964 100644
+index a445a8556..8c4b92659 100644
 --- a/packages/SystemUI/Android.bp
 +++ b/packages/SystemUI/Android.bp
 @@ -179,6 +179,9 @@ android_library {
@@ -498,7 +536,7 @@ index a445a85563efa911276afa60bdac6e2ad759384e..8c4b92659953048f01773e74426ae638
      manifest: "AndroidManifest.xml",
      additional_manifests: ["LineageManifest.xml"],
 diff --git a/packages/SystemUI/res/values/config.xml b/packages/SystemUI/res/values/config.xml
-index 1e3e333d161f67bd05d3e32e2ab2fde712b706f3..1ea0455ec1d0cdaeaa1087e06a193844e8fffe46 100644
+index 1e3e333d1..1ea0455ec 100644
 --- a/packages/SystemUI/res/values/config.xml
 +++ b/packages/SystemUI/res/values/config.xml
 @@ -586,7 +586,7 @@
@@ -511,7 +549,7 @@ index 1e3e333d161f67bd05d3e32e2ab2fde712b706f3..1ea0455ec1d0cdaeaa1087e06a193844
  
      <!-- The time (in ms) needed to trigger the lock icon view's long-press affordance -->
 diff --git a/packages/SystemUI/src/com/android/systemui/biometrics/UdfpsControllerOverlay.kt b/packages/SystemUI/src/com/android/systemui/biometrics/UdfpsControllerOverlay.kt
-index 277cde1efd5ec298b4f958903f0b1519a0b4c1ef..1d2343f96a840191e476f1238a0348a4b37dbd15 100644
+index 277cde1ef..1d2343f96 100644
 --- a/packages/SystemUI/src/com/android/systemui/biometrics/UdfpsControllerOverlay.kt
 +++ b/packages/SystemUI/src/com/android/systemui/biometrics/UdfpsControllerOverlay.kt
 @@ -198,6 +198,9 @@ class UdfpsControllerOverlay @JvmOverloads constructor(
@@ -525,7 +563,7 @@ index 277cde1efd5ec298b4f958903f0b1519a0b4c1ef..1d2343f96a840191e476f1238a0348a4
                          if (accessibilityManager.isTouchExplorationEnabled) {
                              setOnHoverListener { v, event -> onTouch(v, event, true) }
 diff --git a/packages/SystemUI/src/com/android/systemui/biometrics/UdfpsView.kt b/packages/SystemUI/src/com/android/systemui/biometrics/UdfpsView.kt
-index 6716d5a23027e5eb82ca53dab18e6dec5fe50b75..0e8e654a1015c679ae135439cf497c72595e916d 100644
+index 6716d5a23..0e8e654a1 100644
 --- a/packages/SystemUI/src/com/android/systemui/biometrics/UdfpsView.kt
 +++ b/packages/SystemUI/src/com/android/systemui/biometrics/UdfpsView.kt
 @@ -19,16 +19,27 @@ import android.content.Context
@@ -757,7 +795,7 @@ index 6716d5a23027e5eb82ca53dab18e6dec5fe50b75..0e8e654a1015c679ae135439cf497c72
 +    private val myHandler = Handler(handlerThread.looper)
  }
 diff --git a/packages/SystemUI/src/com/android/systemui/util/wakelock/WakeLock.java b/packages/SystemUI/src/com/android/systemui/util/wakelock/WakeLock.java
-index f320d071b54f8c3bc0e12301c969c5073e413f3f..9f98937c2a06e5553d714afbb63c82a0f428f9b5 100644
+index f320d071b..9f98937c2 100644
 --- a/packages/SystemUI/src/com/android/systemui/util/wakelock/WakeLock.java
 +++ b/packages/SystemUI/src/com/android/systemui/util/wakelock/WakeLock.java
 @@ -123,7 +123,9 @@ public interface WakeLock {
@@ -772,7 +810,7 @@ index f320d071b54f8c3bc0e12301c969c5073e413f3f..9f98937c2a06e5553d714afbb63c82a0
  
              /** @see PowerManager.WakeLock#wrap(Runnable) */
 diff --git a/services/core/Android.bp b/services/core/Android.bp
-index a29865214e6d8f585baf976b81fe8e24f9d07ff2..86c7905bce4027b614776c31bc0ddf3fd8bd3a2a 100644
+index a29865214..86c7905bc 100644
 --- a/services/core/Android.bp
 +++ b/services/core/Android.bp
 @@ -181,6 +181,14 @@ java_library_static {
@@ -791,7 +829,7 @@ index a29865214e6d8f585baf976b81fe8e24f9d07ff2..86c7905bce4027b614776c31bc0ddf3f
      javac_shard_size: 50,
  }
 diff --git a/services/core/java/com/android/server/ConsumerIrService.java b/services/core/java/com/android/server/ConsumerIrService.java
-index c4e84a4cd13897b7df706393d968e80c510786bc..2654f499db0989d0cf39c108bd85190d2509c6d4 100644
+index c4e84a4cd..2654f499d 100644
 --- a/services/core/java/com/android/server/ConsumerIrService.java
 +++ b/services/core/java/com/android/server/ConsumerIrService.java
 @@ -49,14 +49,6 @@ public class ConsumerIrService extends IConsumerIrService.Stub {
@@ -810,7 +848,7 @@ index c4e84a4cd13897b7df706393d968e80c510786bc..2654f499db0989d0cf39c108bd85190d
  
      @Override
 diff --git a/services/core/java/com/android/server/StorageManagerService.java b/services/core/java/com/android/server/StorageManagerService.java
-index 7854909a3b0caf76c8dc6a5416867351c30ecebe..8e4ca305b63fbb436a1432fdd5783f04ed54af35 100644
+index 7854909a3..8e4ca305b 100644
 --- a/services/core/java/com/android/server/StorageManagerService.java
 +++ b/services/core/java/com/android/server/StorageManagerService.java
 @@ -1627,7 +1627,8 @@ class StorageManagerService extends IStorageManager.Stub
@@ -824,7 +862,7 @@ index 7854909a3b0caf76c8dc6a5416867351c30ecebe..8e4ca305b63fbb436a1432fdd5783f04
              } else if (vol.disk.isSd()) {
                  vol.mountFlags |= VolumeInfo.MOUNT_FLAG_VISIBLE_FOR_WRITE;
 diff --git a/services/core/java/com/android/server/am/ActivityManagerService.java b/services/core/java/com/android/server/am/ActivityManagerService.java
-index dd45b380dc5139c3775d621e7b8a26ab48998f28..8dc515a2ce8c8d56d50f94aadad0082859a59a8d 100644
+index dd45b380d..8dc515a2c 100644
 --- a/services/core/java/com/android/server/am/ActivityManagerService.java
 +++ b/services/core/java/com/android/server/am/ActivityManagerService.java
 @@ -5288,7 +5288,7 @@ public class ActivityManagerService extends IActivityManager.Stub
@@ -837,7 +875,7 @@ index dd45b380dc5139c3775d621e7b8a26ab48998f28..8dc515a2ce8c8d56d50f94aadad00828
          }
          String title = mContext
 diff --git a/services/core/java/com/android/server/biometrics/AuthService.java b/services/core/java/com/android/server/biometrics/AuthService.java
-index fffb445895a5ecba555cfcd8cbd68cde1d189a6b..ecbe7bf56741585808b26c627ed6b769ae6d8068 100644
+index fffb44589..ecbe7bf56 100644
 --- a/services/core/java/com/android/server/biometrics/AuthService.java
 +++ b/services/core/java/com/android/server/biometrics/AuthService.java
 @@ -66,6 +66,7 @@ import android.os.ServiceManager;
@@ -1175,7 +1213,7 @@ index fffb445895a5ecba555cfcd8cbd68cde1d189a6b..ecbe7bf56741585808b26c627ed6b769
 +    }
  }
 diff --git a/services/core/java/com/android/server/biometrics/sensors/fingerprint/FingerprintService.java b/services/core/java/com/android/server/biometrics/sensors/fingerprint/FingerprintService.java
-index d55dd8ab85f82e998dac582854581cabb1e301e3..7d537425e6d27e97aea46c61feecc68d3cc80122 100644
+index d55dd8ab8..7d537425e 100644
 --- a/services/core/java/com/android/server/biometrics/sensors/fingerprint/FingerprintService.java
 +++ b/services/core/java/com/android/server/biometrics/sensors/fingerprint/FingerprintService.java
 @@ -899,8 +899,9 @@ public class FingerprintService extends SystemService {
@@ -1190,7 +1228,7 @@ index d55dd8ab85f82e998dac582854581cabb1e301e3..7d537425e6d27e97aea46c61feecc68d
                  final IBiometricService biometricService = IBiometricService.Stub.asInterface(
                          ServiceManager.getService(Context.BIOMETRIC_SERVICE));
 diff --git a/services/core/java/com/android/server/biometrics/sensors/fingerprint/hidl/Fingerprint21.java b/services/core/java/com/android/server/biometrics/sensors/fingerprint/hidl/Fingerprint21.java
-index fab3d9020cb04315347e02915e6e048e1642ff51..ef4b8dd1d3262325f35a0143a23057e88d7bec0f 100644
+index fab3d9020..ef4b8dd1d 100644
 --- a/services/core/java/com/android/server/biometrics/sensors/fingerprint/hidl/Fingerprint21.java
 +++ b/services/core/java/com/android/server/biometrics/sensors/fingerprint/hidl/Fingerprint21.java
 @@ -739,7 +739,8 @@ public class Fingerprint21 implements IHwBinder.DeathRecipient, ServiceProvider
@@ -1204,7 +1242,7 @@ index fab3d9020cb04315347e02915e6e048e1642ff51..ef4b8dd1d3262325f35a0143a23057e8
          }
          mHandler.post(() -> {
 diff --git a/services/core/java/com/android/server/display/DisplayDeviceConfig.java b/services/core/java/com/android/server/display/DisplayDeviceConfig.java
-index a44a37527362e2db71c143abdbf78d5b3f70f912..148e5e907873104c7b942a85ba959daea89f5add 100644
+index a44a37527..148e5e907 100644
 --- a/services/core/java/com/android/server/display/DisplayDeviceConfig.java
 +++ b/services/core/java/com/android/server/display/DisplayDeviceConfig.java
 @@ -676,9 +676,14 @@ public class DisplayDeviceConfig {
@@ -1295,7 +1333,7 @@ index a44a37527362e2db71c143abdbf78d5b3f70f912..148e5e907873104c7b942a85ba959dae
  
      private Spline loadSdrHdrRatioMap(HighBrightnessMode hbmConfig) {
 diff --git a/services/core/java/com/android/server/display/DisplayPowerController.java b/services/core/java/com/android/server/display/DisplayPowerController.java
-index dee8981f2077facab25bc95ad357bee27eda4fe3..2836819d4435dcd1a09fa6be90de29434c948ac5 100644
+index dee8981f2..2836819d4 100644
 --- a/services/core/java/com/android/server/display/DisplayPowerController.java
 +++ b/services/core/java/com/android/server/display/DisplayPowerController.java
 @@ -2253,9 +2253,33 @@ final class DisplayPowerController implements AutomaticBrightnessController.Call
@@ -1354,7 +1392,7 @@ index dee8981f2077facab25bc95ad357bee27eda4fe3..2836819d4435dcd1a09fa6be90de2943
                  boolean positive = distance >= 0.0f && distance < mProximityThreshold;
                  handleProximitySensorEvent(time, positive);
 diff --git a/services/core/java/com/android/server/display/LocalDisplayAdapter.java b/services/core/java/com/android/server/display/LocalDisplayAdapter.java
-index 36b73c65a01a6d292ba3bc68260198bf0543e0cc..6d87fee7f82f50d5bf41cf832d9461f36476eaa9 100644
+index 36b73c65a..6d87fee7f 100644
 --- a/services/core/java/com/android/server/display/LocalDisplayAdapter.java
 +++ b/services/core/java/com/android/server/display/LocalDisplayAdapter.java
 @@ -33,6 +33,7 @@ import android.os.Trace;
@@ -1429,7 +1467,7 @@ index 36b73c65a01a6d292ba3bc68260198bf0543e0cc..6d87fee7f82f50d5bf41cf832d9461f3
                          // have a sidekick available, tell it now that it can take control.
                          if (Display.isSuspendedState(state) && state != Display.STATE_OFF
 diff --git a/services/core/java/com/android/server/lights/LightsService.java b/services/core/java/com/android/server/lights/LightsService.java
-index fea6b29d92609c4dd5ac52350e769849c75600fa..caf9eba7d9a802cc17407ce78d9dcac8fe69c246 100644
+index fea6b29d9..caf9eba7d 100644
 --- a/services/core/java/com/android/server/lights/LightsService.java
 +++ b/services/core/java/com/android/server/lights/LightsService.java
 @@ -32,6 +32,7 @@ import android.os.IBinder;
@@ -1493,7 +1531,7 @@ index fea6b29d92609c4dd5ac52350e769849c75600fa..caf9eba7d9a802cc17407ce78d9dcac8
                  color = 0xff000000 | (color << 16) | (color << 8) | color;
                  setLightLocked(color, LIGHT_FLASH_NONE, 0, 0, brightnessMode);
 diff --git a/services/core/java/com/android/server/net/NetworkPolicyManagerService.java b/services/core/java/com/android/server/net/NetworkPolicyManagerService.java
-index 121ac8ba60f83350b52132ac57af80d0dbac9091..db2f8982f9791e45c2825b708247fe0f09e159e2 100644
+index 121ac8ba6..db2f8982f 100644
 --- a/services/core/java/com/android/server/net/NetworkPolicyManagerService.java
 +++ b/services/core/java/com/android/server/net/NetworkPolicyManagerService.java
 @@ -980,6 +980,10 @@ public class NetworkPolicyManagerService extends INetworkPolicyManager.Stub {
@@ -1518,8 +1556,136 @@ index 121ac8ba60f83350b52132ac57af80d0dbac9091..db2f8982f9791e45c2825b708247fe0f
              synchronized (mUidRulesFirstLock) {
                  synchronized (mNetworkPoliciesSecondLock) {
                      updatePowerSaveWhitelistUL();
+diff --git a/services/core/java/com/android/server/pm/ComputerEngine.java b/services/core/java/com/android/server/pm/ComputerEngine.java
+index 4bbe7ed98..acbb78cd6 100644
+--- a/services/core/java/com/android/server/pm/ComputerEngine.java
++++ b/services/core/java/com/android/server/pm/ComputerEngine.java
+@@ -1609,29 +1609,6 @@ public class ComputerEngine implements Computer {
+         return result;
+     }
+ 
+-    private boolean requestsFakeSignature(AndroidPackage p) {
+-        return p.getMetaData() != null &&
+-                p.getMetaData().getString("fake-signature") != null;
+-    }
+-
+-    private PackageInfo mayFakeSignature(AndroidPackage p, PackageInfo pi,
+-            Set<String> permissions) {
+-        try {
+-            if (p.getMetaData() != null &&
+-                    p.getTargetSdkVersion() > Build.VERSION_CODES.LOLLIPOP_MR1) {
+-                String sig = p.getMetaData().getString("fake-signature");
+-                if (sig != null && pi != null &&
+-                        permissions.contains("android.permission.FAKE_PACKAGE_SIGNATURE")) {
+-                    pi.signatures = new Signature[] {new Signature(sig)};
+-                }
+-            }
+-        } catch (Throwable t) {
+-            // We should never die because of any failures, this is system code!
+-            Log.w("ComputerEngine.FAKE_PACKAGE_SIGNATURE", t);
+-        }
+-        return pi;
+-    }
+-
+     public final PackageInfo generatePackageInfo(PackageStateInternal ps,
+             @PackageManager.PackageInfoFlagsBits long flags, int userId) {
+         if (!mUserManager.exists(userId)) return null;
+@@ -1666,14 +1643,13 @@ public class ComputerEngine implements Computer {
+             final int[] gids = (flags & PackageManager.GET_GIDS) == 0 ? EMPTY_INT_ARRAY
+                     : mPermissionManager.getGidsForUid(UserHandle.getUid(userId, ps.getAppId()));
+             // Compute granted permissions only if package has requested permissions
+-            final Set<String> permissions = (((flags & PackageManager.GET_PERMISSIONS) == 0
+-                    && !requestsFakeSignature(p))
++            final Set<String> permissions = ((flags & PackageManager.GET_PERMISSIONS) == 0
+                     || ArrayUtils.isEmpty(p.getRequestedPermissions())) ? Collections.emptySet()
+                     : mPermissionManager.getGrantedPermissions(ps.getPackageName(), userId);
+ 
+-            PackageInfo packageInfo = mayFakeSignature(p, PackageInfoUtils.generate(p, gids, flags,
+-                    state.getFirstInstallTime(), ps.getLastUpdateTime(), permissions, state, userId, ps),
+-                    permissions);
++            PackageInfo packageInfo = PackageInfoUtils.generate(p, gids, flags,
++                    state.getFirstInstallTime(), ps.getLastUpdateTime(), permissions, state, userId,
++                    ps);
+ 
+             if (packageInfo == null) {
+                 return null;
+diff --git a/services/core/java/com/android/server/pm/permission/PermissionManagerServiceImpl.java b/services/core/java/com/android/server/pm/permission/PermissionManagerServiceImpl.java
+index 6af4ea17f..bbcd4beb9 100644
+--- a/services/core/java/com/android/server/pm/permission/PermissionManagerServiceImpl.java
++++ b/services/core/java/com/android/server/pm/permission/PermissionManagerServiceImpl.java
+@@ -171,6 +171,8 @@ public class PermissionManagerServiceImpl implements PermissionManagerServiceInt
+ 
+     private static final String TAG = "PackageManager";
+     private static final String LOG_TAG = PermissionManagerServiceImpl.class.getSimpleName();
++    private static final String LEGACY_FAKE_PACKAGE_SIGNATURE_PERMISSION =
++            "android.permission.FAKE_PACKAGE_SIGNATURE";
+ 
+     private static final String SKIP_KILL_APP_REASON_NOTIFICATION_TEST = "skip permission revoke "
+             + "app kill for notification test";
+@@ -4090,6 +4092,7 @@ public class PermissionManagerServiceImpl implements PermissionManagerServiceInt
+             final @Nullable PermissionCallback callback) {
+         // Always need update if packageName is null
+         if (packageName == null) {
++            removeLegacyFakePackageSignaturePermission(callback);
+             return true;
+         }
+ 
+@@ -4173,6 +4176,53 @@ public class PermissionManagerServiceImpl implements PermissionManagerServiceInt
+         return changed;
+     }
+ 
++    private void removeLegacyFakePackageSignaturePermission(
++            @Nullable PermissionCallback callback) {
++        final AndroidPackage platformPackage =
++                mPackageManagerInt.getPackage(PLATFORM_PACKAGE_NAME);
++        if (platformPackage == null
++                || hasPermission(platformPackage, LEGACY_FAKE_PACKAGE_SIGNATURE_PERMISSION)) {
++            return;
++        }
++
++        final Permission permission;
++        synchronized (mLock) {
++            permission = mRegistry.getPermission(LEGACY_FAKE_PACKAGE_SIGNATURE_PERMISSION);
++        }
++        if (permission == null
++                || !PLATFORM_PACKAGE_NAME.equals(permission.getPackageName())) {
++            return;
++        }
++
++        Slog.i(TAG, "Removing obsolete platform permission "
++                + LEGACY_FAKE_PACKAGE_SIGNATURE_PERMISSION);
++        if (permission.isRuntime()) {
++            final int[] userIds = mUserManagerInt.getUserIds();
++            for (final int userId : userIds) {
++                mPackageManagerInt.forEachPackage((AndroidPackage pkg) ->
++                        revokePermissionFromPackageForUser(pkg.getPackageName(),
++                                LEGACY_FAKE_PACKAGE_SIGNATURE_PERMISSION, true, userId,
++                                callback));
++            }
++        } else {
++            mPackageManagerInt.forEachPackage(pkg -> {
++                final int[] userIds = mUserManagerInt.getUserIds();
++                synchronized (mLock) {
++                    for (final int userId : userIds) {
++                        final UidPermissionState uidState = getUidStateLocked(pkg, userId);
++                        if (uidState != null) {
++                            uidState.removePermissionState(
++                                    LEGACY_FAKE_PACKAGE_SIGNATURE_PERMISSION);
++                        }
++                    }
++                }
++            });
++        }
++        synchronized (mLock) {
++            mRegistry.removePermission(LEGACY_FAKE_PACKAGE_SIGNATURE_PERMISSION);
++        }
++    }
++
+     private boolean isPermissionDeclaredByDisabledSystemPkg(@NonNull Permission permission) {
+         final PackageStateInternal disabledSourcePs = mPackageManagerInt.getDisabledSystemPackage(
+                     permission.getPackageName());
 diff --git a/services/core/java/com/android/server/power/PowerManagerService.java b/services/core/java/com/android/server/power/PowerManagerService.java
-index 1dbad97d590cbb855f362452bf4c9a62ec57ede4..501b59c41049bd96324b621eb1c39f7981c0ea92 100644
+index 1dbad97d5..501b59c41 100644
 --- a/services/core/java/com/android/server/power/PowerManagerService.java
 +++ b/services/core/java/com/android/server/power/PowerManagerService.java
 @@ -1151,9 +1151,11 @@ public final class PowerManagerService extends SystemService
@@ -1537,7 +1703,7 @@ index 1dbad97d590cbb855f362452bf4c9a62ec57ede4..501b59c41049bd96324b621eb1c39f79
                      mContext.getResources().getInteger(com.android.internal.R.integer
                              .config_screenBrightnessSettingMaximum));
 diff --git a/services/core/java/com/android/server/wm/ActivityTaskManagerService.java b/services/core/java/com/android/server/wm/ActivityTaskManagerService.java
-index a1a044aa4acb7c87ee27b4870d0b5b50210bfbcd..32ea26ce5a59ee188d118c1af517da19a2730a35 100644
+index a1a044aa4..32ea26ce5 100644
 --- a/services/core/java/com/android/server/wm/ActivityTaskManagerService.java
 +++ b/services/core/java/com/android/server/wm/ActivityTaskManagerService.java
 @@ -5902,20 +5902,8 @@ public class ActivityTaskManagerService extends IActivityTaskManager.Stub {
@@ -1564,7 +1730,7 @@ index a1a044aa4acb7c87ee27b4870d0b5b50210bfbcd..32ea26ce5a59ee188d118c1af517da19
              }
          }
 diff --git a/services/core/java/com/android/server/wm/DisplayPolicy.java b/services/core/java/com/android/server/wm/DisplayPolicy.java
-index 2b538f621a5268dc36d3ae4fbfbd5cfa629dcd45..5f8256835b494ec52008f75a1d9cdf7226c63767 100644
+index 2b538f621..5f8256835 100644
 --- a/services/core/java/com/android/server/wm/DisplayPolicy.java
 +++ b/services/core/java/com/android/server/wm/DisplayPolicy.java
 @@ -240,6 +240,9 @@ public class DisplayPolicy {
@@ -1646,7 +1812,7 @@ index 2b538f621a5268dc36d3ae4fbfbd5cfa629dcd45..5f8256835b494ec52008f75a1d9cdf72
  
                      @Override
 diff --git a/services/core/jni/Android.bp b/services/core/jni/Android.bp
-index 0d49f5fffb4b84c913947bea21af4b06d398d3a2..c73b29739cbf3c5e36c7eabbd577ca4b5dd61196 100644
+index 0d49f5fff..c73b29739 100644
 --- a/services/core/jni/Android.bp
 +++ b/services/core/jni/Android.bp
 @@ -186,6 +186,9 @@ cc_defaults {
@@ -1660,7 +1826,7 @@ index 0d49f5fffb4b84c913947bea21af4b06d398d3a2..c73b29739cbf3c5e36c7eabbd577ca4b
  
      static_libs: [
 diff --git a/services/core/jni/com_android_server_ConsumerIrService.cpp b/services/core/jni/com_android_server_ConsumerIrService.cpp
-index 63daa3503bd554eebe1b93c0a3c77172caac1b55..d068ec06fc14bb289bae2dd64059b1c4df97bf71 100644
+index 63daa3503..d068ec06f 100644
 --- a/services/core/jni/com_android_server_ConsumerIrService.cpp
 +++ b/services/core/jni/com_android_server_ConsumerIrService.cpp
 @@ -36,7 +36,7 @@ static sp<IConsumerIr> mHal;
@@ -1673,7 +1839,7 @@ index 63daa3503bd554eebe1b93c0a3c77172caac1b55..d068ec06fc14bb289bae2dd64059b1c4
  }
  
 diff --git a/telephony/java/android/telephony/CarrierConfigManager.java b/telephony/java/android/telephony/CarrierConfigManager.java
-index 78df3f6f141142697039acec9a12d4dc41f41993..cb6cc048c18656d79d7913ac549c75870dd8bc7d 100644
+index 78df3f6f1..cb6cc048c 100644
 --- a/telephony/java/android/telephony/CarrierConfigManager.java
 +++ b/telephony/java/android/telephony/CarrierConfigManager.java
 @@ -8712,7 +8712,7 @@ public class CarrierConfigManager {
@@ -1686,7 +1852,7 @@ index 78df3f6f141142697039acec9a12d4dc41f41993..cb6cc048c18656d79d7913ac549c7587
          sDefaults.putBoolean(KEY_SMS_REQUIRES_DESTINATION_NUMBER_CONVERSION_BOOL, false);
          sDefaults.putBoolean(KEY_SUPPORT_EMERGENCY_SMS_OVER_IMS_BOOL, false);
 diff --git a/telephony/java/android/telephony/TelephonyManager.java b/telephony/java/android/telephony/TelephonyManager.java
-index 040804bca62d850e384d58093d701d7b67d4b39f..eae7246b22eea3ea7d1dc55234d07b3e3f64e3e5 100644
+index 040804bca..eae7246b2 100644
 --- a/telephony/java/android/telephony/TelephonyManager.java
 +++ b/telephony/java/android/telephony/TelephonyManager.java
 @@ -3164,6 +3164,64 @@ public class TelephonyManager {
