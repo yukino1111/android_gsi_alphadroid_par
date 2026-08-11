@@ -34,8 +34,9 @@ The original `From:` authors in that bundle are credited below.
 | `system_vold.patch` | Pierre-Hugues Husson |
 
 `build_make.patch`, `external_selinux.patch`, `frameworks_base.patch`,
-`frameworks_native.patch`, and `packages_apps_Settings.patch` also contain
-PAR/release-specific follow-up changes maintained by yukino1111. The
+`frameworks_native.patch`, `frameworks_opt_telephony.patch`, and
+`packages_apps_Settings.patch` also contain PAR/release-specific follow-up
+changes maintained by yukino1111. The
 project-level aggregate format cannot preserve the original per-commit
 metadata, so the upstream bundle remains the authoritative record for
 individual TrebleDroid commits.

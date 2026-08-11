@@ -1,17 +1,289 @@
 # Provenance: PAR/release integration maintained by yukino1111 against the
 # pinned upstream project. Upstream file copyrights and licenses still apply.
+diff --git a/src/com/android/phone/HuaweiNcfgManager.java b/src/com/android/phone/HuaweiNcfgManager.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..41099dc86800861b20e75d69afc380cd4afb7e55
+--- /dev/null
++++ b/src/com/android/phone/HuaweiNcfgManager.java
+@@ -0,0 +1,238 @@
++/*
++ * Copyright (C) 2026 The AlphaDroid Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package com.android.phone;
++
++import android.os.HwBinder;
++import android.os.HwParcel;
++import android.os.IHwBinder;
++import android.os.SystemProperties;
++import android.text.TextUtils;
++import android.util.Log;
++
++import com.android.internal.telephony.IccCardConstants;
++import com.android.internal.telephony.Phone;
++import com.android.internal.telephony.PhoneFactory;
++
++import java.util.concurrent.Executors;
++import java.util.concurrent.ScheduledExecutorService;
++import java.util.concurrent.TimeUnit;
++import java.util.concurrent.atomic.AtomicInteger;
++
++/** Selects the matching Huawei modem NCFG whenever a SIM changes. */
++final class HuaweiNcfgManager {
++    private static final String TAG = "HuaweiNcfgManager";
++
++    private static final String ENABLE_PROPERTY = "ro.odm.radio.nvcfg_normalization";
++    private static final String RADIO_DESCRIPTOR =
++            "vendor.huawei.hardware.radio@2.0::IRadio";
++    private static final int TRANSACTION_SEND_SIM_MATCHED_OPERATOR_INFO = 27;
++    private static final int FLAG_ONEWAY = 1;
++    private static final int STATE_SIM_LOADED = 1;
++    private static final int STATE_SIM_ABSENT = 2;
++    private static final int MAX_OPERATOR_RETRIES = 6;
++    private static final long INITIAL_DELAY_MILLIS = 1500;
++    private static final long SLOT_STAGGER_MILLIS = 1500;
++    private static final long RETRY_DELAY_MILLIS = 2000;
++
++    private final boolean mEnabled = SystemProperties.getBoolean(ENABLE_PROPERTY, false);
++    private final ScheduledExecutorService mExecutor =
++            Executors.newSingleThreadScheduledExecutor(runnable -> {
++                Thread thread = new Thread(runnable, TAG);
++                thread.setDaemon(true);
++                return thread;
++            });
++    private final AtomicInteger mSerial = new AtomicInteger();
++    private final int[] mGeneration;
++    private final String[] mLastProfile;
++
++    HuaweiNcfgManager() {
++        int phoneCount = PhoneFactory.getPhones().length;
++        mGeneration = new int[phoneCount];
++        mLastProfile = new String[phoneCount];
++
++        if (!mEnabled) {
++            return;
++        }
++
++        // TeleService can start after the initial SIM broadcast. Probe both slots as well as
++        // listening for later changes so first boot and data-wipe boots select an NCFG too.
++        for (int phoneId = 0; phoneId < phoneCount; phoneId++) {
++            scheduleLoaded(phoneId, nextGeneration(phoneId), 0);
++        }
++    }
++
++    void onSimStateChanged(int phoneId, String state) {
++        if (!mEnabled || !isValidPhoneId(phoneId)) {
++            return;
++        }
++
++        if (IccCardConstants.INTENT_VALUE_ICC_LOADED.equals(state)) {
++            scheduleLoaded(phoneId, nextGeneration(phoneId), 0);
++        } else if (IccCardConstants.INTENT_VALUE_ICC_ABSENT.equals(state)) {
++            int generation = nextGeneration(phoneId);
++            synchronized (this) {
++                mLastProfile[phoneId] = null;
++            }
++            mExecutor.execute(() -> {
++                if (isCurrent(phoneId, generation)) {
++                    send(phoneId, "NULL", "NULL", STATE_SIM_ABSENT);
++                }
++            });
++        } else if (IccCardConstants.INTENT_VALUE_ICC_NOT_READY.equals(state)) {
++            // Cancel a delayed match from the card that has just been disabled or removed.
++            nextGeneration(phoneId);
++            synchronized (this) {
++                mLastProfile[phoneId] = null;
++            }
++        }
++    }
++
++    private void scheduleLoaded(int phoneId, int generation, int retry) {
++        long delay = retry == 0
++                ? INITIAL_DELAY_MILLIS + phoneId * SLOT_STAGGER_MILLIS
++                : RETRY_DELAY_MILLIS;
++        mExecutor.schedule(() -> matchLoadedSim(phoneId, generation, retry),
++                delay, TimeUnit.MILLISECONDS);
++    }
++
++    private void matchLoadedSim(int phoneId, int generation, int retry) {
++        if (!isCurrent(phoneId, generation)) {
++            return;
++        }
++
++        Phone phone = PhoneFactory.getPhone(phoneId);
++        String operatorNumeric = phone == null ? null : phone.getOperatorNumeric();
++        if (TextUtils.isEmpty(operatorNumeric)) {
++            if (retry < MAX_OPERATOR_RETRIES) {
++                scheduleLoaded(phoneId, generation, retry + 1);
++            } else {
++                Log.w(TAG, "SIM operator still unavailable for phoneId=" + phoneId);
++            }
++            return;
++        }
++
++        CarrierProfile profile = CarrierProfile.forOperator(operatorNumeric);
++        String profileKey = profile.operatorKey + ':' + profile.operatorName;
++        synchronized (this) {
++            if (profileKey.equals(mLastProfile[phoneId])) {
++                return;
++            }
++        }
++
++        if (send(phoneId, profile.operatorKey, profile.operatorName, STATE_SIM_LOADED)) {
++            synchronized (this) {
++                if (isCurrentLocked(phoneId, generation)) {
++                    mLastProfile[phoneId] = profileKey;
++                }
++            }
++        } else if (retry < MAX_OPERATOR_RETRIES) {
++            scheduleLoaded(phoneId, generation, retry + 1);
++        }
++    }
++
++    private boolean send(int phoneId, String operatorKey, String operatorName, int state) {
++        String serviceName = "slot" + (phoneId + 1);
++        HwParcel request = new HwParcel();
++        HwParcel reply = new HwParcel();
++        try {
++            IHwBinder radio = HwBinder.getService(RADIO_DESCRIPTOR, serviceName);
++            request.writeInterfaceToken(RADIO_DESCRIPTOR);
++            request.writeInt32(mSerial.incrementAndGet());
++            request.writeString(operatorKey);
++            request.writeString(operatorName);
++            request.writeInt32(state);
++            request.writeString("");
++            radio.transact(TRANSACTION_SEND_SIM_MATCHED_OPERATOR_INFO,
++                    request, reply, FLAG_ONEWAY);
++            request.releaseTemporaryStorage();
++            Log.i(TAG, "Notified " + serviceName + " opKey=" + operatorKey
++                    + " opName=" + operatorName + " state=" + state);
++            return true;
++        } catch (Exception e) {
++            Log.w(TAG, "Failed to notify " + serviceName + " state=" + state, e);
++            return false;
++        } finally {
++            reply.release();
++        }
++    }
++
++    private synchronized int nextGeneration(int phoneId) {
++        return ++mGeneration[phoneId];
++    }
++
++    private synchronized boolean isCurrent(int phoneId, int generation) {
++        return isCurrentLocked(phoneId, generation);
++    }
++
++    private boolean isCurrentLocked(int phoneId, int generation) {
++        return isValidPhoneId(phoneId) && mGeneration[phoneId] == generation;
++    }
++
++    private boolean isValidPhoneId(int phoneId) {
++        return phoneId >= 0 && phoneId < mGeneration.length;
++    }
++
++    private static final class CarrierProfile {
++        final String operatorKey;
++        final String operatorName;
++
++        CarrierProfile(String operatorKey, String operatorName) {
++            this.operatorKey = operatorKey;
++            this.operatorName = operatorName;
++        }
++
++        static CarrierProfile forOperator(String operatorNumeric) {
++            switch (operatorNumeric) {
++                case "46000":
++                case "46002":
++                case "46004":
++                case "46007":
++                case "46008":
++                    return new CarrierProfile(operatorNumeric, "CMCC_CN");
++                case "46001":
++                case "46006":
++                case "46009":
++                    return new CarrierProfile(operatorNumeric, "CUCC_CN");
++                case "46003":
++                case "46005":
++                case "46011":
++                case "46012":
++                    return new CarrierProfile(operatorNumeric, "TELECOM_CN");
++                case "45400":
++                case "45402":
++                case "45416":
++                case "45418":
++                case "45419":
++                    return new CarrierProfile(operatorNumeric, "PCCW_HK");
++                case "45403":
++                case "45404":
++                case "45414":
++                    return new CarrierProfile(operatorNumeric, "H3G_HK");
++                case "45406":
++                case "45415":
++                case "45417":
++                    return new CarrierProfile(operatorNumeric, "ST_HK");
++                case "45412":
++                case "45413":
++                    return new CarrierProfile(operatorNumeric, "CMCC_HK");
++                default:
++                    // This is also the stock HwCarrierConfig fallback for an otherwise valid SIM.
++                    return new CarrierProfile(operatorNumeric, "COMMON");
++            }
++        }
++    }
++}
+diff --git a/src/com/android/phone/PhoneGlobals.java b/src/com/android/phone/PhoneGlobals.java
+index f6ec75d802a61a2871d463b34156c3c8cb7e3e67..0ea06accf141a6bad1f57e4730e0f0900f98d3e3 100644
+--- a/src/com/android/phone/PhoneGlobals.java
++++ b/src/com/android/phone/PhoneGlobals.java
+@@ -156,6 +156,7 @@ public class PhoneGlobals extends ContextWrapper {
+     NotificationMgr notificationMgr;
+     TelephonyRcsService mTelephonyRcsService;
+     public PhoneInterfaceManager phoneMgr;
++    private HuaweiNcfgManager mHuaweiNcfgManager;
+     public ImsRcsController imsRcsController;
+     public ImsStateCallbackController mImsStateCallbackController;
+     public ImsProvisioningController mImsProvisioningController;
+@@ -330,6 +331,7 @@ public class PhoneGlobals extends ContextWrapper {
+                     // Right now, this is only used for the PUK-unlocking
+                     // process.
+                     EventSimStateChangedBag bag = (EventSimStateChangedBag)msg.obj;
++                    mHuaweiNcfgManager.onSimStateChanged(bag.mPhoneId, bag.mIccStatus);
+                     if (IccCardConstants.INTENT_VALUE_ICC_READY.equals(bag.mIccStatus)
+                             || IccCardConstants.INTENT_VALUE_ICC_LOADED.equals(bag.mIccStatus)
+                             || IccCardConstants.INTENT_VALUE_ICC_NOT_READY.equals(bag.mIccStatus)
+@@ -500,6 +502,7 @@ public class PhoneGlobals extends ContextWrapper {
+             mKeyguardManager = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+ 
+             phoneMgr = PhoneInterfaceManager.init(this);
++            mHuaweiNcfgManager = new HuaweiNcfgManager();
+ 
+             imsRcsController = ImsRcsController.init(this);
+ 
 diff --git a/src/com/android/phone/PhoneInterfaceManager.java b/src/com/android/phone/PhoneInterfaceManager.java
-index 1c145534ec67a6824f44f434ccd15f7758aa9763..b7aba9a526642995d2e9624498c1996610a33a8f 100755
+index 1c145534ec67a6824f44f434ccd15f7758aa9763..5539430c7ba207e80ed9ed42e23f4e47714ee31d 100755
 --- a/src/com/android/phone/PhoneInterfaceManager.java
 +++ b/src/com/android/phone/PhoneInterfaceManager.java
-@@ -62,6 +62,7 @@ import android.os.RemoteException;
- import android.os.ResultReceiver;
- import android.os.ServiceSpecificException;
- import android.os.SystemClock;
-+import android.os.SystemProperties;
- import android.os.UserHandle;
- import android.os.UserManager;
- import android.os.WorkSource;
+@@ -345,6 +345,7 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
+     private static final int EVENT_SET_DATA_THROTTLING_DONE = 100;
+     private static final int CMD_SET_SIM_POWER = 101;
+     private static final int EVENT_SET_SIM_POWER_DONE = 102;
++    private static final long LEGACY_SIM_POWER_IMS_ENABLE_DELAY_MILLIS = 1500;
+     private static final int CMD_SET_SIGNAL_STRENGTH_UPDATE_REQUEST = 103;
+     private static final int EVENT_SET_SIGNAL_STRENGTH_UPDATE_REQUEST_DONE = 104;
+     private static final int CMD_CLEAR_SIGNAL_STRENGTH_UPDATE_REQUEST = 105;
 @@ -2011,6 +2012,8 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                  case EVENT_SET_SIM_POWER_DONE: {
                      ar = (AsyncResult) msg.obj;
@@ -21,20 +293,34 @@ index 1c145534ec67a6824f44f434ccd15f7758aa9763..b7aba9a526642995d2e9624498c19966
                      IIntegerConsumer callback =
                              ((Pair<Integer, IIntegerConsumer>) request.argument).second;
                      if (ar.exception != null) {
-@@ -2025,7 +2028,20 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
+@@ -2025,7 +2028,34 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                              } else if (error == CommandException.Error.INVALID_ARGUMENTS) {
                                  errorCode = TelephonyManager.SET_SIM_POWER_STATE_ALREADY_IN_STATE;
                              } else if (error == CommandException.Error.REQUEST_NOT_SUPPORTED) {
 -                                errorCode = TelephonyManager.SET_SIM_POWER_STATE_NOT_SUPPORTED;
-+                                if (SystemProperties.getBoolean(
-+                                        "persist.sys.overlay.huawei", false)
-+                                        && (requestedState == TelephonyManager.CARD_POWER_DOWN
-+                                        || requestedState == TelephonyManager.CARD_POWER_UP)) {
++                                if (requestedState == TelephonyManager.CARD_POWER_DOWN
++                                        || requestedState == TelephonyManager.CARD_POWER_UP) {
 +                                    // EMUI 9's DSDS implementation controls each logical phone's
 +                                    // radio instead of implementing setSimCardPower. Keep the
 +                                    // public per-slot API usable without touching modem NV.
-+                                    request.phone.setRadioPower(requestedState
-+                                            == TelephonyManager.CARD_POWER_UP);
++                                    final Phone phone = request.phone;
++                                    final boolean powerUp = requestedState
++                                            == TelephonyManager.CARD_POWER_UP;
++                                    phone.setRadioPowerForReason(powerUp, false, false, false,
++                                            Phone.RADIO_POWER_REASON_SIM_SWITCH);
++                                    if (powerUp) {
++                                        final int phoneId = phone.getPhoneId();
++                                        mMainThreadHandler.postDelayed(() -> {
++                                            if (!phone.isRadioOn()) {
++                                                log("Skipping legacy SIM IMS enable because radio "
++                                                        + "is off for phone " + phoneId);
++                                            } else if (mImsResolver != null) {
++                                                mImsResolver.enableIms(phoneId);
++                                                log("Huawei legacy SIM IMS enable requested for "
++                                                        + "phone " + phoneId);
++                                            }
++                                        }, LEGACY_SIM_POWER_IMS_ENABLE_DELAY_MILLIS);
++                                    }
 +                                    errorCode = TelephonyManager.SET_SIM_POWER_STATE_SUCCESS;
 +                                    log("Huawei legacy per-slot radio power fallback accepted");
 +                                } else {

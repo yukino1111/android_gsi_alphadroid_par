@@ -1,5 +1,5 @@
-# Provenance: TrebleDroid ci-20230706; original patch authors: TrebleDroid contributors listed in ../ATTRIBUTION.md.
-# See ../ATTRIBUTION.md. This import is not authored by yukino1111.
+# Provenance: TrebleDroid ci-20230706 plus PAR Huawei RIL recovery follow-ups
+# maintained by yukino1111. Original authors are listed in ../ATTRIBUTION.md.
 diff --git a/src/java/com/android/internal/telephony/GsmCdmaPhone.java b/src/java/com/android/internal/telephony/GsmCdmaPhone.java
 index 1da9f4bba1d82bb0eabf719088bf93385812a2f7..a5eeeccdff5dce01f90129db4548a270427d6db2 100644
 --- a/src/java/com/android/internal/telephony/GsmCdmaPhone.java
@@ -26,6 +26,25 @@ index 1da9f4bba1d82bb0eabf719088bf93385812a2f7..a5eeeccdff5dce01f90129db4548a270
                      TelephonyManager.from(mContext).setBasebandVersionForPhone(getPhoneId(),
                              length <= MAX_VERSION_LEN ? version
                                  : version.substring(length - MAX_VERSION_LEN, length));
+diff --git a/src/java/com/android/internal/telephony/PhoneInternalInterface.java b/src/java/com/android/internal/telephony/PhoneInternalInterface.java
+index 5b4d5e513f60bf597b91880e19a952b4e153470b..49625898209a4546726b0d7c302c1b933f56c3c6 100644
+--- a/src/java/com/android/internal/telephony/PhoneInternalInterface.java
++++ b/src/java/com/android/internal/telephony/PhoneInternalInterface.java
+@@ -214,11 +214,13 @@ public interface PhoneInternalInterface {
+     // Reasons for Radio being powered off
+     int RADIO_POWER_REASON_USER = 0;
+     int RADIO_POWER_REASON_THERMAL = 1;
++    int RADIO_POWER_REASON_SIM_SWITCH = 2;
+     @Retention(RetentionPolicy.SOURCE)
+     @IntDef(prefix = {"RADIO_POWER_REASON_"},
+         value = {
+             RADIO_POWER_REASON_USER,
+-            RADIO_POWER_REASON_THERMAL})
++            RADIO_POWER_REASON_THERMAL,
++            RADIO_POWER_REASON_SIM_SWITCH})
+     public @interface RadioPowerReason {}
+ 
+     // Used for band mode selection methods
 diff --git a/src/java/com/android/internal/telephony/ProxyController.java b/src/java/com/android/internal/telephony/ProxyController.java
 index 76f0041ee20998129a10b906f23fdd63da47fe91..4523ffef81b51cb8ac6486253681b5702cc63df4 100644
 --- a/src/java/com/android/internal/telephony/ProxyController.java
@@ -115,10 +134,66 @@ index 76f0041ee20998129a10b906f23fdd63da47fe91..4523ffef81b51cb8ac6486253681b570
                          + mOldRadioAccessFamily[phoneId]);
                  logd("setRadioCapability: mNewRadioAccessFamily[" + phoneId + "]="
 diff --git a/src/java/com/android/internal/telephony/RIL.java b/src/java/com/android/internal/telephony/RIL.java
-index 70431f6a0c27285bdb31b0c9a7dfdf2c8a83cf75..182b33565662145bfb043ecbe81d990ff7a3ff0f 100644
+index 70431f6a0c27285bdb31b0c9a7dfdf2c8a83cf75..39873940fbf7e2797291f927211b00561e1ab64e 100644
 --- a/src/java/com/android/internal/telephony/RIL.java
 +++ b/src/java/com/android/internal/telephony/RIL.java
-@@ -5940,6 +5940,130 @@ public class RIL extends BaseCommands implements CommandsInterface {
+@@ -452,14 +452,29 @@ public class RIL extends BaseCommands implements CommandsInterface {
+     }
+ 
+     private synchronized void resetProxyAndRequestList(int service) {
+-        if (service == RADIO_SERVICE) {
++        final boolean isHidl = mRadioVersion.less(RADIO_HAL_VERSION_2_0);
++        final int cookieService = isHidl ? RADIO_SERVICE : service;
++
++        if (isHidl) {
++            // HIDL exposes one monolithic IRadio binder through every compatibility proxy. If it
++            // dies, keeping any DATA/SIM/VOICE proxy leaves requests attached to the dead binder.
++            mIsRadioProxyInitialized = false;
++            mRadioProxy = null;
++            for (int radioService = MIN_SERVICE_IDX; radioService <= MAX_SERVICE_IDX;
++                    radioService++) {
++                mDisabledRadioServices.get(radioService).remove(mPhoneId);
++                if (radioService != RADIO_SERVICE) {
++                    mServiceProxies.get(radioService).clear();
++                }
++            }
++        } else if (service == RADIO_SERVICE) {
+             mRadioProxy = null;
+         } else {
+             mServiceProxies.get(service).clear();
+         }
+ 
+         // Increment the cookie so that death notification can be ignored
+-        mServiceCookies.get(service).incrementAndGet();
++        mServiceCookies.get(cookieService).incrementAndGet();
+ 
+         // TODO: If a service doesn't exist or is unimplemented, it shouldn't cause the radio to
+         //  become unavailable for all other services
+@@ -469,7 +484,13 @@ public class RIL extends BaseCommands implements CommandsInterface {
+         // Clear request list on close
+         clearRequestList(RADIO_NOT_AVAILABLE, false);
+ 
+-        if (service == RADIO_SERVICE) {
++        if (isHidl) {
++            getRadioProxy(null);
++            for (int radioService = DATA_SERVICE; radioService <= MAX_SERVICE_IDX;
++                    radioService++) {
++                getRadioServiceProxy(radioService, null);
++            }
++        } else if (service == RADIO_SERVICE) {
+             getRadioProxy(null);
+         } else {
+             getRadioServiceProxy(service, null);
+@@ -970,7 +991,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
+                         if (!mIsRadioProxyInitialized) {
+                             mIsRadioProxyInitialized = true;
+                             serviceProxy.getHidl().linkToDeath(mRadioProxyDeathRecipient,
+-                                    mServiceCookies.get(service).incrementAndGet());
++                                    mServiceCookies.get(RADIO_SERVICE).incrementAndGet());
+                             serviceProxy.getHidl().setResponseFunctions(
+                                     mRadioResponse, mRadioIndication);
+                         }
+@@ -5940,6 +5961,130 @@ public class RIL extends BaseCommands implements CommandsInterface {
                  new CellSignalStrengthNr());
      }
  
@@ -319,6 +394,57 @@ index 81abbe6284080bb63dacfbee2901ab0d062ab8fc..b2259d3698c8db77efb78c31477ef61e
              mRil.riljLog("responseIccCardStatus: from HIDL: " + iccCardStatus);
              if (responseInfo.error == RadioError.NONE) {
                  sendMessageResponse(rr.mResult, iccCardStatus);
+diff --git a/src/java/com/android/internal/telephony/ServiceStateTracker.java b/src/java/com/android/internal/telephony/ServiceStateTracker.java
+index fdd37dc9e0602f29b55cbd4360d023932044b800..bff3a1188fd13fe91d2203765271635ac998dc77 100755
+--- a/src/java/com/android/internal/telephony/ServiceStateTracker.java
++++ b/src/java/com/android/internal/telephony/ServiceStateTracker.java
+@@ -3150,8 +3150,13 @@ public class ServiceStateTracker extends Handler {
+                 // Return early here as we do not want to hit the cancel timeout code below.
+                 return;
+             } else {
+-                if (DBG) log("setPowerStateToDesired: powerOffRadioSafely()");
+-                powerOffRadioSafely();
++                if (mRadioPowerOffReasons.contains(Phone.RADIO_POWER_REASON_SIM_SWITCH)) {
++                    if (DBG) log("setPowerStateToDesired: powerOffRadioForSimSwitch()");
++                    powerOffRadioForSimSwitch();
++                } else {
++                    if (DBG) log("setPowerStateToDesired: powerOffRadioSafely()");
++                    powerOffRadioSafely();
++                }
+             }
+         } else if (mDeviceShuttingDown
+                 && (mCi.getRadioState() != TelephonyManager.RADIO_POWER_UNAVAILABLE)) {
+@@ -5130,6 +5135,30 @@ public class ServiceStateTracker extends Handler {
+         }
+     }
+ 
++    /**
++     * Turn off only this phone for a physical SIM switch.
++     *
++     * <p>The normal radio-off path is also used for airplane mode and waits for data on every
++     * phone to disconnect before powering down the modem. On legacy DSDS devices where a physical
++     * SIM switch is implemented as per-phone radio power, waiting for the other phone's active
++     * default data network can only end at the global timeout. Tear down this phone's data and let
++     * the modem finish the local cleanup instead.</p>
++     */
++    private void powerOffRadioForSimSwitch() {
++        if (mPhone.isUsingNewDataStack()) {
++            mPhone.getDataNetworkController().tearDownAllDataNetworks(
++                    DataNetwork.TEAR_DOWN_REASON_AIRPLANE_MODE_ON);
++        } else {
++            for (int transport : mAccessNetworksManager.getAvailableTransports()) {
++                if (mPhone.getDcTracker(transport) != null) {
++                    mPhone.getDcTracker(transport).cleanUpAllConnections(
++                            Phone.REASON_RADIO_TURNED_OFF);
++                }
++            }
++        }
++        hangupAndPowerOff();
++    }
++
+     /**
+      * process the pending request to turn radio off after data is disconnected
+      *
 diff --git a/src/java/com/android/internal/telephony/SubscriptionController.java b/src/java/com/android/internal/telephony/SubscriptionController.java
 index 8373681005e4b3116c0129e3de86449e031711d5..592fba6802d34c6a8e13c13f336d13413c342693 100644
 --- a/src/java/com/android/internal/telephony/SubscriptionController.java
@@ -417,3 +543,37 @@ index 9479e77dc6bfdb50f2ea6f60da8c93607f2a5ca4..fb8011c3df15509ee294778806672b7a
      }
  
      /**
+diff --git a/tests/telephonytests/src/com/android/internal/telephony/ServiceStateTrackerTest.java b/tests/telephonytests/src/com/android/internal/telephony/ServiceStateTrackerTest.java
+index ce2a260bac3a83181d100f55f9b9d0dd57570de4..fb33b3b0915c9af1b7f51a4788a0320e61033b2c 100644
+--- a/tests/telephonytests/src/com/android/internal/telephony/ServiceStateTrackerTest.java
++++ b/tests/telephonytests/src/com/android/internal/telephony/ServiceStateTrackerTest.java
+@@ -434,6 +434,29 @@ public class ServiceStateTrackerTest extends TelephonyTest {
+         assertEquals(TelephonyManager.RADIO_POWER_OFF, mSimulatedCommands.getRadioState());
+     }
+ 
++    @Test
++    public void testSetRadioPowerForSimSwitchDoesNotWaitForOtherPhoneData() throws Exception {
++        GsmCdmaPhone phone2 = Mockito.mock(GsmCdmaPhone.class);
++        DataNetworkController dataNetworkControllerPhone2 =
++                Mockito.mock(DataNetworkController.class);
++        mPhones = new Phone[] {mPhone, phone2};
++        replaceInstance(PhoneFactory.class, "sPhones", null, mPhones);
++        doReturn(dataNetworkControllerPhone2).when(phone2).getDataNetworkController();
++        doReturn(true).when(phone2).isUsingNewDataStack();
++        doReturn(true).when(mDataNetworkController).areAllDataDisconnected();
++        doReturn(false).when(dataNetworkControllerPhone2).areAllDataDisconnected();
++
++        sst.setRadioPowerForReason(false, false, false, false,
++                Phone.RADIO_POWER_REASON_SIM_SWITCH);
++        waitForLastHandlerAction(mSSTTestHandler.getThreadHandler());
++
++        assertEquals(TelephonyManager.RADIO_POWER_OFF, mSimulatedCommands.getRadioState());
++        verify(mDataNetworkController).tearDownAllDataNetworks(
++                eq(3 /* TEAR_DOWN_REASON_AIRPLANE_MODE_ON */));
++        verify(dataNetworkControllerPhone2, never()).registerDataNetworkControllerCallback(any());
++        verify(dataNetworkControllerPhone2, never()).tearDownAllDataNetworks(anyInt());
++    }
++
+     @Test
+     @SmallTest
+     public void testSetRadioPowerOnForEmergencyCall() {

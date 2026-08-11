@@ -1,20 +1,18 @@
 # Provenance: PAR/release integration maintained by yukino1111 against the
 # pinned upstream project. Upstream file copyrights and licenses still apply.
 diff --git a/src/com/android/settings/network/SubscriptionUtil.java b/src/com/android/settings/network/SubscriptionUtil.java
-index ccfcfb0a752687a561b4453f508cc3107433eac9..69dffab2b59e59ea53f26571984d04367db17c59 100644
+index ccfcfb0a752687a561b4453f508cc3107433eac9..2a5f510e4cc599e2c9b83e0c3b04f53f62352539 100644
 --- a/src/com/android/settings/network/SubscriptionUtil.java
 +++ b/src/com/android/settings/network/SubscriptionUtil.java
-@@ -23,7 +23,9 @@ import static com.android.internal.util.CollectionUtils.emptyIfNull;
+@@ -23,6 +23,7 @@ import static com.android.internal.util.CollectionUtils.emptyIfNull;
  
  import android.annotation.Nullable;
  import android.content.Context;
 +import android.content.SharedPreferences;
  import android.os.ParcelUuid;
-+import android.os.SystemProperties;
  import android.provider.Settings;
  import android.telephony.PhoneNumberUtils;
- import android.telephony.SubscriptionInfo;
-@@ -59,6 +61,10 @@ import java.util.stream.Stream;
+@@ -59,6 +60,10 @@ import java.util.stream.Stream;
  public class SubscriptionUtil {
      private static final String TAG = "SubscriptionUtil";
      private static final String PROFILE_GENERIC_DISPLAY_NAME = "CARD";
@@ -25,7 +23,7 @@ index ccfcfb0a752687a561b4453f508cc3107433eac9..69dffab2b59e59ea53f26571984d0436
      private static List<SubscriptionInfo> sAvailableResultsForTesting;
      private static List<SubscriptionInfo> sActiveResultsForTesting;
  
-@@ -113,7 +119,72 @@ public class SubscriptionUtil {
+@@ -113,7 +118,72 @@ public class SubscriptionUtil {
          if (sAvailableResultsForTesting != null) {
              return sAvailableResultsForTesting;
          }
@@ -55,9 +53,9 @@ index ccfcfb0a752687a561b4453f508cc3107433eac9..69dffab2b59e59ea53f26571984d0436
 +        return result;
 +    }
 +
-+    /** Returns whether this GSI should use the pre-1.5 per-slot SIM power compatibility path. */
++    /** Returns whether PAR should use the pre-1.5 per-slot SIM power compatibility path. */
 +    public static boolean isLegacySimPowerToggleSupported() {
-+        return SystemProperties.getBoolean("persist.sys.overlay.huawei", false);
++        return true;
 +    }
 +
 +    /** Records a successful legacy SIM power operation for the current boot only. */
@@ -99,7 +97,7 @@ index ccfcfb0a752687a561b4453f508cc3107433eac9..69dffab2b59e59ea53f26571984d0436
      }
  
      /**
-@@ -381,7 +452,7 @@ public class SubscriptionUtil {
+@@ -381,7 +451,7 @@ public class SubscriptionUtil {
       * Whether Settings should show a "Use SIM" toggle in pSIM detailed page.
       */
      public static boolean showToggleForPhysicalSim(SubscriptionManager subMgr) {
@@ -136,11 +134,154 @@ index 8e8f405e1fbbde7ab0aa78a0abe9927a9565bafc..9f85bf385b0f1a5d915b58623e93f2c8
 -}
 \ No newline at end of file
 +}
+diff --git a/src/com/android/settings/network/telephony/DisabledSubscriptionController.java b/src/com/android/settings/network/telephony/DisabledSubscriptionController.java
+index 6c6228686a7fdd4ff9794a60d0850d11213b01b5..ad1181e389b342b6eab6f044a5ef262fb8fc4d60 100644
+--- a/src/com/android/settings/network/telephony/DisabledSubscriptionController.java
++++ b/src/com/android/settings/network/telephony/DisabledSubscriptionController.java
+@@ -27,6 +27,7 @@ import androidx.lifecycle.OnLifecycleEvent;
+ import androidx.preference.PreferenceCategory;
+ import androidx.preference.PreferenceScreen;
+ 
++import com.android.settings.network.SubscriptionUtil;
+ import com.android.settings.network.SubscriptionsChangeListener;
+ 
+ /**
+@@ -79,7 +80,10 @@ public class DisabledSubscriptionController extends TelephonyBasePreferenceContr
+             return;
+         }
+         // TODO b/135222940: re-evaluate whether to use mSubscriptionManager#isSubscriptionEnabled
+-        mCategory.setVisible(mSubscriptionManager.isActiveSubscriptionId(mSubId));
++        final boolean legacyDisabled = SubscriptionUtil.isLegacySimPowerToggleSupported()
++                && SubscriptionUtil.isLegacySimPowerDisabled(mContext, mSubId);
++        mCategory.setVisible(!legacyDisabled
++                && mSubscriptionManager.isActiveSubscriptionId(mSubId));
+     }
+ 
+     @Override
+diff --git a/src/com/android/settings/network/telephony/EnabledNetworkModePreferenceController.java b/src/com/android/settings/network/telephony/EnabledNetworkModePreferenceController.java
+index d1b85282da2a031e24b3af30cc441c57fabcf4d7..a1db55bd42979c2151637df03fd5db08c6b0ea41 100644
+--- a/src/com/android/settings/network/telephony/EnabledNetworkModePreferenceController.java
++++ b/src/com/android/settings/network/telephony/EnabledNetworkModePreferenceController.java
+@@ -471,27 +471,17 @@ public class EnabledNetworkModePreferenceController extends
+                                 break;
+                         }
+                     }
++                } else {
++                    // Huawei's legacy CDMA/LTE stack reports PHONE_TYPE_CDMA for China Telecom,
++                    // while the usable RAF is LTE/GSM/WCDMA and the AOSP global-CDMA capability
++                    // is false. Do not leave the menu type UNKNOWN and crash the settings page.
++                    enabledNetworkType = getNonGlobalEnabledNetworkType();
+                 }
+             } else if (phoneType == TelephonyManager.PHONE_TYPE_GSM) {
+-                if (MobileNetworkUtils.isTdscdmaSupported(mContext, mSubId)) {
+-                    enabledNetworkType = EnabledNetworks.ENABLED_NETWORKS_TDSCDMA_CHOICES;
+-                } else if (!mDisplay2gOptions && !mDisplay3gOptions) {
+-                    enabledNetworkType = mShow4gForLTE
+-                            ? EnabledNetworks.ENABLED_NETWORKS_4G_CHOICES_EXCEPT_GSM_3G
+-                            : EnabledNetworks.ENABLED_NETWORKS_CHOICES_EXCEPT_GSM_3G;
+-                } else if (!mDisplay2gOptions && !mLteEnabled) {
+-                    enabledNetworkType = EnabledNetworks.ENABLED_NETWORKS_EXCEPT_GSM_LTE_CHOICES;
+-                } else if (!mDisplay2gOptions) {
+-                    enabledNetworkType = mShow4gForLTE
+-                            ? EnabledNetworks.ENABLED_NETWORKS_EXCEPT_GSM_4G_CHOICES
+-                            : EnabledNetworks.ENABLED_NETWORKS_EXCEPT_GSM_CHOICES;
+-                } else if (!mLteEnabled) {
+-                    enabledNetworkType = EnabledNetworks.ENABLED_NETWORKS_EXCEPT_LTE_CHOICES;
+-                } else if (mIsGlobalCdma) {
++                if (mIsGlobalCdma) {
+                     enabledNetworkType = EnabledNetworks.ENABLED_NETWORKS_CDMA_CHOICES;
+                 } else {
+-                    enabledNetworkType = mShow4gForLTE ? EnabledNetworks.ENABLED_NETWORKS_4G_CHOICES
+-                            : EnabledNetworks.ENABLED_NETWORKS_CHOICES;
++                    enabledNetworkType = getNonGlobalEnabledNetworkType();
+                 }
+             }
+             //TODO(b/117881708): figure out what world mode is, then we can optimize code. Otherwise
+@@ -511,6 +501,26 @@ public class EnabledNetworkModePreferenceController extends
+             return enabledNetworkType;
+         }
+ 
++        private EnabledNetworks getNonGlobalEnabledNetworkType() {
++            if (MobileNetworkUtils.isTdscdmaSupported(mContext, mSubId)) {
++                return EnabledNetworks.ENABLED_NETWORKS_TDSCDMA_CHOICES;
++            } else if (!mDisplay2gOptions && !mDisplay3gOptions) {
++                return mShow4gForLTE
++                        ? EnabledNetworks.ENABLED_NETWORKS_4G_CHOICES_EXCEPT_GSM_3G
++                        : EnabledNetworks.ENABLED_NETWORKS_CHOICES_EXCEPT_GSM_3G;
++            } else if (!mDisplay2gOptions && !mLteEnabled) {
++                return EnabledNetworks.ENABLED_NETWORKS_EXCEPT_GSM_LTE_CHOICES;
++            } else if (!mDisplay2gOptions) {
++                return mShow4gForLTE
++                        ? EnabledNetworks.ENABLED_NETWORKS_EXCEPT_GSM_4G_CHOICES
++                        : EnabledNetworks.ENABLED_NETWORKS_EXCEPT_GSM_CHOICES;
++            } else if (!mLteEnabled) {
++                return EnabledNetworks.ENABLED_NETWORKS_EXCEPT_LTE_CHOICES;
++            }
++            return mShow4gForLTE ? EnabledNetworks.ENABLED_NETWORKS_4G_CHOICES
++                    : EnabledNetworks.ENABLED_NETWORKS_CHOICES;
++        }
++
+         /**
+          * Sets the display string for the network mode choice and selects the corresponding item
+          *
+diff --git a/src/com/android/settings/network/telephony/MobileNetworkSettings.java b/src/com/android/settings/network/telephony/MobileNetworkSettings.java
+index e8dcdd376154f6d4d78c914cc5f71537f9a09ba2..16a1856ce9dd59b47f7d0d184d117f5a4a6efee9 100644
+--- a/src/com/android/settings/network/telephony/MobileNetworkSettings.java
++++ b/src/com/android/settings/network/telephony/MobileNetworkSettings.java
+@@ -302,6 +302,15 @@ public class MobileNetworkSettings extends AbstractMobileNetworkSettings {
+             ThreadUtils.postOnMainThread(() -> renameTitle.accept(getActivity()));
+         }
+ 
++        // Huawei's legacy per-slot radio power fallback leaves the subscription active while the
++        // modem emits several transient subscription/carrier callbacks. The individual switch and
++        // disabled-state controllers already update themselves; rebuilding every controller here
++        // repeatedly blocks the UI thread on vendor telephony queries for several seconds.
++        if (SubscriptionUtil.isLegacySimPowerToggleSupported() && subInfo != null) {
++            Log.d(LOG_TAG, "Skipping full redraw for legacy SIM transient update");
++            return;
++        }
++
+         mActiveSubscriptionsListenerCount++;
+         if (mActiveSubscriptionsListenerCount != 1) {
+             return;
 diff --git a/src/com/android/settings/network/telephony/MobileNetworkSwitchController.java b/src/com/android/settings/network/telephony/MobileNetworkSwitchController.java
-index 5014634329989ff64100aa4c6172155069dad270..fbbf1cf9e6687871efbd3ae6555c40b2b2399064 100644
+index 5014634329989ff64100aa4c6172155069dad270..ed08b38e07e75826b29d27b3775a8210360a2727 100644
 --- a/src/com/android/settings/network/telephony/MobileNetworkSwitchController.java
 +++ b/src/com/android/settings/network/telephony/MobileNetworkSwitchController.java
-@@ -71,7 +71,11 @@ public class MobileNetworkSwitchController extends BasePreferenceController impl
+@@ -20,8 +20,14 @@ import static androidx.lifecycle.Lifecycle.Event.ON_PAUSE;
+ import static androidx.lifecycle.Lifecycle.Event.ON_RESUME;
+ 
+ import android.content.Context;
++import android.os.Handler;
++import android.os.Looper;
++import android.os.SystemClock;
++import android.telephony.ServiceState;
+ import android.telephony.SubscriptionInfo;
+ import android.telephony.SubscriptionManager;
++import android.telephony.TelephonyManager;
++import android.util.Log;
+ 
+ import androidx.lifecycle.LifecycleObserver;
+ import androidx.lifecycle.OnLifecycleEvent;
+@@ -36,10 +42,17 @@ import com.android.settings.widget.SettingsMainSwitchPreference;
+ public class MobileNetworkSwitchController extends BasePreferenceController implements
+         SubscriptionsChangeListener.SubscriptionsChangeListenerClient, LifecycleObserver {
+     private static final String TAG = "MobileNetworkSwitchCtrl";
++    private static final long LEGACY_SIM_RADIO_POLL_INTERVAL_MILLIS = 500;
++    private static final long LEGACY_SIM_RADIO_TIMEOUT_MILLIS = 10_000;
++    private static final long LEGACY_SIM_IMS_RESET_DELAY_MILLIS = 2_500;
++    private static final long LEGACY_SIM_MIN_POWER_UP_SETTLE_MILLIS = 6_000;
++    private static final long LEGACY_SIM_POWER_UP_TIMEOUT_MILLIS = 25_000;
++    private static boolean sLegacySimPowerOperationInProgress;
+     private SettingsMainSwitchPreference mSwitchBar;
+     private int mSubId;
+     private SubscriptionsChangeListener mChangeListener;
+     private SubscriptionManager mSubscriptionManager;
++    private final Handler mHandler = new Handler(Looper.getMainLooper());
+ 
+     public MobileNetworkSwitchController(Context context, String preferenceKey) {
+         super(context, preferenceKey);
+@@ -71,7 +84,15 @@ public class MobileNetworkSwitchController extends BasePreferenceController impl
          mSwitchBar.setOnBeforeCheckedChangeListener((toggleSwitch, isChecked) -> {
              // TODO b/135222940: re-evaluate whether to use
              // mSubscriptionManager#isSubscriptionEnabled
@@ -150,10 +291,14 @@ index 5014634329989ff64100aa4c6172155069dad270..fbbf1cf9e6687871efbd3ae6555c40b2
 +            final boolean currentlyEnabled = !legacyDisabled
 +                    && mSubscriptionManager.isActiveSubscriptionId(mSubId);
 +            if (currentlyEnabled != isChecked) {
++                if (SubscriptionUtil.isLegacySimPowerToggleSupported()
++                        && requestLegacySimPower(isChecked)) {
++                    return true;
++                }
                  SubscriptionUtil.startToggleSubscriptionDialogActivity(mContext, mSubId, isChecked);
                  return true;
              }
-@@ -100,7 +104,10 @@ public class MobileNetworkSwitchController extends BasePreferenceController impl
+@@ -100,7 +121,11 @@ public class MobileNetworkSwitchController extends BasePreferenceController impl
              mSwitchBar.hide();
          } else {
              mSwitchBar.show();
@@ -162,9 +307,177 @@ index 5014634329989ff64100aa4c6172155069dad270..fbbf1cf9e6687871efbd3ae6555c40b2
 +                    && SubscriptionUtil.isLegacySimPowerDisabled(mContext, mSubId);
 +            mSwitchBar.setCheckedInternal(!legacyDisabled
 +                    && mSubscriptionManager.isActiveSubscriptionId(mSubId));
++            mSwitchBar.setSwitchBarEnabled(!isLegacySimPowerOperationInProgress());
          }
      }
  
+@@ -118,4 +143,166 @@ public class MobileNetworkSwitchController extends BasePreferenceController impl
+     public void onSubscriptionsChanged() {
+         update();
+     }
++
++    /**
++     * Toggles a PAR physical SIM directly without launching a transient dialog activity.
++     * Huawei's legacy radio accepts the request before the radio and IMS state machines have
++     * settled. Keep all SIM switches serialized until the requested radio state is reached and,
++     * after power-up, voice service or IMS registration has recovered.
++     */
++    private boolean requestLegacySimPower(boolean enabled) {
++        SubscriptionInfo subInfo = null;
++        for (SubscriptionInfo info : SubscriptionUtil.getAvailableSubscriptions(mContext)) {
++            if (info.getSubscriptionId() == mSubId) {
++                subInfo = info;
++                break;
++            }
++        }
++        if (subInfo == null) {
++            Log.e(TAG, "Unable to find subscription " + mSubId + " for legacy SIM toggle");
++            return false;
++        }
++
++        int slotIndex = subInfo.getSimSlotIndex();
++        if (slotIndex == SubscriptionManager.INVALID_SIM_SLOT_INDEX) {
++            slotIndex = SubscriptionUtil.getLegacySimSlot(mContext, mSubId);
++        }
++        if (slotIndex == SubscriptionManager.INVALID_SIM_SLOT_INDEX) {
++            Log.e(TAG, "Unable to resolve slot for legacy SIM toggle, subId=" + mSubId);
++            return false;
++        }
++
++        final int targetSlot = slotIndex;
++        final TelephonyManager telephonyManager =
++                mContext.getSystemService(TelephonyManager.class);
++        if (telephonyManager == null) {
++            Log.e(TAG, "TelephonyManager unavailable for legacy SIM toggle");
++            return false;
++        }
++        if (!beginLegacySimPowerOperation()) {
++            Log.w(TAG, "Ignoring overlapping legacy SIM power request for slot " + targetSlot);
++            mSwitchBar.setSwitchBarEnabled(false);
++            return true;
++        }
++
++        final int targetState = enabled ? TelephonyManager.CARD_POWER_UP
++                : TelephonyManager.CARD_POWER_DOWN;
++        mSwitchBar.setCheckedInternal(enabled);
++        mSwitchBar.setSwitchBarEnabled(false);
++        telephonyManager.setSimPowerStateForSlot(
++                targetSlot, targetState, mContext.getMainExecutor(), result -> {
++                    if (result == TelephonyManager.SET_SIM_POWER_STATE_SUCCESS
++                            || result == TelephonyManager.SET_SIM_POWER_STATE_ALREADY_IN_STATE) {
++                        SubscriptionUtil.setLegacySimPowerState(
++                                mContext, mSubId, targetSlot, enabled);
++                        if (enabled) {
++                            final int defaultDataSubId =
++                                    SubscriptionManager.getDefaultDataSubscriptionId();
++                            if (SubscriptionManager.isUsableSubscriptionId(defaultDataSubId)) {
++                                mSubscriptionManager.setDefaultDataSubId(defaultDataSubId);
++                            }
++                        }
++                    } else {
++                        Log.e(TAG, "Legacy SIM power request failed for slot " + targetSlot
++                                + " with result " + result);
++                        mSwitchBar.setCheckedInternal(!enabled);
++                        finishLegacySimPowerOperation();
++                        return;
++                    }
++                    waitForLegacySimPowerState(
++                            telephonyManager, targetSlot, enabled,
++                            SystemClock.elapsedRealtime() + LEGACY_SIM_RADIO_TIMEOUT_MILLIS);
++                });
++        return true;
++    }
++
++    private void waitForLegacySimPowerState(TelephonyManager telephonyManager, int slotIndex,
++            boolean enabled, long deadlineMillis) {
++        final int expectedState = enabled ? TelephonyManager.RADIO_POWER_ON
++                : TelephonyManager.RADIO_POWER_OFF;
++        final int radioState = telephonyManager.createForSubscriptionId(mSubId)
++                .getRadioPowerState();
++        if (radioState == expectedState) {
++            if (enabled) {
++                mHandler.postDelayed(
++                        () -> resetImsAndWaitForVoiceService(telephonyManager, slotIndex),
++                        LEGACY_SIM_IMS_RESET_DELAY_MILLIS);
++            } else {
++                finishLegacySimPowerOperation();
++            }
++            return;
++        }
++        if (SystemClock.elapsedRealtime() >= deadlineMillis) {
++            Log.w(TAG, "Timed out waiting for legacy SIM radio state " + expectedState
++                    + " on slot " + slotIndex + ", current state=" + radioState);
++            if (enabled) {
++                resetImsAndWaitForVoiceService(telephonyManager, slotIndex);
++            } else {
++                finishLegacySimPowerOperation();
++            }
++            return;
++        }
++        mHandler.postDelayed(
++                () -> waitForLegacySimPowerState(
++                        telephonyManager, slotIndex, enabled, deadlineMillis),
++                LEGACY_SIM_RADIO_POLL_INTERVAL_MILLIS);
++    }
++
++    private void resetImsAndWaitForVoiceService(TelephonyManager telephonyManager, int slotIndex) {
++        try {
++            telephonyManager.resetIms(slotIndex);
++            Log.d(TAG, "Reset IMS after legacy SIM power-up for slot " + slotIndex);
++        } catch (RuntimeException e) {
++            Log.w(TAG, "Unable to reset IMS after legacy SIM power-up for slot " + slotIndex, e);
++        }
++        final long startMillis = SystemClock.elapsedRealtime();
++        waitForVoiceService(telephonyManager, slotIndex, startMillis,
++                startMillis + LEGACY_SIM_POWER_UP_TIMEOUT_MILLIS);
++    }
++
++    private void waitForVoiceService(TelephonyManager telephonyManager, int slotIndex,
++            long startMillis, long deadlineMillis) {
++        final TelephonyManager subscriptionTelephonyManager =
++                telephonyManager.createForSubscriptionId(mSubId);
++        final ServiceState serviceState = subscriptionTelephonyManager.getServiceState();
++        final boolean voiceReady = subscriptionTelephonyManager.isImsRegistered(mSubId)
++                || (serviceState != null && serviceState.getState() == ServiceState.STATE_IN_SERVICE);
++        final long nowMillis = SystemClock.elapsedRealtime();
++        if (voiceReady && nowMillis - startMillis >= LEGACY_SIM_MIN_POWER_UP_SETTLE_MILLIS) {
++            Log.d(TAG, "Legacy SIM voice service ready for slot " + slotIndex);
++            finishLegacySimPowerOperation();
++            return;
++        }
++        if (nowMillis >= deadlineMillis) {
++            Log.w(TAG, "Timed out waiting for legacy SIM voice service on slot " + slotIndex);
++            finishLegacySimPowerOperation();
++            return;
++        }
++        mHandler.postDelayed(
++                () -> waitForVoiceService(
++                        telephonyManager, slotIndex, startMillis, deadlineMillis),
++                LEGACY_SIM_RADIO_POLL_INTERVAL_MILLIS);
++    }
++
++    private static synchronized boolean beginLegacySimPowerOperation() {
++        if (sLegacySimPowerOperationInProgress) {
++            return false;
++        }
++        sLegacySimPowerOperationInProgress = true;
++        return true;
++    }
++
++    private static synchronized boolean isLegacySimPowerOperationInProgress() {
++        return sLegacySimPowerOperationInProgress;
++    }
++
++    private void finishLegacySimPowerOperation() {
++        synchronized (MobileNetworkSwitchController.class) {
++            sLegacySimPowerOperationInProgress = false;
++        }
++        if (mSwitchBar != null) {
++            mSwitchBar.setSwitchBarEnabled(true);
++        }
++        update();
++    }
+ }
 diff --git a/src/com/android/settings/network/telephony/ToggleSubscriptionDialogActivity.java b/src/com/android/settings/network/telephony/ToggleSubscriptionDialogActivity.java
 index 6fa803d04330a1047850f55a78c3d5fb249adc34..ac9778de9dea2eb21d9690646fdb2988062f2d44 100644
 --- a/src/com/android/settings/network/telephony/ToggleSubscriptionDialogActivity.java
@@ -271,3 +584,27 @@ index 6fa803d04330a1047850f55a78c3d5fb249adc34..ac9778de9dea2eb21d9690646fdb2988
          if (isDsdsConditionSatisfied()) {
              showEnableDsdsConfirmDialog();
              return;
+diff --git a/tests/unit/src/com/android/settings/network/EnabledNetworkModePreferenceControllerTest.java b/tests/unit/src/com/android/settings/network/EnabledNetworkModePreferenceControllerTest.java
+index 7f170b566fe10c3f159675b0ef8075ffc7589910..c459ac2b1ada5718e5f207275cf6c68ec35a8ec7 100644
+--- a/tests/unit/src/com/android/settings/network/EnabledNetworkModePreferenceControllerTest.java
++++ b/tests/unit/src/com/android/settings/network/EnabledNetworkModePreferenceControllerTest.java
+@@ -255,6 +255,19 @@ public class EnabledNetworkModePreferenceControllerTest {
+                         String.valueOf(TelephonyManager.NETWORK_MODE_NR_LTE_CDMA_EVDO_GSM_WCDMA));
+     }
+ 
++    @UiThreadTest
++    @Test
++    public void updateState_cdmaPhoneWithoutGlobalMode_usesNonGlobalChoices() {
++        when(mTelephonyManager.getPhoneType()).thenReturn(TelephonyManager.PHONE_TYPE_CDMA);
++        when(mTelephonyManager.isLteCdmaEvdoGsmWcdmaEnabled()).thenReturn(false);
++        mPersistableBundle.putBoolean(CarrierConfigManager.KEY_LTE_ENABLED_BOOL, true);
++        mController.init(SUB_ID);
++
++        mController.updateState(mPreference);
++
++        assertThat(mPreference.getEntryValues()).isNotEmpty();
++    }
++
+     @UiThreadTest
+     @Test
+     public void updateState_disAllowed5g_selectOn4gOption() {
