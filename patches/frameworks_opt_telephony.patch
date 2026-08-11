@@ -1,8 +1,35 @@
 diff --git a/src/java/com/android/internal/telephony/GsmCdmaPhone.java b/src/java/com/android/internal/telephony/GsmCdmaPhone.java
-index 1da9f4bba1d82bb0eabf719088bf93385812a2f7..a5eeeccdff5dce01f90129db4548a270427d6db2 100644
+index 1da9f4bba1d82bb0eabf719088bf93385812a2f7..34a0696c9aa3eeffc1eda21ae8647d49a326e584 100644
 --- a/src/java/com/android/internal/telephony/GsmCdmaPhone.java
 +++ b/src/java/com/android/internal/telephony/GsmCdmaPhone.java
-@@ -2833,7 +2833,11 @@ public class GsmCdmaPhone extends Phone {
+@@ -530,7 +530,12 @@ public class GsmCdmaPhone extends Phone {
+                 logd("update icc_operator_numeric=" + operatorNumeric);
+                 tm.setSimOperatorNumericForPhone(mPhoneId, operatorNumeric);
+ 
+-                SubscriptionController.getInstance().setMccMnc(operatorNumeric, getSubId());
++                int subId = getSubId();
++                SubscriptionController subscriptionController =
++                        SubscriptionController.getInstance();
++                if (SubscriptionManager.isValidSubscriptionId(subId)) {
++                    subscriptionController.setMccMnc(operatorNumeric, subId);
++                }
+ 
+                 // Sets iso country property by retrieving from build-time system property
+                 String iso = "";
+@@ -542,7 +547,11 @@ public class GsmCdmaPhone extends Phone {
+ 
+                 logd("init: set 'gsm.sim.operator.iso-country' to iso=" + iso);
+                 tm.setSimCountryIsoForPhone(mPhoneId, iso);
+-                SubscriptionController.getInstance().setCountryIso(iso, getSubId());
++                if (SubscriptionManager.isValidSubscriptionId(subId)) {
++                    subscriptionController.setCountryIso(iso, subId);
++                } else {
++                    logd("init: skip subscription database update for invalid subId=" + subId);
++                }
+ 
+                 // Updates MCC MNC device configuration information
+                 logd("update mccmnc=" + operatorNumeric);
+@@ -2833,7 +2842,11 @@ public class GsmCdmaPhone extends Phone {
          if (found != null) {
              // Complete pending USSD
              if (isUssdRelease) {
@@ -15,7 +42,7 @@ index 1da9f4bba1d82bb0eabf719088bf93385812a2f7..a5eeeccdff5dce01f90129db4548a270
              } else if (isUssdError) {
                  found.onUssdFinishedError();
              } else {
-@@ -3123,7 +3127,7 @@ public class GsmCdmaPhone extends Phone {
+@@ -3123,7 +3136,7 @@ public class GsmCdmaPhone extends Phone {
                  String version = (String)ar.result;
                  if (version != null) {
                      int length = version.length();
@@ -559,7 +586,7 @@ index fdd37dc9e0602f29b55cbd4360d023932044b800..bff3a1188fd13fe91d2203765271635a
       * process the pending request to turn radio off after data is disconnected
       *
 diff --git a/src/java/com/android/internal/telephony/SubscriptionController.java b/src/java/com/android/internal/telephony/SubscriptionController.java
-index 8373681005e4b3116c0129e3de86449e031711d5..592fba6802d34c6a8e13c13f336d13413c342693 100644
+index 8373681005e4b3116c0129e3de86449e031711d5..e0b593a5283626d1588505fad5b19dd33172f388 100644
 --- a/src/java/com/android/internal/telephony/SubscriptionController.java
 +++ b/src/java/com/android/internal/telephony/SubscriptionController.java
 @@ -47,6 +47,7 @@ import android.os.ParcelUuid;
@@ -570,7 +597,29 @@ index 8373681005e4b3116c0129e3de86449e031711d5..592fba6802d34c6a8e13c13f336d1341
  import android.os.TelephonyServiceManager.ServiceRegisterer;
  import android.os.UserHandle;
  import android.provider.Settings;
-@@ -2855,9 +2856,22 @@ public class SubscriptionController extends ISub.Stub {
+@@ -2403,6 +2404,10 @@ public class SubscriptionController extends ISub.Stub {
+      * @return the number of records updated
+      */
+     public int setMccMnc(String mccMnc, int subId) {
++        if (!SubscriptionManager.isValidSubscriptionId(subId)) {
++            loge("[setMccMnc] - invalid subId: " + subId);
++            return 0;
++        }
+         String mccString = mccMnc.substring(0, 3);
+         String mncString = mccMnc.substring(3);
+         int mcc = 0;
+@@ -2573,6 +2578,10 @@ public class SubscriptionController extends ISub.Stub {
+      */
+     public int setCountryIso(String iso, int subId) {
+         if (DBG) logd("[setCountryIso]+ iso:" + iso + " subId:" + subId);
++        if (!SubscriptionManager.isValidSubscriptionId(subId)) {
++            loge("[setCountryIso] - invalid subId: " + subId);
++            return 0;
++        }
+         boolean update = true;
+         int result = 0;
+         SubscriptionInfo subInfo = getSubscriptionInfo(subId);
+@@ -2855,9 +2864,22 @@ public class SubscriptionController extends ISub.Stub {
                          subId);
  
          TelecomManager telecomManager = mContext.getSystemService(TelecomManager.class);
@@ -596,7 +645,7 @@ index 8373681005e4b3116c0129e3de86449e031711d5..592fba6802d34c6a8e13c13f336d1341
  
          if (previousDefaultSub != getDefaultSubId()) {
              sendDefaultChangedBroadcast(getDefaultSubId());
-@@ -2921,6 +2935,7 @@ public class SubscriptionController extends ISub.Stub {
+@@ -2921,6 +2943,7 @@ public class SubscriptionController extends ISub.Stub {
                  // Only re-map modems if the new default data sub is valid
                  RadioAccessFamily[] rafs = new RadioAccessFamily[len];
                  boolean atLeastOneMatch = false;
@@ -604,7 +653,7 @@ index 8373681005e4b3116c0129e3de86449e031711d5..592fba6802d34c6a8e13c13f336d1341
                  for (int phoneId = 0; phoneId < len; phoneId++) {
                      Phone phone = PhoneFactory.getPhone(phoneId);
                      int raf;
-@@ -2929,6 +2944,7 @@ public class SubscriptionController extends ISub.Stub {
+@@ -2929,6 +2952,7 @@ public class SubscriptionController extends ISub.Stub {
                          // TODO Handle the general case of N modems and M subscriptions.
                          raf = proxyController.getMaxRafSupported();
                          atLeastOneMatch = true;
@@ -612,7 +661,7 @@ index 8373681005e4b3116c0129e3de86449e031711d5..592fba6802d34c6a8e13c13f336d1341
                      } else {
                          // TODO Handle the general case of N modems and M subscriptions.
                          raf = proxyController.getMinRafSupported();
-@@ -2938,7 +2954,14 @@ public class SubscriptionController extends ISub.Stub {
+@@ -2938,7 +2962,14 @@ public class SubscriptionController extends ISub.Stub {
                      rafs[phoneId] = new RadioAccessFamily(phoneId, raf);
                  }
                  if (atLeastOneMatch) {
@@ -628,6 +677,93 @@ index 8373681005e4b3116c0129e3de86449e031711d5..592fba6802d34c6a8e13c13f336d1341
                  } else {
                      if (DBG) logdl("[setDefaultDataSubId] no valid subId's found - not updating.");
                  }
+diff --git a/src/java/com/android/internal/telephony/data/DataNetworkController.java b/src/java/com/android/internal/telephony/data/DataNetworkController.java
+index b224dd77b136800580aeb22d4ffc45cb4d96ac4d..5c409551a27543055140d205ccc3600b206f133b 100644
+--- a/src/java/com/android/internal/telephony/data/DataNetworkController.java
++++ b/src/java/com/android/internal/telephony/data/DataNetworkController.java
+@@ -2969,6 +2969,7 @@ public class DataNetworkController extends Handler {
+             if (simState == TelephonyManager.SIM_STATE_ABSENT) {
+                 onSimAbsent();
+             } else if (simState == TelephonyManager.SIM_STATE_LOADED) {
++                mDataProfileManager.onSimLoaded();
+                 sendMessage(obtainMessage(EVENT_REEVALUATE_UNSATISFIED_NETWORK_REQUESTS,
+                         DataEvaluationReason.SIM_LOADED));
+             }
+diff --git a/src/java/com/android/internal/telephony/data/DataProfileManager.java b/src/java/com/android/internal/telephony/data/DataProfileManager.java
+index c7e5433b111e3f05594fb1054a3618c809b7dbe1..1c661865e95ded7e6591b2a52366659958d73cc7 100644
+--- a/src/java/com/android/internal/telephony/data/DataProfileManager.java
++++ b/src/java/com/android/internal/telephony/data/DataProfileManager.java
+@@ -73,6 +73,12 @@ public class DataProfileManager extends Handler {
+     /** Event for SIM refresh. */
+     private static final int EVENT_SIM_REFRESH = 3;
+ 
++    /** Event for radio becoming on. */
++    private static final int EVENT_RADIO_ON = 4;
++
++    /** Whether data profiles need to be resent after the SIM becomes loaded. */
++    private boolean mUpdateDataProfilesOnSimLoaded;
++
+     private final Phone mPhone;
+     private final String mLogTag;
+     private final LocalLog mLocalLog = new LocalLog(128);
+@@ -182,6 +188,7 @@ public class DataProfileManager extends Handler {
+                     }
+                 });
+         mPhone.mCi.registerForIccRefresh(this, EVENT_SIM_REFRESH, null);
++        mPhone.mCi.registerForOn(this, EVENT_RADIO_ON, null);
+     }
+ 
+     @Override
+@@ -195,6 +202,10 @@ public class DataProfileManager extends Handler {
+                 log("Update data profiles due to APN db updated.");
+                 updateDataProfiles(ONLY_UPDATE_IA_IF_CHANGED);
+                 break;
++            case EVENT_RADIO_ON:
++                mUpdateDataProfilesOnSimLoaded = true;
++                updateDataProfilesOnRadioOnIfReady();
++                break;
+             default:
+                 loge("Unexpected event " + msg);
+                 break;
+@@ -207,10 +218,38 @@ public class DataProfileManager extends Handler {
+     private void onCarrierConfigUpdated() {
+         log("Update data profiles due to carrier config updated.");
+         updateDataProfiles(FORCED_UPDATE_IA);
++        mUpdateDataProfilesOnSimLoaded = false;
+ 
+         //TODO: more works needed to be done here.
+     }
+ 
++    /** Resend profiles after radio recovery once the SIM and carrier APNs are ready. */
++    void onSimLoaded() {
++        updateDataProfilesOnRadioOnIfReady();
++    }
++
++    private void updateDataProfilesOnRadioOnIfReady() {
++        if (!mUpdateDataProfilesOnSimLoaded) return;
++
++        int subId = mPhone.getSubId();
++        int simState = mPhone.getContext().getSystemService(TelephonyManager.class)
++                .getSimState(mPhone.getPhoneId());
++        if (!SubscriptionManager.isValidSubscriptionId(subId)
++                || simState != TelephonyManager.SIM_STATE_LOADED
++                || !mDataConfigManager.isConfigCarrierSpecific()
++                || mAllDataProfiles.isEmpty()) {
++            log("Defer updating data profiles on radio on: subId=" + subId
++                    + ", simState=" + simState
++                    + ", carrierConfig=" + mDataConfigManager.isConfigCarrierSpecific()
++                    + ", profiles=" + mAllDataProfiles.size());
++            return;
++        }
++
++        mUpdateDataProfilesOnSimLoaded = false;
++        log("Update data profiles due to radio on after SIM loaded.");
++        updateDataProfiles(FORCED_UPDATE_IA);
++    }
++
+     /**
+      * Check if there are any Enterprise APN configured by DPC and return a data profile
+      * with the same.
 diff --git a/src/java/com/android/internal/telephony/dataconnection/DcTracker.java b/src/java/com/android/internal/telephony/dataconnection/DcTracker.java
 index 28f69dcdc9159dea7c2f3b16a53a1402927007ef..3e73e2b9efc0f983c9503f58241c0f1bfc42fb8a 100755
 --- a/src/java/com/android/internal/telephony/dataconnection/DcTracker.java
@@ -767,3 +903,91 @@ index ce2a260bac3a83181d100f55f9b9d0dd57570de4..fb33b3b0915c9af1b7f51a4788a0320e
      @Test
      @SmallTest
      public void testSetRadioPowerOnForEmergencyCall() {
+diff --git a/tests/telephonytests/src/com/android/internal/telephony/SubscriptionControllerTest.java b/tests/telephonytests/src/com/android/internal/telephony/SubscriptionControllerTest.java
+index ea02a4d76123eb408c4dd7cadc3419df89f5b76b..26ae3902ddcc0af0154b02f0f456c29ebd9d3c37 100644
+--- a/tests/telephonytests/src/com/android/internal/telephony/SubscriptionControllerTest.java
++++ b/tests/telephonytests/src/com/android/internal/telephony/SubscriptionControllerTest.java
+@@ -604,6 +604,18 @@ public class SubscriptionControllerTest extends TelephonyTest {
+                 captorIntent.getValue().getAction());
+     }
+ 
++    @Test @SmallTest
++    public void testSetMccMncWithInvalidSubscriptionId() {
++        assertEquals(0, mSubscriptionControllerUT.setMccMnc("46003",
++                SubscriptionManager.INVALID_SUBSCRIPTION_ID));
++    }
++
++    @Test @SmallTest
++    public void testSetCountryIsoWithInvalidSubscriptionId() {
++        assertEquals(0, mSubscriptionControllerUT.setCountryIso("cn",
++                SubscriptionManager.INVALID_SUBSCRIPTION_ID));
++    }
++
+     @Test @SmallTest
+     public void testSetGetCarrierId() {
+         testInsertSim();
+diff --git a/tests/telephonytests/src/com/android/internal/telephony/data/DataProfileManagerTest.java b/tests/telephonytests/src/com/android/internal/telephony/data/DataProfileManagerTest.java
+index 806ebdc12a2c07acff314c0617f6be8bf71a7bcf..509359489d3b03c6c4d2e41bfcc0609614f695e0 100644
+--- a/tests/telephonytests/src/com/android/internal/telephony/data/DataProfileManagerTest.java
++++ b/tests/telephonytests/src/com/android/internal/telephony/data/DataProfileManagerTest.java
+@@ -39,6 +39,7 @@ import android.provider.Telephony;
+ import android.telephony.AccessNetworkConstants;
+ import android.telephony.NetworkRegistrationInfo;
+ import android.telephony.ServiceState;
++import android.telephony.SubscriptionManager;
+ import android.telephony.TelephonyManager;
+ import android.telephony.data.ApnSetting;
+ import android.telephony.data.DataProfile;
+@@ -675,6 +676,52 @@ public class DataProfileManagerTest extends TelephonyTest {
+                 .isEqualTo(GENERAL_PURPOSE_APN);
+     }
+ 
++    @Test
++    public void testRadioOnResendsDataProfilesAndInitialAttachApn() {
++        Mockito.clearInvocations(mMockedWwanDataServiceManager);
++        doReturn(TelephonyManager.SIM_STATE_LOADED).when(mTelephonyManager).getSimState(anyInt());
++
++        mSimulatedCommands.notifyRadioOn();
++        processAllMessages();
++
++        verify(mMockedWwanDataServiceManager).setDataProfile(any(), eq(false), eq(null));
++        verify(mMockedWwanDataServiceManager)
++                .setInitialAttachApn(any(DataProfile.class), eq(false), eq(null));
++    }
++
++    @Test
++    public void testRadioOnDefersDataProfilesUntilSimLoaded() {
++        Mockito.clearInvocations(mMockedWwanDataServiceManager);
++        doReturn(TelephonyManager.SIM_STATE_UNKNOWN).when(mTelephonyManager).getSimState(anyInt());
++
++        mSimulatedCommands.notifyRadioOn();
++        processAllMessages();
++
++        verify(mMockedWwanDataServiceManager, Mockito.never())
++                .setDataProfile(any(), eq(false), eq(null));
++
++        doReturn(TelephonyManager.SIM_STATE_LOADED).when(mTelephonyManager).getSimState(anyInt());
++        mDataProfileManagerUT.onSimLoaded();
++
++        verify(mMockedWwanDataServiceManager).setDataProfile(any(), eq(false), eq(null));
++        verify(mMockedWwanDataServiceManager)
++                .setInitialAttachApn(any(DataProfile.class), eq(false), eq(null));
++    }
++
++    @Test
++    public void testRadioOnWithInvalidSubscriptionDoesNotResendDataProfiles() {
++        Mockito.clearInvocations(mMockedWwanDataServiceManager);
++        doReturn(SubscriptionManager.INVALID_SUBSCRIPTION_ID).when(mPhone).getSubId();
++
++        mSimulatedCommands.notifyRadioOn();
++        processAllMessages();
++
++        verify(mMockedWwanDataServiceManager, Mockito.never())
++                .setDataProfile(any(), eq(false), eq(null));
++        verify(mMockedWwanDataServiceManager, Mockito.never())
++                .setInitialAttachApn(any(DataProfile.class), eq(false), eq(null));
++    }
++
+     @Test
+     public void testSetInitialAttachDataProfileMultipleRequests() throws Exception {
+         // Test: Modem Cleared IA, should always send IA to modem
