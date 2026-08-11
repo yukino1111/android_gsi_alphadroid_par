@@ -1,4 +1,4 @@
-# Provenance: TrebleDroid ci-20230706; original patch authors: TrebleDroid contributors listed in ../ATTRIBUTION.md.
+# Provenance: TrebleDroid ci-20230905; original patch authors: TrebleDroid contributors listed in ../ATTRIBUTION.md.
 # See ../ATTRIBUTION.md. This import is not authored by yukino1111.
 diff --git a/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java b/android/app/src/com/android/bluetooth/hfp/HeadsetStateMachine.java
 index 52f2949d4d9c71779d04a022d3e8eae5c0eb3e9e..4e46f47eab75f49763c6e7ea8ecdff020258af15 100644

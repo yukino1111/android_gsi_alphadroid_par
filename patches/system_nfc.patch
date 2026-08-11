@@ -1,4 +1,4 @@
-# Provenance: TrebleDroid ci-20230706; original patch authors: Pierre-Hugues Husson.
+# Provenance: TrebleDroid ci-20230905; original patch authors: Pierre-Hugues Husson.
 # See ../ATTRIBUTION.md. This import is not authored by yukino1111.
 diff --git a/src/adaptation/nfc_config.cc b/src/adaptation/nfc_config.cc
 index 264968e488c63cce14f6c8f01b86d381d22c9193..92606979baf32d5fdc1ed93c98216888c6780a6b 100644

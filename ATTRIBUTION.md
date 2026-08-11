@@ -7,7 +7,7 @@ repository maintainer.
 ## TrebleDroid compatibility patches
 
 The following aggregate patches are required to reproduce the TrebleDroid
-`ci-20230706` compatibility base used by this release. They were compared with
+`ci-20230905` compatibility base used by this release. They were compared with
 the official `patches-for-developers.zip` bundle kept with the build source.
 The original `From:` authors in that bundle are credited below.
 

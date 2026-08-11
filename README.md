@@ -14,7 +14,7 @@ are extracted from the published
 ## Upstream source base
 
 - AlphaDroid 1.10 provides the ROM source base.
-- TrebleDroid `ci-20230706` provides the GSI compatibility base. Some
+- TrebleDroid `ci-20230905` provides the GSI compatibility base. Some
   TrebleDroid repositories are pinned directly in `manifest/locked.xml`; its
   official developer patch bundle is applied to AlphaDroid-owned platform
   repositories that cannot simply be replaced by TrebleDroid forks.

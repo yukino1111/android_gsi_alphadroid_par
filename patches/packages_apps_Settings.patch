@@ -1,4 +1,4 @@
-# Provenance: TrebleDroid ci-20230706 (Pierre-Hugues Husson) plus PAR/release follow-ups
+# Provenance: TrebleDroid ci-20230905 (Pierre-Hugues Husson) plus PAR/release follow-ups
 # maintained by yukino1111. See ../ATTRIBUTION.md for the ownership boundary.
 diff --git a/src/com/android/settings/biometrics/fingerprint/FingerprintEnrollEnrolling.java b/src/com/android/settings/biometrics/fingerprint/FingerprintEnrollEnrolling.java
 index 2348141dee260fe85ae39a2ea115958c07e79cb1..fb9d9a7b142d0f3d6ba0d7817dc03f6c0ccb0193 100644

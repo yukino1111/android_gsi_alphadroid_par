@@ -1,11 +1,9 @@
-# Provenance: PAR/release integration maintained by yukino1111 against the
-# pinned upstream project. Upstream file copyrights and licenses still apply.
 diff --git a/src/com/android/phone/HuaweiNcfgManager.java b/src/com/android/phone/HuaweiNcfgManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..41099dc86800861b20e75d69afc380cd4afb7e55
+index 0000000000000000000000000000000000000000..f6fcd15b77529cbbfa2286b2f6350611dce30d6c
 --- /dev/null
 +++ b/src/com/android/phone/HuaweiNcfgManager.java
-@@ -0,0 +1,238 @@
+@@ -0,0 +1,259 @@
 +/*
 + * Copyright (C) 2026 The AlphaDroid Project
 + *
@@ -24,10 +22,12 @@ index 0000000000000000000000000000000000000000..41099dc86800861b20e75d69afc380cd
 +
 +package com.android.phone;
 +
++import android.content.Context;
 +import android.os.HwBinder;
 +import android.os.HwParcel;
 +import android.os.IHwBinder;
 +import android.os.SystemProperties;
++import android.provider.Settings;
 +import android.text.TextUtils;
 +import android.util.Log;
 +
@@ -50,12 +50,13 @@ index 0000000000000000000000000000000000000000..41099dc86800861b20e75d69afc380cd
 +    private static final int TRANSACTION_SEND_SIM_MATCHED_OPERATOR_INFO = 27;
 +    private static final int FLAG_ONEWAY = 1;
 +    private static final int STATE_SIM_LOADED = 1;
-+    private static final int STATE_SIM_ABSENT = 2;
 +    private static final int MAX_OPERATOR_RETRIES = 6;
 +    private static final long INITIAL_DELAY_MILLIS = 1500;
 +    private static final long SLOT_STAGGER_MILLIS = 1500;
 +    private static final long RETRY_DELAY_MILLIS = 2000;
++    private static final String PROFILE_SETTING_PREFIX = "par_huawei_ncfg_profile_slot_";
 +
++    private final Context mContext;
 +    private final boolean mEnabled = SystemProperties.getBoolean(ENABLE_PROPERTY, false);
 +    private final ScheduledExecutorService mExecutor =
 +            Executors.newSingleThreadScheduledExecutor(runnable -> {
@@ -66,18 +67,31 @@ index 0000000000000000000000000000000000000000..41099dc86800861b20e75d69afc380cd
 +    private final AtomicInteger mSerial = new AtomicInteger();
 +    private final int[] mGeneration;
 +    private final String[] mLastProfile;
++    private final boolean[] mProfileInitialized;
 +
-+    HuaweiNcfgManager() {
++    HuaweiNcfgManager(Context context) {
++        mContext = context;
 +        int phoneCount = PhoneFactory.getPhones().length;
 +        mGeneration = new int[phoneCount];
 +        mLastProfile = new String[phoneCount];
++        mProfileInitialized = new boolean[phoneCount];
 +
 +        if (!mEnabled) {
 +            return;
 +        }
 +
++        for (int phoneId = 0; phoneId < phoneCount; phoneId++) {
++            String profile = Settings.Global.getString(mContext.getContentResolver(),
++                    PROFILE_SETTING_PREFIX + phoneId);
++            if (!TextUtils.isEmpty(profile)) {
++                mLastProfile[phoneId] = profile;
++                mProfileInitialized[phoneId] = true;
++            }
++        }
++
 +        // TeleService can start after the initial SIM broadcast. Probe both slots as well as
-+        // listening for later changes so first boot and data-wipe boots select an NCFG too.
++        // listening for later changes. On a data-wipe boot the modem already retains its NCFG,
++        // so the first stable profile becomes the baseline without rewriting modem NV.
 +        for (int phoneId = 0; phoneId < phoneCount; phoneId++) {
 +            scheduleLoaded(phoneId, nextGeneration(phoneId), 0);
 +        }
@@ -91,21 +105,13 @@ index 0000000000000000000000000000000000000000..41099dc86800861b20e75d69afc380cd
 +        if (IccCardConstants.INTENT_VALUE_ICC_LOADED.equals(state)) {
 +            scheduleLoaded(phoneId, nextGeneration(phoneId), 0);
 +        } else if (IccCardConstants.INTENT_VALUE_ICC_ABSENT.equals(state)) {
-+            int generation = nextGeneration(phoneId);
-+            synchronized (this) {
-+                mLastProfile[phoneId] = null;
-+            }
-+            mExecutor.execute(() -> {
-+                if (isCurrent(phoneId, generation)) {
-+                    send(phoneId, "NULL", "NULL", STATE_SIM_ABSENT);
-+                }
-+            });
++            // A transient ABSENT/NOT_READY is part of normal SIM power cycling. Keep the last
++            // loaded carrier profile so re-enabling the same card cannot rewrite NCFG and reset
++            // both slots. A later LOADED event with a different profile still applies the change.
++            nextGeneration(phoneId);
 +        } else if (IccCardConstants.INTENT_VALUE_ICC_NOT_READY.equals(state)) {
 +            // Cancel a delayed match from the card that has just been disabled or removed.
 +            nextGeneration(phoneId);
-+            synchronized (this) {
-+                mLastProfile[phoneId] = null;
-+            }
 +        }
 +    }
 +
@@ -136,6 +142,13 @@ index 0000000000000000000000000000000000000000..41099dc86800861b20e75d69afc380cd
 +        CarrierProfile profile = CarrierProfile.forOperator(operatorNumeric);
 +        String profileKey = profile.operatorKey + ':' + profile.operatorName;
 +        synchronized (this) {
++            if (!mProfileInitialized[phoneId]) {
++                mProfileInitialized[phoneId] = true;
++                mLastProfile[phoneId] = profileKey;
++                persistProfile(phoneId, profileKey);
++                Log.i(TAG, "Baselined slot" + (phoneId + 1) + " profile=" + profileKey);
++                return;
++            }
 +            if (profileKey.equals(mLastProfile[phoneId])) {
 +                return;
 +            }
@@ -145,11 +158,17 @@ index 0000000000000000000000000000000000000000..41099dc86800861b20e75d69afc380cd
 +            synchronized (this) {
 +                if (isCurrentLocked(phoneId, generation)) {
 +                    mLastProfile[phoneId] = profileKey;
++                    persistProfile(phoneId, profileKey);
 +                }
 +            }
 +        } else if (retry < MAX_OPERATOR_RETRIES) {
 +            scheduleLoaded(phoneId, generation, retry + 1);
 +        }
++    }
++
++    private void persistProfile(int phoneId, String profile) {
++        Settings.Global.putString(mContext.getContentResolver(),
++                PROFILE_SETTING_PREFIX + phoneId, profile);
 +    }
 +
 +    private boolean send(int phoneId, String operatorKey, String operatorName, int state) {
@@ -245,7 +264,7 @@ index 0000000000000000000000000000000000000000..41099dc86800861b20e75d69afc380cd
 +    }
 +}
 diff --git a/src/com/android/phone/PhoneGlobals.java b/src/com/android/phone/PhoneGlobals.java
-index f6ec75d802a61a2871d463b34156c3c8cb7e3e67..0ea06accf141a6bad1f57e4730e0f0900f98d3e3 100644
+index f6ec75d802a61a2871d463b34156c3c8cb7e3e67..251c209d6db15ddb4ac2c34349786318eeca0f6f 100644
 --- a/src/com/android/phone/PhoneGlobals.java
 +++ b/src/com/android/phone/PhoneGlobals.java
 @@ -156,6 +156,7 @@ public class PhoneGlobals extends ContextWrapper {
@@ -268,7 +287,7 @@ index f6ec75d802a61a2871d463b34156c3c8cb7e3e67..0ea06accf141a6bad1f57e4730e0f090
              mKeyguardManager = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
  
              phoneMgr = PhoneInterfaceManager.init(this);
-+            mHuaweiNcfgManager = new HuaweiNcfgManager();
++            mHuaweiNcfgManager = new HuaweiNcfgManager(this);
  
              imsRcsController = ImsRcsController.init(this);
  

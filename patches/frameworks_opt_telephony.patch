@@ -52,10 +52,14 @@ index 1da9f4bba1d82bb0eabf719088bf93385812a2f7..34a0696c9aa3eeffc1eda21ae8647d49
                              length <= MAX_VERSION_LEN ? version
                                  : version.substring(length - MAX_VERSION_LEN, length));
 diff --git a/src/java/com/android/internal/telephony/MultiSimSettingController.java b/src/java/com/android/internal/telephony/MultiSimSettingController.java
-index 85053de899386ad4e76fb606de6e557f0f5a503b..a9f2fc4ee4113553ce38f08fa06345bc02e51cc3 100644
+index 85053de899386ad4e76fb606de6e557f0f5a503b..27ac6e9efd8c08abeb65156f4fec5adcf77f055f 100644
 --- a/src/java/com/android/internal/telephony/MultiSimSettingController.java
 +++ b/src/java/com/android/internal/telephony/MultiSimSettingController.java
-@@ -45,6 +45,7 @@ import android.os.ParcelUuid;
+@@ -42,9 +42,11 @@ import android.os.Handler;
+ import android.os.Looper;
+ import android.os.Message;
+ import android.os.ParcelUuid;
++import android.os.SystemProperties;
  import android.provider.Settings;
  import android.provider.Settings.SettingNotFoundException;
  import android.telephony.CarrierConfigManager;
@@ -63,7 +67,20 @@ index 85053de899386ad4e76fb606de6e557f0f5a503b..a9f2fc4ee4113553ce38f08fa06345bc
  import android.telephony.SubscriptionInfo;
  import android.telephony.SubscriptionManager;
  import android.telephony.TelephonyManager;
-@@ -136,6 +137,12 @@ public class MultiSimSettingController extends Handler {
+@@ -87,6 +89,12 @@ public class MultiSimSettingController extends Handler {
+     private static final int EVENT_MULTI_SIM_CONFIG_CHANGED          = 8;
+     @VisibleForTesting
+     public static final int EVENT_RADIO_STATE_CHANGED                = 9;
++    private static final int EVENT_RESET_INITIAL_DEFAULT_IMS         = 10;
++
++    // Stock PAR keeps PS/IMS on logical modem 0 and swaps the physical-slot mapping when the
++    // default data subscription changes. Carrier config initialization can still finish on the
++    // non-default phone after that swap, so re-assert IMS only for the final default-data phone.
++    private static final long LEGACY_HUAWEI_IMS_RESET_DELAY_MILLIS = 2_500;
+ 
+     @Retention(RetentionPolicy.SOURCE)
+     @IntDef(prefix = {"PRIMARY_SUB_"},
+@@ -136,6 +144,12 @@ public class MultiSimSettingController extends Handler {
      // the SIMs are newly inserted instead of being initialized.
      private boolean mSubInfoInitialized = false;
  
@@ -76,7 +93,7 @@ index 85053de899386ad4e76fb606de6e557f0f5a503b..a9f2fc4ee4113553ce38f08fa06345bc
      // mInitialHandling is to make sure we don't always ask user to re-select data SIM after reboot.
      // After boot-up when things are firstly initialized (mSubInfoInitialized is changed to true
      // and carrier configs are all loaded), we do a reEvaluateAll(). In the first reEvaluateAll(),
-@@ -338,10 +345,19 @@ public class MultiSimSettingController extends Handler {
+@@ -338,10 +352,22 @@ public class MultiSimSettingController extends Handler {
                  for (Phone phone : PhoneFactory.getPhones()) {
                      if (phone.mCi.getRadioState() == TelephonyManager.RADIO_POWER_UNAVAILABLE) {
                          if (DBG) log("Radio unavailable. Clearing sub info initialized flag.");
@@ -94,10 +111,59 @@ index 85053de899386ad4e76fb606de6e557f0f5a503b..a9f2fc4ee4113553ce38f08fa06345bc
 +                    mSubInfoInitialized = true;
 +                    reEvaluateAll();
 +                }
++                break;
++            case EVENT_RESET_INITIAL_DEFAULT_IMS:
++                resetInitialDefaultIms();
                  break;
          }
      }
-@@ -1023,18 +1039,19 @@ public class MultiSimSettingController extends Handler {
+@@ -631,6 +657,7 @@ public class MultiSimSettingController extends Handler {
+             mSubController.setDefaultVoiceSubId(subId);
+             mSubController.setDefaultSmsSubId(subId);
+             sendDefaultSubConfirmedNotification(subId);
++            scheduleInitialDefaultImsResetIfNeeded(change);
+             return;
+         }
+ 
+@@ -666,6 +693,37 @@ public class MultiSimSettingController extends Handler {
+         } else {
+             updateUserPreferences(mPrimarySubList, dataSelected, voiceSelected, smsSelected);
+         }
++        scheduleInitialDefaultImsResetIfNeeded(change);
++    }
++
++    private void scheduleInitialDefaultImsResetIfNeeded(@PrimarySubChangeType int change) {
++        if (change != PRIMARY_SUB_INITIALIZED
++                || !SystemProperties.getBoolean("ro.odm.radio.nvcfg_normalization", false)
++                || !"HUAWEI".equalsIgnoreCase(SystemProperties.get(
++                        "ro.product.vendor.manufacturer", ""))) {
++            return;
++        }
++        removeMessages(EVENT_RESET_INITIAL_DEFAULT_IMS);
++        sendEmptyMessageDelayed(EVENT_RESET_INITIAL_DEFAULT_IMS,
++                LEGACY_HUAWEI_IMS_RESET_DELAY_MILLIS);
++    }
++
++    @VisibleForTesting
++    void resetInitialDefaultIms() {
++        int subId = mSubController.getDefaultDataSubId();
++        int phoneId = mSubController.getPhoneId(subId);
++        if (!SubscriptionManager.isValidSubscriptionId(subId)
++                || !SubscriptionManager.isValidPhoneId(phoneId)) {
++            log("Not resetting initial default IMS: subId=" + subId + ", phoneId=" + phoneId);
++            return;
++        }
++
++        try {
++            mContext.getSystemService(TelephonyManager.class).resetIms(phoneId);
++            log("Reset initial default IMS for subId=" + subId + ", phoneId=" + phoneId);
++        } catch (RuntimeException e) {
++            Log.w(LOG_TAG, "Unable to reset initial default IMS for phoneId=" + phoneId, e);
++        }
+     }
+ 
+     @PrimarySubChangeType
+@@ -1023,18 +1081,19 @@ public class MultiSimSettingController extends Handler {
                  + mSubController.getDefaultVoiceSubId() +
                  " sms = " + mSubController.getDefaultSmsSubId());
  
@@ -122,7 +188,7 @@ index 85053de899386ad4e76fb606de6e557f0f5a503b..a9f2fc4ee4113553ce38f08fa06345bc
          if (DBG) log("User pref subId = " + userPrefDataSubId + " current dds " + defaultDataSubId
                   + " next active subId " + autoDefaultSubId);
  
-@@ -1053,6 +1070,43 @@ public class MultiSimSettingController extends Handler {
+@@ -1053,6 +1112,43 @@ public class MultiSimSettingController extends Handler {
                   mSubController.getDefaultSmsSubId());
      }
  
@@ -690,10 +756,10 @@ index b224dd77b136800580aeb22d4ffc45cb4d96ac4d..5c409551a27543055140d205ccc3600b
                          DataEvaluationReason.SIM_LOADED));
              }
 diff --git a/src/java/com/android/internal/telephony/data/DataProfileManager.java b/src/java/com/android/internal/telephony/data/DataProfileManager.java
-index c7e5433b111e3f05594fb1054a3618c809b7dbe1..1c661865e95ded7e6591b2a52366659958d73cc7 100644
+index c7e5433b111e3f05594fb1054a3618c809b7dbe1..0ea4ba0121d741165219f9a28a430d1bdde3a668 100644
 --- a/src/java/com/android/internal/telephony/data/DataProfileManager.java
 +++ b/src/java/com/android/internal/telephony/data/DataProfileManager.java
-@@ -73,6 +73,12 @@ public class DataProfileManager extends Handler {
+@@ -73,6 +73,15 @@ public class DataProfileManager extends Handler {
      /** Event for SIM refresh. */
      private static final int EVENT_SIM_REFRESH = 3;
  
@@ -703,10 +769,13 @@ index c7e5433b111e3f05594fb1054a3618c809b7dbe1..1c661865e95ded7e6591b2a523666599
 +    /** Whether data profiles need to be resent after the SIM becomes loaded. */
 +    private boolean mUpdateDataProfilesOnSimLoaded;
 +
++    /** Whether the normal initial radio-on notification has already been observed. */
++    private boolean mHasSeenRadioOn;
++
      private final Phone mPhone;
      private final String mLogTag;
      private final LocalLog mLocalLog = new LocalLog(128);
-@@ -182,6 +188,7 @@ public class DataProfileManager extends Handler {
+@@ -182,6 +191,7 @@ public class DataProfileManager extends Handler {
                      }
                  });
          mPhone.mCi.registerForIccRefresh(this, EVENT_SIM_REFRESH, null);
@@ -714,18 +783,23 @@ index c7e5433b111e3f05594fb1054a3618c809b7dbe1..1c661865e95ded7e6591b2a523666599
      }
  
      @Override
-@@ -195,6 +202,10 @@ public class DataProfileManager extends Handler {
+@@ -195,6 +205,15 @@ public class DataProfileManager extends Handler {
                  log("Update data profiles due to APN db updated.");
                  updateDataProfiles(ONLY_UPDATE_IA_IF_CHANGED);
                  break;
 +            case EVENT_RADIO_ON:
++                if (!mHasSeenRadioOn) {
++                    mHasSeenRadioOn = true;
++                    log("Initial radio on; carrier config will supply the boot data profiles.");
++                    break;
++                }
 +                mUpdateDataProfilesOnSimLoaded = true;
 +                updateDataProfilesOnRadioOnIfReady();
 +                break;
              default:
                  loge("Unexpected event " + msg);
                  break;
-@@ -207,10 +218,38 @@ public class DataProfileManager extends Handler {
+@@ -207,10 +226,38 @@ public class DataProfileManager extends Handler {
      private void onCarrierConfigUpdated() {
          log("Update data profiles due to carrier config updated.");
          updateDataProfiles(FORCED_UPDATE_IA);
@@ -793,7 +867,7 @@ index 9479e77dc6bfdb50f2ea6f60da8c93607f2a5ca4..fb8011c3df15509ee294778806672b7a
  
      /**
 diff --git a/tests/telephonytests/src/com/android/internal/telephony/MultiSimSettingControllerTest.java b/tests/telephonytests/src/com/android/internal/telephony/MultiSimSettingControllerTest.java
-index 5af1c1f6de6e5dfcf3798ab96f7091db6b42cdbc..5d69fbf23a31a5fbbf37e60504c053499eeb3bc7 100644
+index 5af1c1f6de6e5dfcf3798ab96f7091db6b42cdbc..887b998ab67b0e99f4e3a54944b2c0bb6d01183a 100644
 --- a/tests/telephonytests/src/com/android/internal/telephony/MultiSimSettingControllerTest.java
 +++ b/tests/telephonytests/src/com/android/internal/telephony/MultiSimSettingControllerTest.java
 @@ -46,6 +46,7 @@ import android.os.ParcelUuid;
@@ -819,7 +893,7 @@ index 5af1c1f6de6e5dfcf3798ab96f7091db6b42cdbc..5d69fbf23a31a5fbbf37e60504c05349
          processAllMessages();
  
          // Everything should be set to invalid since nothing is active.
-@@ -910,6 +915,42 @@ public class MultiSimSettingControllerTest extends TelephonyTest {
+@@ -910,6 +915,64 @@ public class MultiSimSettingControllerTest extends TelephonyTest {
          verify(mSubControllerMock).setDefaultDataSubId(anyInt());
      }
  
@@ -859,10 +933,32 @@ index 5af1c1f6de6e5dfcf3798ab96f7091db6b42cdbc..5d69fbf23a31a5fbbf37e60504c05349
 +        verify(mSubControllerMock).setDefaultSmsSubId(2);
 +    }
 +
++    @Test
++    @SmallTest
++    public void testResetInitialDefaultImsUsesDefaultDataPhone() {
++        doReturn(2).when(mSubControllerMock).getDefaultDataSubId();
++        doReturn(1).when(mSubControllerMock).getPhoneId(2);
++
++        mMultiSimSettingControllerUT.resetInitialDefaultIms();
++
++        verify(mTelephonyManager).resetIms(1);
++    }
++
++    @Test
++    @SmallTest
++    public void testResetInitialDefaultImsIgnoresInvalidDefaultDataSub() {
++        doReturn(SubscriptionManager.INVALID_SUBSCRIPTION_ID).when(mSubControllerMock)
++                .getDefaultDataSubId();
++
++        mMultiSimSettingControllerUT.resetInitialDefaultIms();
++
++        verify(mTelephonyManager, never()).resetIms(anyInt());
++    }
++
      @Test
      public void onSubscriptionGroupChanged_hasActiveSubNotPartOfGroup() {
          // sub1 and sub2 are active subs already
-@@ -939,4 +980,4 @@ public class MultiSimSettingControllerTest extends TelephonyTest {
+@@ -939,4 +1002,4 @@ public class MultiSimSettingControllerTest extends TelephonyTest {
          // Default data is set to sub1
          verify(mSubControllerMock).setDefaultDataSubId(1);
      }
@@ -927,7 +1023,7 @@ index ea02a4d76123eb408c4dd7cadc3419df89f5b76b..26ae3902ddcc0af0154b02f0f456c29e
      public void testSetGetCarrierId() {
          testInsertSim();
 diff --git a/tests/telephonytests/src/com/android/internal/telephony/data/DataProfileManagerTest.java b/tests/telephonytests/src/com/android/internal/telephony/data/DataProfileManagerTest.java
-index 806ebdc12a2c07acff314c0617f6be8bf71a7bcf..509359489d3b03c6c4d2e41bfcc0609614f695e0 100644
+index 806ebdc12a2c07acff314c0617f6be8bf71a7bcf..e0298a61b65072fec89053e9e0bd1771a4124d34 100644
 --- a/tests/telephonytests/src/com/android/internal/telephony/data/DataProfileManagerTest.java
 +++ b/tests/telephonytests/src/com/android/internal/telephony/data/DataProfileManagerTest.java
 @@ -39,6 +39,7 @@ import android.provider.Telephony;
@@ -938,12 +1034,40 @@ index 806ebdc12a2c07acff314c0617f6be8bf71a7bcf..509359489d3b03c6c4d2e41bfcc06096
  import android.telephony.TelephonyManager;
  import android.telephony.data.ApnSetting;
  import android.telephony.data.DataProfile;
-@@ -675,6 +676,52 @@ public class DataProfileManagerTest extends TelephonyTest {
+@@ -457,6 +458,12 @@ public class DataProfileManagerTest extends TelephonyTest {
+         return (List<DataProfile>) field.get(mDataProfileManagerUT);
+     }
+ 
++    private void setHasSeenRadioOn(boolean hasSeenRadioOn) throws Exception {
++        Field field = DataProfileManager.class.getDeclaredField("mHasSeenRadioOn");
++        field.setAccessible(true);
++        field.setBoolean(mDataProfileManagerUT, hasSeenRadioOn);
++    }
++
+     @Before
+     public void setUp() throws Exception {
+         logd("DataProfileManagerTest +Setup!");
+@@ -675,6 +682,70 @@ public class DataProfileManagerTest extends TelephonyTest {
                  .isEqualTo(GENERAL_PURPOSE_APN);
      }
  
 +    @Test
-+    public void testRadioOnResendsDataProfilesAndInitialAttachApn() {
++    public void testInitialRadioOnDoesNotResendDataProfiles() throws Exception {
++        setHasSeenRadioOn(false);
++        Mockito.clearInvocations(mMockedWwanDataServiceManager);
++
++        mSimulatedCommands.notifyRadioOn();
++        processAllMessages();
++
++        verify(mMockedWwanDataServiceManager, Mockito.never())
++                .setDataProfile(any(), eq(false), eq(null));
++        verify(mMockedWwanDataServiceManager, Mockito.never())
++                .setInitialAttachApn(any(DataProfile.class), eq(false), eq(null));
++    }
++
++    @Test
++    public void testRadioRecoveryResendsDataProfilesAndInitialAttachApn() throws Exception {
++        setHasSeenRadioOn(true);
 +        Mockito.clearInvocations(mMockedWwanDataServiceManager);
 +        doReturn(TelephonyManager.SIM_STATE_LOADED).when(mTelephonyManager).getSimState(anyInt());
 +
@@ -956,7 +1080,8 @@ index 806ebdc12a2c07acff314c0617f6be8bf71a7bcf..509359489d3b03c6c4d2e41bfcc06096
 +    }
 +
 +    @Test
-+    public void testRadioOnDefersDataProfilesUntilSimLoaded() {
++    public void testRadioRecoveryDefersDataProfilesUntilSimLoaded() throws Exception {
++        setHasSeenRadioOn(true);
 +        Mockito.clearInvocations(mMockedWwanDataServiceManager);
 +        doReturn(TelephonyManager.SIM_STATE_UNKNOWN).when(mTelephonyManager).getSimState(anyInt());
 +
@@ -975,7 +1100,9 @@ index 806ebdc12a2c07acff314c0617f6be8bf71a7bcf..509359489d3b03c6c4d2e41bfcc06096
 +    }
 +
 +    @Test
-+    public void testRadioOnWithInvalidSubscriptionDoesNotResendDataProfiles() {
++    public void testRadioRecoveryWithInvalidSubscriptionDoesNotResendDataProfiles()
++            throws Exception {
++        setHasSeenRadioOn(true);
 +        Mockito.clearInvocations(mMockedWwanDataServiceManager);
 +        doReturn(SubscriptionManager.INVALID_SUBSCRIPTION_ID).when(mPhone).getSubId();
 +

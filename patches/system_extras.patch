@@ -1,4 +1,4 @@
-# Provenance: TrebleDroid ci-20230706; original patch authors: Luca Stefani.
+# Provenance: TrebleDroid ci-20230905; original patch authors: Luca Stefani.
 # See ../ATTRIBUTION.md. This import is not authored by yukino1111.
 diff --git a/libfscrypt/fscrypt.cpp b/libfscrypt/fscrypt.cpp
 index f6e97f11a0fff52b80b0f2f0b9fc07dd4d857697..bbf40c3c0300234b57a38a91daa155643e388bd1 100644

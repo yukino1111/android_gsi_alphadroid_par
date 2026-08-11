@@ -1,5 +1,3 @@
-# Provenance: PAR/release integration maintained by yukino1111 against the
-# pinned upstream project. Upstream file copyrights and licenses still apply.
 diff --git a/src/com/android/settings/network/SubscriptionUtil.java b/src/com/android/settings/network/SubscriptionUtil.java
 index ccfcfb0a752687a561b4453f508cc3107433eac9..2a5f510e4cc599e2c9b83e0c3b04f53f62352539 100644
 --- a/src/com/android/settings/network/SubscriptionUtil.java
@@ -245,7 +243,7 @@ index e8dcdd376154f6d4d78c914cc5f71537f9a09ba2..16a1856ce9dd59b47f7d0d184d117f5a
          if (mActiveSubscriptionsListenerCount != 1) {
              return;
 diff --git a/src/com/android/settings/network/telephony/MobileNetworkSwitchController.java b/src/com/android/settings/network/telephony/MobileNetworkSwitchController.java
-index 5014634329989ff64100aa4c6172155069dad270..ed08b38e07e75826b29d27b3775a8210360a2727 100644
+index 5014634329989ff64100aa4c6172155069dad270..098e4d3f1c5ff9c1499dcc6bb85345e3602dce1b 100644
 --- a/src/com/android/settings/network/telephony/MobileNetworkSwitchController.java
 +++ b/src/com/android/settings/network/telephony/MobileNetworkSwitchController.java
 @@ -20,8 +20,14 @@ import static androidx.lifecycle.Lifecycle.Event.ON_PAUSE;
@@ -311,7 +309,7 @@ index 5014634329989ff64100aa4c6172155069dad270..ed08b38e07e75826b29d27b3775a8210
          }
      }
  
-@@ -118,4 +143,166 @@ public class MobileNetworkSwitchController extends BasePreferenceController impl
+@@ -118,4 +143,172 @@ public class MobileNetworkSwitchController extends BasePreferenceController impl
      public void onSubscriptionsChanged() {
          update();
      }
@@ -319,8 +317,9 @@ index 5014634329989ff64100aa4c6172155069dad270..ed08b38e07e75826b29d27b3775a8210
 +    /**
 +     * Toggles a PAR physical SIM directly without launching a transient dialog activity.
 +     * Huawei's legacy radio accepts the request before the radio and IMS state machines have
-+     * settled. Keep all SIM switches serialized until the requested radio state is reached and,
-+     * after power-up, voice service or IMS registration has recovered.
++     * settled. Keep all SIM switches serialized until the requested radio state is reached. Only
++     * the default-data subscription owns logical modem 0 and IMS on PAR, so a non-default SIM must
++     * not reset IMS or wait for voice service that the stock modem intentionally does not provide.
 +     */
 +    private boolean requestLegacySimPower(boolean enabled) {
 +        SubscriptionInfo subInfo = null;
@@ -367,13 +366,6 @@ index 5014634329989ff64100aa4c6172155069dad270..ed08b38e07e75826b29d27b3775a8210
 +                            || result == TelephonyManager.SET_SIM_POWER_STATE_ALREADY_IN_STATE) {
 +                        SubscriptionUtil.setLegacySimPowerState(
 +                                mContext, mSubId, targetSlot, enabled);
-+                        if (enabled) {
-+                            final int defaultDataSubId =
-+                                    SubscriptionManager.getDefaultDataSubscriptionId();
-+                            if (SubscriptionManager.isUsableSubscriptionId(defaultDataSubId)) {
-+                                mSubscriptionManager.setDefaultDataSubId(defaultDataSubId);
-+                            }
-+                        }
 +                    } else {
 +                        Log.e(TAG, "Legacy SIM power request failed for slot " + targetSlot
 +                                + " with result " + result);
@@ -396,9 +388,7 @@ index 5014634329989ff64100aa4c6172155069dad270..ed08b38e07e75826b29d27b3775a8210
 +                .getRadioPowerState();
 +        if (radioState == expectedState) {
 +            if (enabled) {
-+                mHandler.postDelayed(
-+                        () -> resetImsAndWaitForVoiceService(telephonyManager, slotIndex),
-+                        LEGACY_SIM_IMS_RESET_DELAY_MILLIS);
++                finishPowerUpAfterRadioOn(telephonyManager, slotIndex);
 +            } else {
 +                finishLegacySimPowerOperation();
 +            }
@@ -408,7 +398,7 @@ index 5014634329989ff64100aa4c6172155069dad270..ed08b38e07e75826b29d27b3775a8210
 +            Log.w(TAG, "Timed out waiting for legacy SIM radio state " + expectedState
 +                    + " on slot " + slotIndex + ", current state=" + radioState);
 +            if (enabled) {
-+                resetImsAndWaitForVoiceService(telephonyManager, slotIndex);
++                finishPowerUpAfterRadioOn(telephonyManager, slotIndex);
 +            } else {
 +                finishLegacySimPowerOperation();
 +            }
@@ -418,6 +408,20 @@ index 5014634329989ff64100aa4c6172155069dad270..ed08b38e07e75826b29d27b3775a8210
 +                () -> waitForLegacySimPowerState(
 +                        telephonyManager, slotIndex, enabled, deadlineMillis),
 +                LEGACY_SIM_RADIO_POLL_INTERVAL_MILLIS);
++    }
++
++    private void finishPowerUpAfterRadioOn(
++            TelephonyManager telephonyManager, int slotIndex) {
++        if (mSubId == SubscriptionManager.getDefaultDataSubscriptionId()) {
++            mHandler.postDelayed(
++                    () -> resetImsAndWaitForVoiceService(telephonyManager, slotIndex),
++                    LEGACY_SIM_IMS_RESET_DELAY_MILLIS);
++            return;
++        }
++        Log.d(TAG, "Non-default SIM radio ready on slot " + slotIndex
++                + "; preserving the default data SIM IMS registration");
++        mHandler.postDelayed(this::finishLegacySimPowerOperation,
++                LEGACY_SIM_MIN_POWER_UP_SETTLE_MILLIS);
 +    }
 +
 +    private void resetImsAndWaitForVoiceService(TelephonyManager telephonyManager, int slotIndex) {
@@ -479,23 +483,26 @@ index 5014634329989ff64100aa4c6172155069dad270..ed08b38e07e75826b29d27b3775a8210
 +    }
  }
 diff --git a/src/com/android/settings/network/telephony/ToggleSubscriptionDialogActivity.java b/src/com/android/settings/network/telephony/ToggleSubscriptionDialogActivity.java
-index 6fa803d04330a1047850f55a78c3d5fb249adc34..ac9778de9dea2eb21d9690646fdb2988062f2d44 100644
+index 6fa803d04330a1047850f55a78c3d5fb249adc34..a6487d8414421eada6cd3bb7b2c3f98172c10d75 100644
 --- a/src/com/android/settings/network/telephony/ToggleSubscriptionDialogActivity.java
 +++ b/src/com/android/settings/network/telephony/ToggleSubscriptionDialogActivity.java
-@@ -122,6 +122,12 @@ public class ToggleSubscriptionDialogActivity extends SubscriptionActionDialogAc
+@@ -121,6 +121,15 @@ public class ToggleSubscriptionDialogActivity extends SubscriptionActionDialogAc
+                 == View.LAYOUT_DIRECTION_RTL;
          Log.i(TAG, "isMultipleEnabledProfilesSupported():" + isMultipleEnabledProfilesSupported());
  
-         if (savedInstanceState == null) {
-+            if (!mIsEsimOperation
-+                    && SubscriptionUtil.isLegacySimPowerToggleSupported()) {
++        if (!mIsEsimOperation && SubscriptionUtil.isLegacySimPowerToggleSupported()) {
++            if (savedInstanceState == null) {
 +                Log.i(TAG, "Toggling Huawei physical SIM without confirmation.");
 +                handleTogglePsimAction();
-+                return;
 +            }
++            finish();
++            return;
++        }
++
+         if (savedInstanceState == null) {
              if (mEnable) {
                  showEnableSubDialog();
-             } else {
-@@ -214,6 +220,11 @@ public class ToggleSubscriptionDialogActivity extends SubscriptionActionDialogAc
+@@ -214,6 +223,11 @@ public class ToggleSubscriptionDialogActivity extends SubscriptionActionDialogAc
                  }
              case DIALOG_TAG_ENABLE_SIM_CONFIRMATION:
                  Log.i(TAG, "User confirmed to enable the subscription.");
@@ -507,11 +514,9 @@ index 6fa803d04330a1047850f55a78c3d5fb249adc34..ac9778de9dea2eb21d9690646fdb2988
                  showProgressDialog(
                          getString(
                                  R.string.sim_action_switch_sub_dialog_progress,
-@@ -314,16 +325,76 @@ public class ToggleSubscriptionDialogActivity extends SubscriptionActionDialogAc
-     private void handleTogglePsimAction() {
+@@ -315,6 +329,33 @@ public class ToggleSubscriptionDialogActivity extends SubscriptionActionDialogAc
          if (mSubscriptionManager.canDisablePhysicalSubscription() && mSubInfo != null) {
              mSubscriptionManager.setUiccApplicationsEnabled(mSubInfo.getSubscriptionId(), mEnable);
-+            reassertDefaultDataSubscription();
              finish();
 +        } else if (SubscriptionUtil.isLegacySimPowerToggleSupported() && mSubInfo != null) {
 +            int slotIndex = mSubInfo.getSimSlotIndex();
@@ -521,69 +526,28 @@ index 6fa803d04330a1047850f55a78c3d5fb249adc34..ac9778de9dea2eb21d9690646fdb2988
 +            }
 +            if (slotIndex == SubscriptionManager.INVALID_SIM_SLOT_INDEX) {
 +                Log.e(TAG, "Unable to resolve the physical slot for legacy SIM power toggle.");
-+                showErrorDialog(
-+                        getString(R.string.sim_action_enable_sim_fail_title),
-+                        getString(R.string.sim_action_enable_sim_fail_text));
++                finish();
 +                return;
 +            }
 +
 +            final int targetSlot = slotIndex;
++            final int targetSubId = mSubInfo.getSubscriptionId();
 +            final int targetState = mEnable ? TelephonyManager.CARD_POWER_UP
 +                    : TelephonyManager.CARD_POWER_DOWN;
-+            if (mEnable) {
-+                showProgressDialog(getString(
-+                        R.string.sim_action_switch_sub_dialog_progress,
-+                        SubscriptionUtil.getUniqueSubscriptionDisplayName(mSubInfo, this)));
-+            } else {
-+                showProgressDialog(
-+                        getString(R.string.privileged_action_disable_sub_dialog_progress));
-+            }
 +            mTelMgr.setSimPowerStateForSlot(targetSlot, targetState, getMainExecutor(), result -> {
 +                if (result == TelephonyManager.SET_SIM_POWER_STATE_SUCCESS
 +                        || result == TelephonyManager.SET_SIM_POWER_STATE_ALREADY_IN_STATE) {
-+                    SubscriptionUtil.setLegacySimPowerState(this,
-+                            mSubInfo.getSubscriptionId(), targetSlot, mEnable);
-+                    reassertDefaultDataSubscription();
-+                    dismissProgressDialog();
-+                    finish();
++                    SubscriptionUtil.setLegacySimPowerState(getApplicationContext(),
++                            targetSubId, targetSlot, mEnable);
 +                    return;
 +                }
 +                Log.e(TAG, "Legacy SIM power request failed for slot " + targetSlot
 +                        + " with result " + result);
-+                dismissProgressDialog();
-+                showErrorDialog(
-+                        getString(R.string.sim_action_enable_sim_fail_title),
-+                        getString(R.string.sim_action_enable_sim_fail_text));
 +            });
++            finish();
          } else {
              Log.i(TAG, "The device does not support toggling pSIM. It is enough to just "
                      + "enable the removable slot.");
-         }
-     }
- 
-+    private void reassertDefaultDataSubscription() {
-+        if (!mEnable) {
-+            return;
-+        }
-+        final int defaultDataSubId = SubscriptionManager.getDefaultDataSubscriptionId();
-+        if (!SubscriptionManager.isUsableSubscriptionId(defaultDataSubId)) {
-+            Log.w(TAG, "No usable default data subscription to reassert after SIM power up.");
-+            return;
-+        }
-+        Log.i(TAG, "Reasserting the default data subscription after Huawei SIM power up.");
-+        mSubscriptionManager.setDefaultDataSubId(defaultDataSubId);
-+    }
-+
-     /* Handles the enabling SIM action. */
-     private void showEnableSubDialog() {
-         Log.d(TAG, "Handle subscription enabling.");
-+        if (!mIsEsimOperation && SubscriptionUtil.isLegacySimPowerToggleSupported()) {
-+            showEnableSimConfirmDialog();
-+            return;
-+        }
-         if (isDsdsConditionSatisfied()) {
-             showEnableDsdsConfirmDialog();
-             return;
 diff --git a/tests/unit/src/com/android/settings/network/EnabledNetworkModePreferenceControllerTest.java b/tests/unit/src/com/android/settings/network/EnabledNetworkModePreferenceControllerTest.java
 index 7f170b566fe10c3f159675b0ef8075ffc7589910..c459ac2b1ada5718e5f207275cf6c68ec35a8ec7 100644
 --- a/tests/unit/src/com/android/settings/network/EnabledNetworkModePreferenceControllerTest.java
