@@ -81,5 +81,6 @@ TrebleDroid contributors retain authorship of their respective upstream code.
 
 `vendor_hardware_overlay_par.patch` is a binary delta against the pinned
 PHH/TrebleDroid `TrebleApp/app.apk` prebuilt. It carries the PAR fixes for the
-Doze-page crash; the upstream
-application and its original authorship remain unchanged.
+Doze-page crash, Huawei NCFG bridge, and
+PAR-only suppression of unrelated vendor probes and preset downloads; the
+upstream application and its original authorship remain unchanged.

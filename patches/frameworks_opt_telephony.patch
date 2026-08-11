@@ -1,5 +1,3 @@
-# Provenance: TrebleDroid ci-20230706 plus PAR Huawei RIL recovery follow-ups
-# maintained by yukino1111. Original authors are listed in ../ATTRIBUTION.md.
 diff --git a/src/java/com/android/internal/telephony/GsmCdmaPhone.java b/src/java/com/android/internal/telephony/GsmCdmaPhone.java
 index 1da9f4bba1d82bb0eabf719088bf93385812a2f7..a5eeeccdff5dce01f90129db4548a270427d6db2 100644
 --- a/src/java/com/android/internal/telephony/GsmCdmaPhone.java
@@ -26,6 +24,121 @@ index 1da9f4bba1d82bb0eabf719088bf93385812a2f7..a5eeeccdff5dce01f90129db4548a270
                      TelephonyManager.from(mContext).setBasebandVersionForPhone(getPhoneId(),
                              length <= MAX_VERSION_LEN ? version
                                  : version.substring(length - MAX_VERSION_LEN, length));
+diff --git a/src/java/com/android/internal/telephony/MultiSimSettingController.java b/src/java/com/android/internal/telephony/MultiSimSettingController.java
+index 85053de899386ad4e76fb606de6e557f0f5a503b..a9f2fc4ee4113553ce38f08fa06345bc02e51cc3 100644
+--- a/src/java/com/android/internal/telephony/MultiSimSettingController.java
++++ b/src/java/com/android/internal/telephony/MultiSimSettingController.java
+@@ -45,6 +45,7 @@ import android.os.ParcelUuid;
+ import android.provider.Settings;
+ import android.provider.Settings.SettingNotFoundException;
+ import android.telephony.CarrierConfigManager;
++import android.telephony.ServiceState;
+ import android.telephony.SubscriptionInfo;
+ import android.telephony.SubscriptionManager;
+ import android.telephony.TelephonyManager;
+@@ -136,6 +137,12 @@ public class MultiSimSettingController extends Handler {
+     // the SIMs are newly inserted instead of being initialized.
+     private boolean mSubInfoInitialized = false;
+ 
++    // A modem restart can make all radios temporarily unavailable after subscription info was
++    // already initialized. Some legacy RILs restore the same SIM records without causing
++    // SubscriptionInfoUpdater to send EVENT_ALL_SUBSCRIPTIONS_LOADED again. Remember that the
++    // local initialization gate needs to be restored once every radio is available.
++    private boolean mRestoreSubInfoInitializedOnRadioAvailable = false;
++
+     // mInitialHandling is to make sure we don't always ask user to re-select data SIM after reboot.
+     // After boot-up when things are firstly initialized (mSubInfoInitialized is changed to true
+     // and carrier configs are all loaded), we do a reEvaluateAll(). In the first reEvaluateAll(),
+@@ -338,10 +345,19 @@ public class MultiSimSettingController extends Handler {
+                 for (Phone phone : PhoneFactory.getPhones()) {
+                     if (phone.mCi.getRadioState() == TelephonyManager.RADIO_POWER_UNAVAILABLE) {
+                         if (DBG) log("Radio unavailable. Clearing sub info initialized flag.");
++                        if (mSubInfoInitialized) {
++                            mRestoreSubInfoInitializedOnRadioAvailable = true;
++                        }
+                         mSubInfoInitialized = false;
+-                        break;
++                        return;
+                     }
+                 }
++                if (!mSubInfoInitialized && mRestoreSubInfoInitializedOnRadioAvailable) {
++                    if (DBG) log("All radios available. Restoring sub info initialized flag.");
++                    mRestoreSubInfoInitializedOnRadioAvailable = false;
++                    mSubInfoInitialized = true;
++                    reEvaluateAll();
++                }
+                 break;
+         }
+     }
+@@ -1023,18 +1039,19 @@ public class MultiSimSettingController extends Handler {
+                 + mSubController.getDefaultVoiceSubId() +
+                 " sms = " + mSubController.getDefaultSmsSubId());
+ 
+-        int autoDefaultSubId = primarySubList.get(0);
++        int userPrefDataSubId = getUserPrefDataSubIdFromDB();
++        int autoDefaultSubId = primarySubList.contains(userPrefDataSubId)
++                && SubscriptionManager.isValidSubscriptionId(userPrefDataSubId)
++                ? userPrefDataSubId : getBestInServiceSubId(primarySubList);
+ 
+-        if ((primarySubList.size() == 1) && !smsSelected) {
++        if (!smsSelected) {
+             mSubController.setDefaultSmsSubId(autoDefaultSubId);
+         }
+ 
+-        if ((primarySubList.size() == 1) && !voiceSelected) {
++        if (!voiceSelected) {
+             mSubController.setDefaultVoiceSubId(autoDefaultSubId);
+         }
+ 
+-        int userPrefDataSubId = getUserPrefDataSubIdFromDB();
+-
+         if (DBG) log("User pref subId = " + userPrefDataSubId + " current dds " + defaultDataSubId
+                  + " next active subId " + autoDefaultSubId);
+ 
+@@ -1053,6 +1070,43 @@ public class MultiSimSettingController extends Handler {
+                  mSubController.getDefaultSmsSubId());
+     }
+ 
++    private int getBestInServiceSubId(List<Integer> primarySubList) {
++        int firstLocalVoiceInService = INVALID_SUBSCRIPTION_ID;
++        int firstVoiceInService = INVALID_SUBSCRIPTION_ID;
++        int firstLocalDataInService = INVALID_SUBSCRIPTION_ID;
++        int firstDataInService = INVALID_SUBSCRIPTION_ID;
++
++        for (int subId : primarySubList) {
++            Phone phone = PhoneFactory.getPhone(mSubController.getPhoneId(subId));
++            ServiceState serviceState = phone == null ? null : phone.getServiceState();
++            if (serviceState == null) continue;
++
++            boolean voiceInService = serviceState.getState() == ServiceState.STATE_IN_SERVICE;
++            boolean dataInService = serviceState.getDataRegistrationState()
++                    == ServiceState.STATE_IN_SERVICE;
++            if (firstLocalDataInService == INVALID_SUBSCRIPTION_ID && dataInService
++                    && !serviceState.getDataRoaming()) {
++                firstLocalDataInService = subId;
++            }
++            if (firstLocalVoiceInService == INVALID_SUBSCRIPTION_ID && voiceInService
++                    && !serviceState.getVoiceRoaming()) {
++                firstLocalVoiceInService = subId;
++            }
++            if (firstDataInService == INVALID_SUBSCRIPTION_ID && dataInService) {
++                firstDataInService = subId;
++            }
++            if (firstVoiceInService == INVALID_SUBSCRIPTION_ID && voiceInService) {
++                firstVoiceInService = subId;
++            }
++        }
++
++        if (firstLocalDataInService != INVALID_SUBSCRIPTION_ID) return firstLocalDataInService;
++        if (firstLocalVoiceInService != INVALID_SUBSCRIPTION_ID) return firstLocalVoiceInService;
++        if (firstDataInService != INVALID_SUBSCRIPTION_ID) return firstDataInService;
++        if (firstVoiceInService != INVALID_SUBSCRIPTION_ID) return firstVoiceInService;
++        return primarySubList.get(0);
++    }
++
+     private int getUserPrefDataSubIdFromDB() {
+         return android.provider.Settings.Global.getInt(mContext.getContentResolver(),
+                 SETTING_USER_PREF_DATA_SUB, SubscriptionManager.INVALID_SUBSCRIPTION_ID);
 diff --git a/src/java/com/android/internal/telephony/PhoneInternalInterface.java b/src/java/com/android/internal/telephony/PhoneInternalInterface.java
 index 5b4d5e513f60bf597b91880e19a952b4e153470b..49625898209a4546726b0d7c302c1b933f56c3c6 100644
 --- a/src/java/com/android/internal/telephony/PhoneInternalInterface.java
@@ -543,6 +656,83 @@ index 9479e77dc6bfdb50f2ea6f60da8c93607f2a5ca4..fb8011c3df15509ee294778806672b7a
      }
  
      /**
+diff --git a/tests/telephonytests/src/com/android/internal/telephony/MultiSimSettingControllerTest.java b/tests/telephonytests/src/com/android/internal/telephony/MultiSimSettingControllerTest.java
+index 5af1c1f6de6e5dfcf3798ab96f7091db6b42cdbc..5d69fbf23a31a5fbbf37e60504c053499eeb3bc7 100644
+--- a/tests/telephonytests/src/com/android/internal/telephony/MultiSimSettingControllerTest.java
++++ b/tests/telephonytests/src/com/android/internal/telephony/MultiSimSettingControllerTest.java
+@@ -46,6 +46,7 @@ import android.os.ParcelUuid;
+ import android.os.PersistableBundle;
+ import android.provider.Settings;
+ import android.telephony.CarrierConfigManager;
++import android.telephony.ServiceState;
+ import android.telephony.SubscriptionInfo;
+ import android.telephony.SubscriptionManager;
+ import android.telephony.TelephonyManager;
+@@ -249,8 +250,12 @@ public class MultiSimSettingControllerTest extends TelephonyTest {
+         verify(mSubControllerMock, never()).setDefaultVoiceSubId(anyInt());
+         verify(mSubControllerMock, never()).setDefaultSmsSubId(anyInt());
+ 
+-        // Send all sub ready notification
+-        mMultiSimSettingControllerUT.notifyAllSubscriptionLoaded();
++        // The legacy RIL restores the same SIM records without necessarily sending another all
++        // subscriptions loaded notification. Radio recovery must reopen the initialization gate.
++        replaceInstance(BaseCommands.class, "mState", mSimulatedCommands,
++                TelephonyManager.RADIO_POWER_ON);
++        mMultiSimSettingControllerUT.obtainMessage(
++                MultiSimSettingController.EVENT_RADIO_STATE_CHANGED).sendToTarget();
+         processAllMessages();
+ 
+         // Everything should be set to invalid since nothing is active.
+@@ -910,6 +915,42 @@ public class MultiSimSettingControllerTest extends TelephonyTest {
+         verify(mSubControllerMock).setDefaultDataSubId(anyInt());
+     }
+ 
++    @Test
++    @SmallTest
++    public void testVoiceDataSmsAutoFallbackPrefersLocalInServiceSub() throws Exception {
++        doReturn(SubscriptionManager.INVALID_SUBSCRIPTION_ID).when(mSubControllerMock)
++                .getDefaultDataSubId();
++        doReturn(SubscriptionManager.INVALID_SUBSCRIPTION_ID).when(mSubControllerMock)
++                .getDefaultVoiceSubId();
++        doReturn(SubscriptionManager.INVALID_SUBSCRIPTION_ID).when(mSubControllerMock)
++                .getDefaultSmsSubId();
++        android.provider.Settings.Global.putInt(mContext.getContentResolver(),
++                "user_preferred_data_sub", SubscriptionManager.INVALID_SUBSCRIPTION_ID);
++        doReturn(true).when(mContext.getResources()).getBoolean(
++                com.android.internal.R.bool.config_voice_data_sms_auto_fallback);
++
++        ServiceState outOfService = mock(ServiceState.class);
++        ServiceState localDataService = mock(ServiceState.class);
++        doReturn(ServiceState.STATE_OUT_OF_SERVICE).when(outOfService).getState();
++        doReturn(ServiceState.STATE_OUT_OF_SERVICE).when(outOfService).getDataRegistrationState();
++        doReturn(ServiceState.STATE_OUT_OF_SERVICE).when(localDataService).getState();
++        doReturn(ServiceState.STATE_IN_SERVICE).when(localDataService).getDataRegistrationState();
++        doReturn(false).when(localDataService).getDataRoaming();
++        doReturn(outOfService).when(mPhoneMock1).getServiceState();
++        doReturn(localDataService).when(mPhoneMock2).getServiceState();
++        replaceInstance(BaseCommands.class, "mState", mSimulatedCommands,
++                TelephonyManager.RADIO_POWER_ON);
++
++        mMultiSimSettingControllerUT.notifyAllSubscriptionLoaded();
++        mMultiSimSettingControllerUT.notifyCarrierConfigChanged(0, 1);
++        mMultiSimSettingControllerUT.notifyCarrierConfigChanged(1, 2);
++        processAllMessages();
++
++        verify(mSubControllerMock).setDefaultDataSubId(2);
++        verify(mSubControllerMock).setDefaultVoiceSubId(2);
++        verify(mSubControllerMock).setDefaultSmsSubId(2);
++    }
++
+     @Test
+     public void onSubscriptionGroupChanged_hasActiveSubNotPartOfGroup() {
+         // sub1 and sub2 are active subs already
+@@ -939,4 +980,4 @@ public class MultiSimSettingControllerTest extends TelephonyTest {
+         // Default data is set to sub1
+         verify(mSubControllerMock).setDefaultDataSubId(1);
+     }
+-}
+\ No newline at end of file
++}
 diff --git a/tests/telephonytests/src/com/android/internal/telephony/ServiceStateTrackerTest.java b/tests/telephonytests/src/com/android/internal/telephony/ServiceStateTrackerTest.java
 index ce2a260bac3a83181d100f55f9b9d0dd57570de4..fb33b3b0915c9af1b7f51a4788a0320e61033b2c 100644
 --- a/tests/telephonytests/src/com/android/internal/telephony/ServiceStateTrackerTest.java

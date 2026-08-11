@@ -1,9 +1,16 @@
-# Provenance: PAR/release integration maintained by yukino1111 against the
-# pinned upstream project. Upstream file copyrights and licenses still apply.
 diff --git a/base.mk b/base.mk
-index bf8f11783566c82395ae57b77acfa0a2d9d8fc86..cbc923bd0c1f05aed87ed7e808b0cbcdb9ab0418 100644
+index bf8f11783566c82395ae57b77acfa0a2d9d8fc86..c7e700e42df40855846bc658c8caeedc053d74b5 100644
 --- a/base.mk
 +++ b/base.mk
+@@ -24,7 +24,7 @@ PRODUCT_COPY_FILES += \
+ SYSTEM_EXT_PRIVATE_SEPOLICY_DIRS += device/phh/treble/sepolicy
+ PRODUCT_PACKAGE_OVERLAYS += device/phh/treble/overlay
+ 
+-$(call inherit-product, vendor/hardware_overlay/overlay.mk)
++$(call inherit-product, vendor/hardware_overlay/overlay-par.mk)
+ $(call inherit-product, $(SRC_TARGET_DIR)/product/core_64_bit.mk)
+ $(call inherit-product, $(SRC_TARGET_DIR)/product/aosp_base_telephony.mk)
+ 
 @@ -37,7 +37,6 @@ PRODUCT_SYSTEM_DEFAULT_PROPERTIES += \
  	ro.build.version.all_codenames=$(PLATFORM_VERSION_ALL_CODENAMES) \
  	ro.build.version.release=$(PLATFORM_VERSION) \
@@ -35,21 +42,46 @@ index bf8f11783566c82395ae57b77acfa0a2d9d8fc86..cbc923bd0c1f05aed87ed7e808b0cbcd
  SELINUX_IGNORE_NEVERALLOWS := true
  
  # Universal NoCutoutOverlay
-@@ -260,6 +268,14 @@ PRODUCT_PACKAGES += \
- PRODUCT_PACKAGES += \
- 	slsi-booted
+@@ -206,10 +214,6 @@ PRODUCT_COPY_FILES += \
+ 	device/phh/treble/remote/phh-remotectl.rc:system/etc/init/phh-remotectl.rc \
+ 	device/phh/treble/remote/phh-remotectl.sh:system/bin/phh-remotectl.sh \
  
+-PRODUCT_PACKAGES += \
+-	android.hardware.biometrics.fingerprint@2.1-service.oppo.compat \
+-	android.hardware.biometrics.fingerprint@2.1-service.oplus.compat \
+-
+ PRODUCT_PACKAGES += \
+ 	vr_hwc \
+ 	curl \
+@@ -240,9 +244,6 @@ PRODUCT_COPY_FILES += \
+ 
+ PRODUCT_PACKAGES += phh-ota
+ 
+-PRODUCT_PACKAGES += \
+-    xiaomi-touch
+-
+ PRODUCT_COPY_FILES += \
+ 	frameworks/av/services/audiopolicy/config/a2dp_audio_policy_configuration_7_0.xml:system/etc/a2dp_audio_policy_configuration_7_0.xml \
+ 	frameworks/av/services/audiopolicy/config/a2dp_audio_policy_configuration.xml:system/etc/a2dp_audio_policy_configuration.xml \
+@@ -253,12 +254,13 @@ include build/make/target/product/gsi_release.mk
+ PRODUCT_COPY_FILES += \
+ 	device/phh/treble/files/com.android.deskclock_whitelist.xml:system/etc/sysconfig/com.android.deskclock_whitelist.xml
+ 
+-# QCOM in-call audio fix as a standalone app
+-PRODUCT_PACKAGES += \
+-    QcRilAm
 +# Register LineageOS Soong variables for this GSI product. Values such as
 +# kernel paths remain empty because the GSI does not build a device kernel.
 +include vendor/lineage/config/BoardConfigSoong.mk
-+
+ 
+-PRODUCT_PACKAGES += \
+-	slsi-booted
 +# The AOSP legacy QCOM WLAN path conflicts with the qcom-caf libcld80211 used
 +# by this AlphaDroid tree.
 +TARGET_USES_HARDWARE_QCOM_WLAN := false
-+
+ 
  # Two-pane layout in Settings
  PRODUCT_PACKAGES += \
-     androidx.window.extensions
 diff --git a/lineage.mk b/lineage.mk
 index 172bb012af4e1e21bcfdf25476583b88fd005507..2905ad1bb64b45dd838b492e1744ff6620f0d91f 100644
 --- a/lineage.mk
