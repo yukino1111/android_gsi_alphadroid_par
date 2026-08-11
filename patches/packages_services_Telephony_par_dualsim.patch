@@ -1,0 +1,45 @@
+# Provenance: PAR/release integration maintained by yukino1111 against the
+# pinned upstream project. Upstream file copyrights and licenses still apply.
+diff --git a/src/com/android/phone/PhoneInterfaceManager.java b/src/com/android/phone/PhoneInterfaceManager.java
+index 1c145534ec67a6824f44f434ccd15f7758aa9763..b7aba9a526642995d2e9624498c1996610a33a8f 100755
+--- a/src/com/android/phone/PhoneInterfaceManager.java
++++ b/src/com/android/phone/PhoneInterfaceManager.java
+@@ -62,6 +62,7 @@ import android.os.RemoteException;
+ import android.os.ResultReceiver;
+ import android.os.ServiceSpecificException;
+ import android.os.SystemClock;
++import android.os.SystemProperties;
+ import android.os.UserHandle;
+ import android.os.UserManager;
+ import android.os.WorkSource;
+@@ -2011,6 +2012,8 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
+                 case EVENT_SET_SIM_POWER_DONE: {
+                     ar = (AsyncResult) msg.obj;
+                     request = (MainThreadRequest) ar.userObj;
++                    int requestedState =
++                            ((Pair<Integer, IIntegerConsumer>) request.argument).first;
+                     IIntegerConsumer callback =
+                             ((Pair<Integer, IIntegerConsumer>) request.argument).second;
+                     if (ar.exception != null) {
+@@ -2025,7 +2028,20 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
+                             } else if (error == CommandException.Error.INVALID_ARGUMENTS) {
+                                 errorCode = TelephonyManager.SET_SIM_POWER_STATE_ALREADY_IN_STATE;
+                             } else if (error == CommandException.Error.REQUEST_NOT_SUPPORTED) {
+-                                errorCode = TelephonyManager.SET_SIM_POWER_STATE_NOT_SUPPORTED;
++                                if (SystemProperties.getBoolean(
++                                        "persist.sys.overlay.huawei", false)
++                                        && (requestedState == TelephonyManager.CARD_POWER_DOWN
++                                        || requestedState == TelephonyManager.CARD_POWER_UP)) {
++                                    // EMUI 9's DSDS implementation controls each logical phone's
++                                    // radio instead of implementing setSimCardPower. Keep the
++                                    // public per-slot API usable without touching modem NV.
++                                    request.phone.setRadioPower(requestedState
++                                            == TelephonyManager.CARD_POWER_UP);
++                                    errorCode = TelephonyManager.SET_SIM_POWER_STATE_SUCCESS;
++                                    log("Huawei legacy per-slot radio power fallback accepted");
++                                } else {
++                                    errorCode = TelephonyManager.SET_SIM_POWER_STATE_NOT_SUPPORTED;
++                                }
+                             } else {
+                                 errorCode = TelephonyManager.SET_SIM_POWER_STATE_MODEM_ERROR;
+                             }

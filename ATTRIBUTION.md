@@ -47,6 +47,13 @@ network permission bridge authored by Tommy Webb. The corresponding framework
 side is already part of the pinned AlphaDroid base; the aggregate patch keeps
 the TrebleDroid Connectivity module compatible with it.
 
+## Cromite release prebuilts
+
+The release build consumes unmodified, publisher-signed Cromite Chromium and
+System WebView APKs. They remain outside this patch repository; their exact
+release, hashes, and package names are recorded in `PREBUILTS.md`. Cromite and
+Chromium contributors retain authorship and licensing of those applications.
+
 ## PAR and release integration
 
 The remaining aggregate patches are local build, product, or PAR integration
@@ -59,11 +66,19 @@ deltas maintained by yukino1111 against the exact revisions in
 - `external_fastrpc.patch`
 - `external_libncurses.patch`
 - `packages_apps_Eleven.patch`
+- `packages_apps_Settings_par_dualsim.patch`
 - `packages_apps_WallpaperPicker2.patch`
+- `packages_services_Telephony_par_dualsim.patch`
 - `packages_modules_Permission.patch`
 - `system_security.patch`
+- `vendor_hardware_overlay_par.patch`
 - `vendor_lineage.patch`
 
 These deltas remain subject to the copyright and license of the files and
-projects they modify. AlphaDroid, LineageOS, AOSP, CalyxOS, and TrebleDroid
-contributors retain authorship of their respective upstream code.
+projects they modify. AlphaDroid, LineageOS, AOSP, CalyxOS, Cromite, and
+TrebleDroid contributors retain authorship of their respective upstream code.
+
+`vendor_hardware_overlay_par.patch` is a binary delta against the pinned
+PHH/TrebleDroid `TrebleApp/app.apk` prebuilt. It carries the PAR fixes for the
+Doze-page crash; the upstream
+application and its original authorship remain unchanged.

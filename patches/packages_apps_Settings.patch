@@ -1,7 +1,7 @@
 # Provenance: TrebleDroid ci-20230706 (Pierre-Hugues Husson) plus PAR/release follow-ups
 # maintained by yukino1111. See ../ATTRIBUTION.md for the ownership boundary.
 diff --git a/src/com/android/settings/biometrics/fingerprint/FingerprintEnrollEnrolling.java b/src/com/android/settings/biometrics/fingerprint/FingerprintEnrollEnrolling.java
-index 2348141dee..fb9d9a7b14 100644
+index 2348141dee260fe85ae39a2ea115958c07e79cb1..fb9d9a7b142d0f3d6ba0d7817dc03f6c0ccb0193 100644
 --- a/src/com/android/settings/biometrics/fingerprint/FingerprintEnrollEnrolling.java
 +++ b/src/com/android/settings/biometrics/fingerprint/FingerprintEnrollEnrolling.java
 @@ -772,6 +772,9 @@ public class FingerprintEnrollEnrolling extends BiometricsEnrollEnrolling {
@@ -22,7 +22,7 @@ index 2348141dee..fb9d9a7b14 100644
 \ No newline at end of file
 +}
 diff --git a/src/com/android/settings/biometrics/fingerprint/FingerprintEnrollFindSensor.java b/src/com/android/settings/biometrics/fingerprint/FingerprintEnrollFindSensor.java
-index a346431452..73ec2c0c40 100644
+index a34643145274f1e855d2ff0f28f8b839f716eefa..73ec2c0c404b1e1ae9ded11011336dc09533f8eb 100644
 --- a/src/com/android/settings/biometrics/fingerprint/FingerprintEnrollFindSensor.java
 +++ b/src/com/android/settings/biometrics/fingerprint/FingerprintEnrollFindSensor.java
 @@ -341,6 +341,7 @@ public class FingerprintEnrollFindSensor extends BiometricEnrollBase implements
@@ -34,7 +34,7 @@ index a346431452..73ec2c0c40 100644
              proceedToEnrolling(false /* cancelEnrollment */);
          } else {
 diff --git a/src/com/android/settings/connecteddevice/usb/UsbConnectionBroadcastReceiver.java b/src/com/android/settings/connecteddevice/usb/UsbConnectionBroadcastReceiver.java
-index 1a1f8ba414..b3981e3865 100644
+index 1a1f8ba414279af3457570fbc49da1de4e78d0d4..b3981e38658fbd368f6439776cd98db14d1c6a05 100644
 --- a/src/com/android/settings/connecteddevice/usb/UsbConnectionBroadcastReceiver.java
 +++ b/src/com/android/settings/connecteddevice/usb/UsbConnectionBroadcastReceiver.java
 @@ -90,6 +90,13 @@ public class UsbConnectionBroadcastReceiver extends BroadcastReceiver implements
@@ -52,7 +52,7 @@ index 1a1f8ba414..b3981e3865 100644
              UsbPortStatus portStatus = intent.getExtras()
                      .getParcelable(UsbManager.EXTRA_PORT_STATUS);
 diff --git a/src/com/android/settings/deviceinfo/DeviceNamePreferenceController.java b/src/com/android/settings/deviceinfo/DeviceNamePreferenceController.java
-index 225e350372..a32af37a07 100644
+index 225e3503722972ad3dd2a4b198d34ac25aae5cc1..a32af37a07fb54f30368baaaa6aebd48a719b6f9 100644
 --- a/src/com/android/settings/deviceinfo/DeviceNamePreferenceController.java
 +++ b/src/com/android/settings/deviceinfo/DeviceNamePreferenceController.java
 @@ -23,6 +23,7 @@ import android.net.wifi.WifiManager;
@@ -75,7 +75,7 @@ index 225e350372..a32af37a07 100644
      }
  
 diff --git a/src/com/android/settings/deviceinfo/HardwareInfoPreferenceController.java b/src/com/android/settings/deviceinfo/HardwareInfoPreferenceController.java
-index 5f760bfa00..b31bb05c8b 100644
+index 5f760bfa008093576628d58de8bba440b62c65a4..b31bb05c8bade5a824563583281d94accac08f2a 100644
 --- a/src/com/android/settings/deviceinfo/HardwareInfoPreferenceController.java
 +++ b/src/com/android/settings/deviceinfo/HardwareInfoPreferenceController.java
 @@ -17,6 +17,8 @@ package com.android.settings.deviceinfo;
@@ -119,7 +119,7 @@ index 5f760bfa00..b31bb05c8b 100644
      }
  }
 diff --git a/src/com/android/settings/deviceinfo/firmwareversion/AboutDeviceNamePreferenceController.java b/src/com/android/settings/deviceinfo/firmwareversion/AboutDeviceNamePreferenceController.java
-index 688c29af81..1d40e32478 100644
+index 688c29af818840e89e62449b5317b63bdc05579b..1d40e324789f90c5ab8234c1c1302c2ff4a68ae3 100644
 --- a/src/com/android/settings/deviceinfo/firmwareversion/AboutDeviceNamePreferenceController.java
 +++ b/src/com/android/settings/deviceinfo/firmwareversion/AboutDeviceNamePreferenceController.java
 @@ -20,7 +20,6 @@ import android.content.Context;
@@ -150,8 +150,25 @@ index 688c29af81..1d40e32478 100644
 +        return displayName + " | " + deviceCodename;
      }
  }
+diff --git a/src/com/android/settings/homepage/TopLevelSettings.java b/src/com/android/settings/homepage/TopLevelSettings.java
+index abfc7f23874505b926ca450385b8cba94c9d03f5..3939695289ea3ccc0d64f9a9134b839be5120eb7 100644
+--- a/src/com/android/settings/homepage/TopLevelSettings.java
++++ b/src/com/android/settings/homepage/TopLevelSettings.java
+@@ -355,7 +355,11 @@ public class TopLevelSettings extends DashboardFragment implements SplitLayoutLi
+ 
+             @Override
+             public void doForEach(Preference preference) {
+-                if (preference instanceof HomepagePreferenceLayout) {
++                final int layoutResource = preference.getLayoutResource();
++                final boolean usesAospHomepageLayout =
++                        layoutResource == R.layout.homepage_preference
++                                || layoutResource == R.layout.aosp_homepage_preference;
++                if (preference instanceof HomepagePreferenceLayout && usesAospHomepageLayout) {
+                     ((HomepagePreferenceLayout) preference).getHelper()
+                             .setIconPaddingStart(mIconPaddingStart);
+                     ((HomepagePreferenceLayout) preference).getHelper()
 diff --git a/src/com/android/settings/homepage/TopMenu.java b/src/com/android/settings/homepage/TopMenu.java
-index b07be93acf..e45fa21f18 100644
+index b07be93acf69252f92e3e5faa5648db2a2f03482..e45fa21f182c240bac67eb1ae4200885d9601f48 100644
 --- a/src/com/android/settings/homepage/TopMenu.java
 +++ b/src/com/android/settings/homepage/TopMenu.java
 @@ -32,6 +32,15 @@ public class TopMenu extends Preference {
@@ -281,7 +298,7 @@ index b07be93acf..e45fa21f18 100644
          holder.itemView.setFocusable(selectable);
          holder.itemView.setClickable(selectable);
 diff --git a/src/com/android/settings/widget/HighlightableTopLevelPreferenceAdapter.java b/src/com/android/settings/widget/HighlightableTopLevelPreferenceAdapter.java
-index 8084a4811d..40ddf6702f 100644
+index 8084a4811d6879a826684a774e0b2d4888e095d7..40ddf6702f7599b7a8eaea659bffc6431a10be95 100644
 --- a/src/com/android/settings/widget/HighlightableTopLevelPreferenceAdapter.java
 +++ b/src/com/android/settings/widget/HighlightableTopLevelPreferenceAdapter.java
 @@ -230,22 +230,40 @@ public class HighlightableTopLevelPreferenceAdapter extends PreferenceGroupAdapt

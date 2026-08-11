@@ -1,5 +1,7 @@
+# Provenance: CalyxOS network-policy compatibility authored by Tommy Webb and
+# aggregated for the pinned PAR build; see ../ATTRIBUTION.md.
 diff --git a/framework/api/module-lib-current.txt b/framework/api/module-lib-current.txt
-index ddac19d87..ccde32acc 100644
+index ddac19d8776fb9eeaf654b9aa46422518b6f5f81..ccde32acc85677ee7bf799205156543028f4143a 100644
 --- a/framework/api/module-lib-current.txt
 +++ b/framework/api/module-lib-current.txt
 @@ -14,6 +14,7 @@ package android.net {
@@ -24,7 +26,7 @@ index ddac19d87..ccde32acc 100644
  }
 -
 diff --git a/framework/src/android/net/ConnectivityManager.java b/framework/src/android/net/ConnectivityManager.java
-index f741c2bb3..0a05d4308 100644
+index f741c2bb39190ccd3aea9f78ce0d1dc51d12e109..0a05d430827c3883eb1a706f3dc54a8e2b412d76 100644
 --- a/framework/src/android/net/ConnectivityManager.java
 +++ b/framework/src/android/net/ConnectivityManager.java
 @@ -1407,6 +1407,54 @@ public class ConnectivityManager {
@@ -83,7 +85,7 @@ index f741c2bb3..0a05d4308 100644
       * Informs ConnectivityService of whether the legacy lockdown VPN, as implemented by
       * LockdownVpnTracker, is in use. This is deprecated for new devices starting from Android 12
 diff --git a/framework/src/android/net/IConnectivityManager.aidl b/framework/src/android/net/IConnectivityManager.aidl
-index bc73769f5..a837b56b9 100644
+index bc73769f55ee89d90e614a4355f9d60936571051..a837b56b923a25d5ad92c064569b472050f0ef2c 100644
 --- a/framework/src/android/net/IConnectivityManager.aidl
 +++ b/framework/src/android/net/IConnectivityManager.aidl
 @@ -245,4 +245,7 @@ interface IConnectivityManager
@@ -95,7 +97,7 @@ index bc73769f5..a837b56b9 100644
 +    boolean isUidCurrentlyDisallowedByPolicy(int uid);
  }
 diff --git a/service/src/com/android/server/ConnectivityService.java b/service/src/com/android/server/ConnectivityService.java
-index d0cb294f8..301a1bb1a 100644
+index d0cb294f81511995364e7abd7741d3430008a683..301a1bb1afd2667e2d52e3dd9bbb8d0288bf4779 100644
 --- a/service/src/com/android/server/ConnectivityService.java
 +++ b/service/src/com/android/server/ConnectivityService.java
 @@ -98,6 +98,7 @@ import static android.system.OsConstants.IPPROTO_TCP;

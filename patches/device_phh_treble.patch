@@ -38,7 +38,7 @@ index bf8f11783566c82395ae57b77acfa0a2d9d8fc86..cdd9ede1517af1dc0a7f281615c8ed49
  PRODUCT_PACKAGES += \
      androidx.window.extensions
 diff --git a/lineage.mk b/lineage.mk
-index 172bb012af4e1e21bcfdf25476583b88fd005507..20667b60ed19bbe066b40922c0b558062950b6ac 100644
+index 172bb012af4e1e21bcfdf25476583b88fd005507..2905ad1bb64b45dd838b492e1744ff6620f0d91f 100644
 --- a/lineage.mk
 +++ b/lineage.mk
 @@ -1,3 +1,32 @@
@@ -75,19 +75,18 @@ index 172bb012af4e1e21bcfdf25476583b88fd005507..20667b60ed19bbe066b40922c0b55806
 +PRODUCT_SYSTEM_DEFAULT_PROPERTIES += \
 +    ro.oem_unlock_supported=0
 diff --git a/overlay/frameworks/base/core/res/res/xml/config_webview_packages.xml b/overlay/frameworks/base/core/res/res/xml/config_webview_packages.xml
-index 3f96e59a7cd1816c5c47b52c0efd16c815512d7b..b6ae0a583317edb2f0e6d53b2fc4bc5979c405dc 100644
+index 3f96e59a7cd1816c5c47b52c0efd16c815512d7b..8a460206fad238de5a8c3f470897d1ad1c1b3667 100644
 --- a/overlay/frameworks/base/core/res/res/xml/config_webview_packages.xml
 +++ b/overlay/frameworks/base/core/res/res/xml/config_webview_packages.xml
-@@ -16,6 +16,9 @@
- 
- <webviewproviders>
- 
-+    <!-- Current Chromium prebuilt supplied by the PAR build wrapper. -->
-+    <webviewprovider description="CalyxOS WebView" packageName="org.calyxos.webview" availableByDefault="true" />
-+
-     <webviewprovider description="Chrome Stable" packageName="com.android.chrome" availableByDefault="true">
-         <signature>MIIEQzCCAyugAwIBAgIJAMLgh0ZkSjCNMA0GCSqGSIb3DQEBBAUAMHQxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpDYWxpZm9ybmlhMRYwFAYDVQQHEw1Nb3VudGFpbiBWaWV3MRQwEgYDVQQKEwtHb29nbGUgSW5jLjEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDAeFw0wODA4MjEyMzEzMzRaFw0zNjAxMDcyMzEzMzRaMHQxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpDYWxpZm9ybmlhMRYwFAYDVQQHEw1Nb3VudGFpbiBWaWV3MRQwEgYDVQQKEwtHb29nbGUgSW5jLjEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDCCASAwDQYJKoZIhvcNAQEBBQADggENADCCAQgCggEBAKtWLgDYO6IIrgqWbxJOKdoR8qtW0I9Y4sypEwPpt1TTcvZApxsdyxMJZ2JORland2qSGT2y5b+3JKkedxiLDmpHpDsz2WCbdxgxRczfey5YZnTJ4VZbH0xqWVW/8lGmPav5xVwnIiJS6HXk+BVKZF+JcWjAsb/GEuq/eFdpuzSqeYTcfi6idkyugwfYwXFU1+5fZKUaRKYCwkkFQVfcAs1fXA5V+++FGfvjJ/CxURaSxaBvGdGDhfXE28LWuT9ozCl5xw4Yq5OGazvV24mZVSoOO0yZ31j7kYvtwYK6NeADwbSxDdJEqO4k//0zOHKrUiGYXtqw/A0LFFtqoZKFjnkCAQOjgdkwgdYwHQYDVR0OBBYEFMd9jMIhF1Ylmn/Tgt9r45jk14alMIGmBgNVHSMEgZ4wgZuAFMd9jMIhF1Ylmn/Tgt9r45jk14aloXikdjB0MQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEUMBIGA1UEChMLR29vZ2xlIEluYy4xEDAOBgNVBAsTB0FuZHJvaWQxEDAOBgNVBAMTB0FuZHJvaWSCCQDC4IdGZEowjTAMBgNVHRMEBTADAQH/MA0GCSqGSIb3DQEBBAUAA4IBAQBt0lLO74UwLDYKqs6Tm8/yzKkEu116FmH4rkaymUIE0P9KaMftGlMexFlaYjzmB2OxZyl6euNXEsQH8gjwyxCUKRJNexBiGcCEyj6z+a1fuHHvkiaai+KL8W1EyNmgjmyy8AW7P+LLlkR+ho5zEHatRbM/YAnqGcFh5iZBqpknHf1SKMXFh4dd239FJ1jWYfbMDMy3NS5CTMQ2XFI1MvcyUTdZPErjQfTbQe3aDQsQcafEQPD+nqActifKZ0Np0IS9L9kR/wbNvyz6ENwPiTrjV2KRkEjH78ZMcUQXg0L3BYHJ3lc69Vs5Ddf9uUGGMYldX3WfMBEmh/9iFBDAaTCK</signature>
-     </webviewprovider>
+@@ -31,6 +31,6 @@
+     <webviewprovider description="Google WebView" packageName="com.google.android.webview" availableByDefault="true">
+ <signature>MIIDuzCCAqOgAwIBAgIJANi6DgBQG4ZTMA0GCSqGSIb3DQEBBQUAMHQxCzAJBgNVBAYTAlVTMRMwEQYDVQQIDApDYWxpZm9ybmlhMRYwFAYDVQQHDA1Nb3VudGFpbiBWaWV3MRQwEgYDVQQKDAtHb29nbGUgSW5jLjEQMA4GA1UECwwHQW5kcm9pZDEQMA4GA1UEAwwHd2VidmlldzAeFw0xNDA4MDgyMzIwMjBaFw00MTEyMjQyMzIwMjBaMHQxCzAJBgNVBAYTAlVTMRMwEQYDVQQIDApDYWxpZm9ybmlhMRYwFAYDVQQHDA1Nb3VudGFpbiBWaWV3MRQwEgYDVQQKDAtHb29nbGUgSW5jLjEQMA4GA1UECwwHQW5kcm9pZDEQMA4GA1UEAwwHd2VidmlldzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMbtaFX0r5aZJMAbPVMAgK1ZZ29dTn91VsGxXv2hqrQo7IpqEy2JmPvPnoMsSiuTAe+UcQy8oKDQ2aYVSAd1DGIy+nSRyFTt3LSIAdwSBkB1qT4a+OqkpsR6bSNXQXQ18lCQu9gREY3h3QlYBQAyzRxw4hRGlrXAzuSz1Ec4W+6x4nLG5DG61MAMR8ClF9XSqbmGB3kyZ70A0X9OPYYxiMWP1ExaYvpaVqjyZZcrPwr+vtW8oCuGBUtHpBUH3OoG+9s2YMcgLG7vCK9awKDqlPcJSpIAAj6uGs4gORmkqxZRMskLSTWbhP4p+3Ap8jYzTVB6Y1/DMVmYTWRMcPW0macCAwEAAaNQME4wHQYDVR0OBBYEFJ6bAR6/QVm4w9LRSGQiaR5Rhp3TMB8GA1UdIwQYMBaAFJ6bAR6/QVm4w9LRSGQiaR5Rhp3TMAwGA1UdEwQFMAMBAf8wDQYJKoZIhvcNAQEFBQADggEBAEQu8QiVxax7/diEiJrgKE1LwdXsIygJK/KnaKdnYEkAQpeu/QmrLiycm+OFbL1qHJIB7OuI/PQBUtcaNSiJSCVgtwtEbZWWIdsynqG/Nf4aGOndXegSQNRH54M05sRHLoeRycPrY7xQlEwGikNFR76+5UdwFBQI3Gn22g6puJnVukQm/wXQ+ajoiS4QclrNlixoDQsZ4STLH4+Wju2wIWKFFArIhVEIlbamq+p6BghuzH3aIz/Fy0YTQKi7SA+0fuNeCaqlSm5pYSt6p5CH89y1Fr+wFc5r3iLRnUwRcy08ESC7bZJnxV3d/YQ5valTxBbzku/dQbXVj/xg69H8l8M=</signature>
+ </webviewprovider>
+-  <!-- The default WebView implementation -->
+-    <webviewprovider description="AOSP WebView" packageName="com.android.webview" availableByDefault="true" isFallback="true" />
++  <!-- The presigned Cromite WebView supplied by the PAR build wrapper. -->
++    <webviewprovider description="Cromite WebView" packageName="com.android.webview" availableByDefault="true" isFallback="true" />
+ </webviewproviders>
 diff --git a/overrides/Android.mk b/overrides/Android.mk
 index 813d66bc4d2e4fb2eb1afe77a723e69d1867b2b7..1cd7c9fd226337e5ce9091a8e552169a8403a77c 100644
 --- a/overrides/Android.mk
@@ -114,54 +113,21 @@ index 813d66bc4d2e4fb2eb1afe77a723e69d1867b2b7..1cd7c9fd226337e5ce9091a8e552169a
  include $(CLEAR_VARS)
  LOCAL_MODULE := phh-gapps-go-overrides
  PACKAGES.$(LOCAL_MODULE).OVERRIDES := \
-diff --git a/prebuilt/TurboAdapter/.gitignore b/prebuilt/TurboAdapter/.gitignore
-new file mode 100644
-index 0000000..24463d5
---- /dev/null
-+++ b/prebuilt/TurboAdapter/.gitignore
-@@ -0,0 +1,2 @@
-+TurboAdapter.apk
-+lib64/*.so
-diff --git a/prebuilt/TurboAdapter/Android.mk b/prebuilt/TurboAdapter/Android.mk
-new file mode 100644
-index 0000000000000000000000000000000000000000..ca328c96abd3d8ecbe2562ee2adb7c694286975c
---- /dev/null
-+++ b/prebuilt/TurboAdapter/Android.mk
-@@ -0,0 +1,26 @@
-+LOCAL_PATH := $(call my-dir)
-+
-+include $(CLEAR_VARS)
-+LOCAL_MODULE := libpowerstatshaldataproviderPrebuilt
-+LOCAL_MODULE_CLASS := SHARED_LIBRARIES
-+LOCAL_MODULE_SUFFIX := .so
-+LOCAL_MULTILIB := 64
-+LOCAL_SRC_FILES := lib64/libpowerstatshaldataproviderPrebuilt.so
-+LOCAL_SYSTEM_EXT_MODULE := true
-+LOCAL_CHECK_ELF_FILES := false
-+LOCAL_STRIP_MODULE := false
-+include $(BUILD_PREBUILT)
-+
-+include $(CLEAR_VARS)
-+LOCAL_MODULE := TurboAdapter
-+LOCAL_MODULE_CLASS := APPS
-+LOCAL_MODULE_SUFFIX := .apk
-+LOCAL_SRC_FILES := TurboAdapter.apk
-+LOCAL_CERTIFICATE := PRESIGNED
-+LOCAL_PRIVILEGED_MODULE := true
-+LOCAL_SYSTEM_EXT_MODULE := true
-+LOCAL_DEX_PREOPT := false
-+LOCAL_MULTILIB := first
-+LOCAL_PREBUILT_JNI_LIBS := lib64/libpowerstatshaldataprovider.so
-+LOCAL_REQUIRED_MODULES := libpowerstatshaldataproviderPrebuilt
-+include $(BUILD_PREBUILT)
 diff --git a/rw-system.sh b/rw-system.sh
-index cda1de1aa66bdfad75b383b2e3cccb1983e4e135..244ddf3fc0edc6f8cff07a82993ca5c4d02661bf 100644
+index cda1de1aa66bdfad75b383b2e3cccb1983e4e135..35ac4faeb59ac2ae37ceab1bed3c4acaed2c6292 100644
 --- a/rw-system.sh
 +++ b/rw-system.sh
-@@ -606,6 +606,10 @@ if getprop ro.vendor.build.fingerprint | grep -iq -e Redmi/rosemary \
+@@ -606,6 +606,17 @@ if getprop ro.vendor.build.fingerprint | grep -iq -e Redmi/rosemary \
  fi
  
  if getprop ro.vendor.build.fingerprint | grep -iq -E -e 'huawei|honor' || getprop persist.sys.overlay.huawei | grep -iq -E -e 'true'; then
++    # Huawei's vendor IMS can register and expose MMTEL voice even when AOSP's
++    # generic CarrierConfig does not list VoLTE for the active carrier. Keep
++    # every slot eligible for IMS dialing; actual registration/capability
++    # checks still gate every call. Clear the former slot-0-only override.
++    setprop persist.dbg.volte_avail_ovr 1
++    setprop persist.dbg.volte_avail_ovr0 0
++
 +    if grep -q vendor.huawei.hardware.perfgenius /vendor/etc/vintf/manifest.xml; then
 +        setprop ro.kirin.config.hw_perfgenius true
 +    fi
@@ -169,7 +135,7 @@ index cda1de1aa66bdfad75b383b2e3cccb1983e4e135..244ddf3fc0edc6f8cff07a82993ca5c4
      p=/product/etc/nfc/libnfc_nxp_*_*.conf
      mount -o bind "$p" /system/etc/libnfc-nxp.conf ||
          mount -o bind /product/etc/libnfc-nxp.conf /system/etc/libnfc-nxp.conf || true
-@@ -772,36 +776,53 @@ if [ -f /system/phh/secure ] || [ -f /metadata/phh/secure ];then
+@@ -772,36 +783,53 @@ if [ -f /system/phh/secure ] || [ -f /metadata/phh/secure ];then
          [ -n "$v" ] && resetprop_phh ro.build.version.security_patch "$v"
      done
  
@@ -243,7 +209,7 @@ index cda1de1aa66bdfad75b383b2e3cccb1983e4e135..244ddf3fc0edc6f8cff07a82993ca5c4
  for abi in "" 64;do
      f=/vendor/lib$abi/libstagefright_foundation.so
      if [ -f "$f" ];then
-@@ -811,7 +832,13 @@ for abi in "" 64;do
+@@ -811,7 +839,13 @@ for abi in "" 64;do
      fi
  done
  
@@ -270,7 +236,7 @@ index d871ed3b93b396e84275ea43b30a7e2a3a36b00d..1e468fd0a2baebdb1dfea23e3325e743
  type hal_audio_sysbta_exec, exec_type, system_file_type, file_type;
  init_daemon_domain(hal_audio_sysbta)
 diff --git a/sepolicy/huawei.te b/sepolicy/huawei.te
-index 2988ed6d4a0b816f4e411598d6a03fda2e5cb66d..d9dd87e7fd2a24117e665c643bdf5b890cd69ba7 100644
+index 2988ed6d4a0b816f4e411598d6a03fda2e5cb66d..c9d23366d0d65408d839e6d8e3535f7391f5cd18 100644
 --- a/sepolicy/huawei.te
 +++ b/sepolicy/huawei.te
 @@ -16,6 +16,12 @@ allowxperm oeminfo_nvm oeminfo_nvm_device:blk_file ioctl { 0x1260 };
@@ -286,6 +252,20 @@ index 2988ed6d4a0b816f4e411598d6a03fda2e5cb66d..d9dd87e7fd2a24117e665c643bdf5b89
  # This is use exclusively for init to relabel /dev/selinux from tmpfs to device
  allow kernel tmpfs:{ dir file } relabelfrom;
  allow kernel device:{ dir file } relabelto;
+@@ -35,3 +41,13 @@ allowxperm vendor_init { teecd_data_file }:dir ioctl {
+ type sys_block_mmcblk0, file_type;
+ allow init sys_block_mmcblk0:lnk_file read;
+ allow init sysfs_zram:lnk_file read;
++
++# Huawei's EMUI 9 IMS service runs in the platform radio domain but its vendor
++# HIDL interface has no public hwservice label. Permit only lookup; registration
++# and all binder/HIDL calls remain governed by the vendor policy.
++allow radio default_android_hwservice:hwservice_manager find;
++
++# The legacy Balong RIL reads read-only system properties while bringing up
++# Huawei IMS. Without this grant it loops on property-area denials before the
++# IMS HAL is usable.
++get_prop(rild, system_prop);
 diff --git a/sepolicy/property_contexts b/sepolicy/property_contexts
 index 185a08bc3442cbc6d9bed0c593222500bfc6c696..76c4c503e09125bc7e286ebb995b234dacd3cbb7 100644
 --- a/sepolicy/property_contexts
@@ -369,3 +349,43 @@ index 823456aad887cff993724ff59345d563030eba4c..01e0257408c0450d90822db51086132f
  on property:vold.decrypt=trigger_restart_framework
  	exec - root -- /system/bin/phh-on-data.sh
  
+diff --git a/prebuilt/TurboAdapter/.gitignore b/prebuilt/TurboAdapter/.gitignore
+new file mode 100644
+index 0000000000000000000000000000000000000000..24463d51a30970e39ac358563acd91eb36d66701
+--- /dev/null
++++ b/prebuilt/TurboAdapter/.gitignore
+@@ -0,0 +1,2 @@
++TurboAdapter.apk
++lib64/*.so
+diff --git a/prebuilt/TurboAdapter/Android.mk b/prebuilt/TurboAdapter/Android.mk
+new file mode 100644
+index 0000000000000000000000000000000000000000..ca328c96abd3d8ecbe2562ee2adb7c694286975c
+--- /dev/null
++++ b/prebuilt/TurboAdapter/Android.mk
+@@ -0,0 +1,26 @@
++LOCAL_PATH := $(call my-dir)
++
++include $(CLEAR_VARS)
++LOCAL_MODULE := libpowerstatshaldataproviderPrebuilt
++LOCAL_MODULE_CLASS := SHARED_LIBRARIES
++LOCAL_MODULE_SUFFIX := .so
++LOCAL_MULTILIB := 64
++LOCAL_SRC_FILES := lib64/libpowerstatshaldataproviderPrebuilt.so
++LOCAL_SYSTEM_EXT_MODULE := true
++LOCAL_CHECK_ELF_FILES := false
++LOCAL_STRIP_MODULE := false
++include $(BUILD_PREBUILT)
++
++include $(CLEAR_VARS)
++LOCAL_MODULE := TurboAdapter
++LOCAL_MODULE_CLASS := APPS
++LOCAL_MODULE_SUFFIX := .apk
++LOCAL_SRC_FILES := TurboAdapter.apk
++LOCAL_CERTIFICATE := PRESIGNED
++LOCAL_PRIVILEGED_MODULE := true
++LOCAL_SYSTEM_EXT_MODULE := true
++LOCAL_DEX_PREOPT := false
++LOCAL_MULTILIB := first
++LOCAL_PREBUILT_JNI_LIBS := lib64/libpowerstatshaldataprovider.so
++LOCAL_REQUIRED_MODULES := libpowerstatshaldataproviderPrebuilt
++include $(BUILD_PREBUILT)

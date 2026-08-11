@@ -26,6 +26,94 @@ index 1da9f4bba1d82bb0eabf719088bf93385812a2f7..a5eeeccdff5dce01f90129db4548a270
                      TelephonyManager.from(mContext).setBasebandVersionForPhone(getPhoneId(),
                              length <= MAX_VERSION_LEN ? version
                                  : version.substring(length - MAX_VERSION_LEN, length));
+diff --git a/src/java/com/android/internal/telephony/ProxyController.java b/src/java/com/android/internal/telephony/ProxyController.java
+index 76f0041ee20998129a10b906f23fdd63da47fe91..4523ffef81b51cb8ac6486253681b5702cc63df4 100644
+--- a/src/java/com/android/internal/telephony/ProxyController.java
++++ b/src/java/com/android/internal/telephony/ProxyController.java
+@@ -246,6 +246,60 @@ public class ProxyController {
+         return doSetRadioCapabilities(rafs);
+     }
+ 
++    /**
++     * Move logical modem 0 to {@code phoneId} while preserving every phone's RAF.
++     *
++     * Huawei dual-LTE modems expose identical RAFs for both phones, so the normal
++     * RAF-only comparison cannot express the stock default-4G-slot operation.
++     */
++    public boolean setPrimaryLogicalModemForPhone(int phoneId) {
++        if (!SubscriptionManager.isValidPhoneId(phoneId) || phoneId >= mPhones.length) {
++            loge("setPrimaryLogicalModemForPhone: invalid phoneId=" + phoneId);
++            return false;
++        }
++
++        int currentPrimaryPhoneId = -1;
++        for (int i = 0; i < mPhones.length; i++) {
++            if ("0".equals(mPhones[i].getModemUuId())) {
++                currentPrimaryPhoneId = i;
++                break;
++            }
++        }
++        if (currentPrimaryPhoneId == phoneId) {
++            logd("setPrimaryLogicalModemForPhone: phoneId=" + phoneId
++                    + " already owns logical modem 0");
++            return true;
++        }
++        if (currentPrimaryPhoneId < 0) {
++            loge("setPrimaryLogicalModemForPhone: logical modem 0 not found");
++            return false;
++        }
++
++        synchronized (mSetRadioAccessFamilyStatus) {
++            for (int i = 0; i < mPhones.length; i++) {
++                if (mSetRadioAccessFamilyStatus[i] != SET_RC_STATUS_IDLE) {
++                    loge("setPrimaryLogicalModemForPhone: transaction already active");
++                    return false;
++                }
++            }
++        }
++
++        RadioAccessFamily[] rafs = new RadioAccessFamily[mPhones.length];
++        String[] logicalModemIds = new String[mPhones.length];
++        for (int i = 0; i < mPhones.length; i++) {
++            rafs[i] = new RadioAccessFamily(i, mPhones[i].getRadioAccessFamily());
++            logicalModemIds[i] = mPhones[i].getModemUuId();
++        }
++        logicalModemIds[currentPrimaryPhoneId] = logicalModemIds[phoneId];
++        logicalModemIds[phoneId] = "0";
++
++        logd("setPrimaryLogicalModemForPhone: moving logical modem 0 from phoneId="
++                + currentPrimaryPhoneId + " to phoneId=" + phoneId);
++        clearTransaction();
++        mWakeLock.acquire();
++        return doSetRadioCapabilities(rafs, logicalModemIds);
++    }
++
+     /**
+      * Get the SmsController.
+      * @return the SmsController object.
+@@ -255,6 +309,11 @@ public class ProxyController {
+     }
+ 
+     private boolean doSetRadioCapabilities(RadioAccessFamily[] rafs) {
++        return doSetRadioCapabilities(rafs, null);
++    }
++
++    private boolean doSetRadioCapabilities(RadioAccessFamily[] rafs,
++            String[] requestedLogicalModemIds) {
+         // A new sessionId for this transaction
+         mRadioCapabilitySessionId = mUniqueIdGenerator.getAndIncrement();
+ 
+@@ -280,7 +339,9 @@ public class ProxyController {
+                 mCurrentLogicalModemIds[phoneId] = mPhones[phoneId].getModemUuId();
+                 // get the logical mode corresponds to new raf requested and pass the
+                 // same as part of SET_RADIO_CAP APPLY phase
+-                mNewLogicalModemIds[phoneId] = getLogicalModemIdFromRaf(requestedRaf);
++                mNewLogicalModemIds[phoneId] = requestedLogicalModemIds == null
++                        ? getLogicalModemIdFromRaf(requestedRaf)
++                        : requestedLogicalModemIds[phoneId];
+                 logd("setRadioCapability: mOldRadioAccessFamily[" + phoneId + "]="
+                         + mOldRadioAccessFamily[phoneId]);
+                 logd("setRadioCapability: mNewRadioAccessFamily[" + phoneId + "]="
 diff --git a/src/java/com/android/internal/telephony/RIL.java b/src/java/com/android/internal/telephony/RIL.java
 index 70431f6a0c27285bdb31b0c9a7dfdf2c8a83cf75..182b33565662145bfb043ecbe81d990ff7a3ff0f 100644
 --- a/src/java/com/android/internal/telephony/RIL.java
@@ -232,10 +320,18 @@ index 81abbe6284080bb63dacfbee2901ab0d062ab8fc..b2259d3698c8db77efb78c31477ef61e
              if (responseInfo.error == RadioError.NONE) {
                  sendMessageResponse(rr.mResult, iccCardStatus);
 diff --git a/src/java/com/android/internal/telephony/SubscriptionController.java b/src/java/com/android/internal/telephony/SubscriptionController.java
-index 8373681005e4b3116c0129e3de86449e031711d5..a08a780189dd3ad980d88eed05ddb28dc190e7e0 100644
+index 8373681005e4b3116c0129e3de86449e031711d5..592fba6802d34c6a8e13c13f336d13413c342693 100644
 --- a/src/java/com/android/internal/telephony/SubscriptionController.java
 +++ b/src/java/com/android/internal/telephony/SubscriptionController.java
-@@ -2855,9 +2855,22 @@ public class SubscriptionController extends ISub.Stub {
+@@ -47,6 +47,7 @@ import android.os.ParcelUuid;
+ import android.os.PersistableBundle;
+ import android.os.RegistrantList;
+ import android.os.RemoteException;
++import android.os.SystemProperties;
+ import android.os.TelephonyServiceManager.ServiceRegisterer;
+ import android.os.UserHandle;
+ import android.provider.Settings;
+@@ -2855,9 +2856,22 @@ public class SubscriptionController extends ISub.Stub {
                          subId);
  
          TelecomManager telecomManager = mContext.getSystemService(TelecomManager.class);
@@ -261,6 +357,38 @@ index 8373681005e4b3116c0129e3de86449e031711d5..a08a780189dd3ad980d88eed05ddb28d
  
          if (previousDefaultSub != getDefaultSubId()) {
              sendDefaultChangedBroadcast(getDefaultSubId());
+@@ -2921,6 +2935,7 @@ public class SubscriptionController extends ISub.Stub {
+                 // Only re-map modems if the new default data sub is valid
+                 RadioAccessFamily[] rafs = new RadioAccessFamily[len];
+                 boolean atLeastOneMatch = false;
++                int targetPhoneId = SubscriptionManager.INVALID_PHONE_INDEX;
+                 for (int phoneId = 0; phoneId < len; phoneId++) {
+                     Phone phone = PhoneFactory.getPhone(phoneId);
+                     int raf;
+@@ -2929,6 +2944,7 @@ public class SubscriptionController extends ISub.Stub {
+                         // TODO Handle the general case of N modems and M subscriptions.
+                         raf = proxyController.getMaxRafSupported();
+                         atLeastOneMatch = true;
++                        targetPhoneId = phoneId;
+                     } else {
+                         // TODO Handle the general case of N modems and M subscriptions.
+                         raf = proxyController.getMinRafSupported();
+@@ -2938,7 +2954,14 @@ public class SubscriptionController extends ISub.Stub {
+                     rafs[phoneId] = new RadioAccessFamily(phoneId, raf);
+                 }
+                 if (atLeastOneMatch) {
+-                    proxyController.setRadioCapability(rafs);
++                    final boolean isHuawei = "HUAWEI".equalsIgnoreCase(SystemProperties.get(
++                            "ro.product.vendor.manufacturer", ""));
++                    if (isHuawei && proxyController.getMaxRafSupported()
++                            == proxyController.getMinRafSupported()) {
++                        proxyController.setPrimaryLogicalModemForPhone(targetPhoneId);
++                    } else {
++                        proxyController.setRadioCapability(rafs);
++                    }
+                 } else {
+                     if (DBG) logdl("[setDefaultDataSubId] no valid subId's found - not updating.");
+                 }
 diff --git a/src/java/com/android/internal/telephony/dataconnection/DcTracker.java b/src/java/com/android/internal/telephony/dataconnection/DcTracker.java
 index 28f69dcdc9159dea7c2f3b16a53a1402927007ef..3e73e2b9efc0f983c9503f58241c0f1bfc42fb8a 100755
 --- a/src/java/com/android/internal/telephony/dataconnection/DcTracker.java

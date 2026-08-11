@@ -20,8 +20,9 @@ are extracted from the published
   repositories that cannot simply be replaced by TrebleDroid forks.
 - The TrebleDroid compatibility set is upstream work, not a PAR-specific
   addition. Its original authors are recorded in `ATTRIBUTION.md`.
-- CalyxOS provides the Chromium and Trichrome WebView components integrated by
-  this release.
+- Cromite provides the Chromium and System WebView components integrated by
+  this release. Version `147.0.7727.56` is pinned because newer 148/151 builds
+  fail to initialize Chromium's GPU path on the nova 3 Mali-G72 stack.
 
 ## Disclaimer
 
@@ -56,7 +57,9 @@ lunch treble_arm64_bvN-userdebug
 make systemimage -j"$(nproc)"
 ```
 
-Provide signing keys and optional browser prebuilts outside this repository.
+Provide signing keys and release-only prebuilts outside this repository. Exact
+Cromite release inputs are documented in [`PREBUILTS.md`](PREBUILTS.md);
+the APKs themselves are not stored here.
 
 ## Installation
 
@@ -88,5 +91,5 @@ license and authorship of its upstream project; see
 - [TrebleDroid](https://github.com/TrebleDroid) and Pierre-Hugues Husson's
   [PHH-Treble](https://github.com/phhusson/treble_experimentations) provide the
   GSI and device-compatibility foundation.
-- [CalyxOS](https://gitlab.com/CalyxOS) provides the Chromium browser and
-  Trichrome WebView used by the release build.
+- [Cromite](https://github.com/uazo/cromite) provides the Chromium browser and
+  System WebView used by the release build.

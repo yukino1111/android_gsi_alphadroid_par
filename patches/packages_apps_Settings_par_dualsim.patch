@@ -1,0 +1,273 @@
+# Provenance: PAR/release integration maintained by yukino1111 against the
+# pinned upstream project. Upstream file copyrights and licenses still apply.
+diff --git a/src/com/android/settings/network/SubscriptionUtil.java b/src/com/android/settings/network/SubscriptionUtil.java
+index ccfcfb0a752687a561b4453f508cc3107433eac9..69dffab2b59e59ea53f26571984d04367db17c59 100644
+--- a/src/com/android/settings/network/SubscriptionUtil.java
++++ b/src/com/android/settings/network/SubscriptionUtil.java
+@@ -23,7 +23,9 @@ import static com.android.internal.util.CollectionUtils.emptyIfNull;
+ 
+ import android.annotation.Nullable;
+ import android.content.Context;
++import android.content.SharedPreferences;
+ import android.os.ParcelUuid;
++import android.os.SystemProperties;
+ import android.provider.Settings;
+ import android.telephony.PhoneNumberUtils;
+ import android.telephony.SubscriptionInfo;
+@@ -59,6 +61,10 @@ import java.util.stream.Stream;
+ public class SubscriptionUtil {
+     private static final String TAG = "SubscriptionUtil";
+     private static final String PROFILE_GENERIC_DISPLAY_NAME = "CARD";
++    private static final String LEGACY_SIM_POWER_PREFS = "legacy_sim_power_prefs";
++    private static final String KEY_LEGACY_SIM_DISABLED_PREFIX = "disabled_sub_";
++    private static final String KEY_LEGACY_SIM_SLOT_PREFIX = "slot_sub_";
++    private static final String KEY_LEGACY_SIM_BOOT_PREFIX = "boot_sub_";
+     private static List<SubscriptionInfo> sAvailableResultsForTesting;
+     private static List<SubscriptionInfo> sActiveResultsForTesting;
+ 
+@@ -113,7 +119,72 @@ public class SubscriptionUtil {
+         if (sAvailableResultsForTesting != null) {
+             return sAvailableResultsForTesting;
+         }
+-        return new ArrayList<>(emptyIfNull(getSelectableSubscriptionInfoList(context)));
++        final List<SubscriptionInfo> result = new ArrayList<>(
++                emptyIfNull(getSelectableSubscriptionInfoList(context)));
++        if (!isLegacySimPowerToggleSupported()) {
++            return result;
++        }
++
++        final SubscriptionManager subManager = context.getSystemService(SubscriptionManager.class);
++        if (subManager == null) {
++            return result;
++        }
++        final List<SubscriptionInfo> allSubscriptions = subManager.getAllSubscriptionInfoList();
++        if (allSubscriptions == null) {
++            return result;
++        }
++        for (SubscriptionInfo info : allSubscriptions) {
++            if (!info.isEmbedded()
++                    && isLegacySimPowerDisabled(context, info.getSubscriptionId())
++                    && result.stream().noneMatch(existing -> existing.getSubscriptionId()
++                            == info.getSubscriptionId())) {
++                result.add(info);
++            }
++        }
++        return result;
++    }
++
++    /** Returns whether this GSI should use the pre-1.5 per-slot SIM power compatibility path. */
++    public static boolean isLegacySimPowerToggleSupported() {
++        return SystemProperties.getBoolean("persist.sys.overlay.huawei", false);
++    }
++
++    /** Records a successful legacy SIM power operation for the current boot only. */
++    public static void setLegacySimPowerState(
++            Context context, int subId, int slotIndex, boolean enabled) {
++        final SharedPreferences prefs = context.getSharedPreferences(
++                LEGACY_SIM_POWER_PREFS, Context.MODE_PRIVATE);
++        final SharedPreferences.Editor editor = prefs.edit();
++        if (enabled) {
++            editor.remove(KEY_LEGACY_SIM_DISABLED_PREFIX + subId)
++                    .remove(KEY_LEGACY_SIM_BOOT_PREFIX + subId);
++        } else {
++            editor.putBoolean(KEY_LEGACY_SIM_DISABLED_PREFIX + subId, true)
++                    .putInt(KEY_LEGACY_SIM_BOOT_PREFIX + subId, getBootCount(context));
++        }
++        if (slotIndex != INVALID_SIM_SLOT_INDEX) {
++            editor.putInt(KEY_LEGACY_SIM_SLOT_PREFIX + subId, slotIndex);
++        }
++        editor.apply();
++    }
++
++    /** Returns a slot remembered before a legacy physical SIM was powered down. */
++    public static int getLegacySimSlot(Context context, int subId) {
++        return context.getSharedPreferences(LEGACY_SIM_POWER_PREFS, Context.MODE_PRIVATE)
++                .getInt(KEY_LEGACY_SIM_SLOT_PREFIX + subId, INVALID_SIM_SLOT_INDEX);
++    }
++
++    /** Returns true only when the subscription was powered down during the current boot. */
++    public static boolean isLegacySimPowerDisabled(Context context, int subId) {
++        final SharedPreferences prefs = context.getSharedPreferences(
++                LEGACY_SIM_POWER_PREFS, Context.MODE_PRIVATE);
++        return prefs.getBoolean(KEY_LEGACY_SIM_DISABLED_PREFIX + subId, false)
++                && prefs.getInt(KEY_LEGACY_SIM_BOOT_PREFIX + subId, -1) == getBootCount(context);
++    }
++
++    private static int getBootCount(Context context) {
++        return Settings.Global.getInt(
++                context.getContentResolver(), Settings.Global.BOOT_COUNT, -1);
+     }
+ 
+     /**
+@@ -381,7 +452,7 @@ public class SubscriptionUtil {
+      * Whether Settings should show a "Use SIM" toggle in pSIM detailed page.
+      */
+     public static boolean showToggleForPhysicalSim(SubscriptionManager subMgr) {
+-        return subMgr.canDisablePhysicalSubscription();
++        return subMgr.canDisablePhysicalSubscription() || isLegacySimPowerToggleSupported();
+     }
+ 
+     /**
+diff --git a/src/com/android/settings/network/helper/SelectableSubscriptions.java b/src/com/android/settings/network/helper/SelectableSubscriptions.java
+index 8e8f405e1fbbde7ab0aa78a0abe9927a9565bafc..9f85bf385b0f1a5d915b58623e93f2c806ef4597 100644
+--- a/src/com/android/settings/network/helper/SelectableSubscriptions.java
++++ b/src/com/android/settings/network/helper/SelectableSubscriptions.java
+@@ -24,6 +24,7 @@ import android.util.Log;
+ import androidx.annotation.Keep;
+ import androidx.annotation.VisibleForTesting;
+ 
++import com.android.settings.network.SubscriptionUtil;
+ import com.android.settings.network.helper.SubscriptionAnnotation;
+ import com.android.settingslib.utils.ThreadUtils;
+ 
+@@ -150,7 +151,7 @@ public class SelectableSubscriptions implements Callable<List<SubscriptionAnnota
+     }
+ 
+     protected List<SubscriptionInfo> getAvailableSubInfoList(Context context) {
+-        return getSubInfoList(context, SubscriptionManager::getAvailableSubscriptionInfoList);
++        return SubscriptionUtil.getAvailableSubscriptions(context);
+     }
+ 
+     protected List<SubscriptionInfo> getActiveSubInfoList(Context context) {
+@@ -167,4 +168,4 @@ public class SelectableSubscriptions implements Callable<List<SubscriptionAnnota
+                 .map(idx -> atomicIntArray.get(idx)).boxed()
+                 .collect(Collectors.toList());
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/src/com/android/settings/network/telephony/MobileNetworkSwitchController.java b/src/com/android/settings/network/telephony/MobileNetworkSwitchController.java
+index 5014634329989ff64100aa4c6172155069dad270..fbbf1cf9e6687871efbd3ae6555c40b2b2399064 100644
+--- a/src/com/android/settings/network/telephony/MobileNetworkSwitchController.java
++++ b/src/com/android/settings/network/telephony/MobileNetworkSwitchController.java
+@@ -71,7 +71,11 @@ public class MobileNetworkSwitchController extends BasePreferenceController impl
+         mSwitchBar.setOnBeforeCheckedChangeListener((toggleSwitch, isChecked) -> {
+             // TODO b/135222940: re-evaluate whether to use
+             // mSubscriptionManager#isSubscriptionEnabled
+-            if (mSubscriptionManager.isActiveSubscriptionId(mSubId) != isChecked) {
++            final boolean legacyDisabled = SubscriptionUtil.isLegacySimPowerToggleSupported()
++                    && SubscriptionUtil.isLegacySimPowerDisabled(mContext, mSubId);
++            final boolean currentlyEnabled = !legacyDisabled
++                    && mSubscriptionManager.isActiveSubscriptionId(mSubId);
++            if (currentlyEnabled != isChecked) {
+                 SubscriptionUtil.startToggleSubscriptionDialogActivity(mContext, mSubId, isChecked);
+                 return true;
+             }
+@@ -100,7 +104,10 @@ public class MobileNetworkSwitchController extends BasePreferenceController impl
+             mSwitchBar.hide();
+         } else {
+             mSwitchBar.show();
+-            mSwitchBar.setCheckedInternal(mSubscriptionManager.isActiveSubscriptionId(mSubId));
++            final boolean legacyDisabled = SubscriptionUtil.isLegacySimPowerToggleSupported()
++                    && SubscriptionUtil.isLegacySimPowerDisabled(mContext, mSubId);
++            mSwitchBar.setCheckedInternal(!legacyDisabled
++                    && mSubscriptionManager.isActiveSubscriptionId(mSubId));
+         }
+     }
+ 
+diff --git a/src/com/android/settings/network/telephony/ToggleSubscriptionDialogActivity.java b/src/com/android/settings/network/telephony/ToggleSubscriptionDialogActivity.java
+index 6fa803d04330a1047850f55a78c3d5fb249adc34..ac9778de9dea2eb21d9690646fdb2988062f2d44 100644
+--- a/src/com/android/settings/network/telephony/ToggleSubscriptionDialogActivity.java
++++ b/src/com/android/settings/network/telephony/ToggleSubscriptionDialogActivity.java
+@@ -122,6 +122,12 @@ public class ToggleSubscriptionDialogActivity extends SubscriptionActionDialogAc
+         Log.i(TAG, "isMultipleEnabledProfilesSupported():" + isMultipleEnabledProfilesSupported());
+ 
+         if (savedInstanceState == null) {
++            if (!mIsEsimOperation
++                    && SubscriptionUtil.isLegacySimPowerToggleSupported()) {
++                Log.i(TAG, "Toggling Huawei physical SIM without confirmation.");
++                handleTogglePsimAction();
++                return;
++            }
+             if (mEnable) {
+                 showEnableSubDialog();
+             } else {
+@@ -214,6 +220,11 @@ public class ToggleSubscriptionDialogActivity extends SubscriptionActionDialogAc
+                 }
+             case DIALOG_TAG_ENABLE_SIM_CONFIRMATION:
+                 Log.i(TAG, "User confirmed to enable the subscription.");
++                if (!mIsEsimOperation
++                        && SubscriptionUtil.isLegacySimPowerToggleSupported()) {
++                    handleTogglePsimAction();
++                    return;
++                }
+                 showProgressDialog(
+                         getString(
+                                 R.string.sim_action_switch_sub_dialog_progress,
+@@ -314,16 +325,76 @@ public class ToggleSubscriptionDialogActivity extends SubscriptionActionDialogAc
+     private void handleTogglePsimAction() {
+         if (mSubscriptionManager.canDisablePhysicalSubscription() && mSubInfo != null) {
+             mSubscriptionManager.setUiccApplicationsEnabled(mSubInfo.getSubscriptionId(), mEnable);
++            reassertDefaultDataSubscription();
+             finish();
++        } else if (SubscriptionUtil.isLegacySimPowerToggleSupported() && mSubInfo != null) {
++            int slotIndex = mSubInfo.getSimSlotIndex();
++            if (slotIndex == SubscriptionManager.INVALID_SIM_SLOT_INDEX) {
++                slotIndex = SubscriptionUtil.getLegacySimSlot(
++                        this, mSubInfo.getSubscriptionId());
++            }
++            if (slotIndex == SubscriptionManager.INVALID_SIM_SLOT_INDEX) {
++                Log.e(TAG, "Unable to resolve the physical slot for legacy SIM power toggle.");
++                showErrorDialog(
++                        getString(R.string.sim_action_enable_sim_fail_title),
++                        getString(R.string.sim_action_enable_sim_fail_text));
++                return;
++            }
++
++            final int targetSlot = slotIndex;
++            final int targetState = mEnable ? TelephonyManager.CARD_POWER_UP
++                    : TelephonyManager.CARD_POWER_DOWN;
++            if (mEnable) {
++                showProgressDialog(getString(
++                        R.string.sim_action_switch_sub_dialog_progress,
++                        SubscriptionUtil.getUniqueSubscriptionDisplayName(mSubInfo, this)));
++            } else {
++                showProgressDialog(
++                        getString(R.string.privileged_action_disable_sub_dialog_progress));
++            }
++            mTelMgr.setSimPowerStateForSlot(targetSlot, targetState, getMainExecutor(), result -> {
++                if (result == TelephonyManager.SET_SIM_POWER_STATE_SUCCESS
++                        || result == TelephonyManager.SET_SIM_POWER_STATE_ALREADY_IN_STATE) {
++                    SubscriptionUtil.setLegacySimPowerState(this,
++                            mSubInfo.getSubscriptionId(), targetSlot, mEnable);
++                    reassertDefaultDataSubscription();
++                    dismissProgressDialog();
++                    finish();
++                    return;
++                }
++                Log.e(TAG, "Legacy SIM power request failed for slot " + targetSlot
++                        + " with result " + result);
++                dismissProgressDialog();
++                showErrorDialog(
++                        getString(R.string.sim_action_enable_sim_fail_title),
++                        getString(R.string.sim_action_enable_sim_fail_text));
++            });
+         } else {
+             Log.i(TAG, "The device does not support toggling pSIM. It is enough to just "
+                     + "enable the removable slot.");
+         }
+     }
+ 
++    private void reassertDefaultDataSubscription() {
++        if (!mEnable) {
++            return;
++        }
++        final int defaultDataSubId = SubscriptionManager.getDefaultDataSubscriptionId();
++        if (!SubscriptionManager.isUsableSubscriptionId(defaultDataSubId)) {
++            Log.w(TAG, "No usable default data subscription to reassert after SIM power up.");
++            return;
++        }
++        Log.i(TAG, "Reasserting the default data subscription after Huawei SIM power up.");
++        mSubscriptionManager.setDefaultDataSubId(defaultDataSubId);
++    }
++
+     /* Handles the enabling SIM action. */
+     private void showEnableSubDialog() {
+         Log.d(TAG, "Handle subscription enabling.");
++        if (!mIsEsimOperation && SubscriptionUtil.isLegacySimPowerToggleSupported()) {
++            showEnableSimConfirmDialog();
++            return;
++        }
+         if (isDsdsConditionSatisfied()) {
+             showEnableDsdsConfirmDialog();
+             return;

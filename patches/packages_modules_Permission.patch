@@ -1,7 +1,7 @@
 # Provenance: PAR-specific compatibility hardening maintained by yukino1111.
 # Removes the inherited signature-spoofing permission mapping exposed by PermissionController.
 diff --git a/PermissionController/src/com/android/permissioncontroller/permission/utils/Utils.java b/PermissionController/src/com/android/permissioncontroller/permission/utils/Utils.java
-index 139759d41..48793ab51 100644
+index 139759d41e7387916cc1194c83d045c212846fb7..48793ab51e95b9bbc317801ce626b4e5828c2e8b 100644
 --- a/PermissionController/src/com/android/permissioncontroller/permission/utils/Utils.java
 +++ b/PermissionController/src/com/android/permissioncontroller/permission/utils/Utils.java
 @@ -21,7 +21,6 @@ import static android.Manifest.permission_group.CALENDAR;
