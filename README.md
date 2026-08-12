@@ -7,9 +7,17 @@ TrebleDroid Android 13 GSI on Huawei nova 3 (`PAR`). It contains the upstream
 integration, PAR-specific changes, and release tooling, not a copy of the
 Android source tree.
 
-TurboAdapter and all other proprietary inputs are excluded. The required files
-are extracted from the published
-[AlphaDroid 1.7 arm64 bvN vanilla image](https://sourceforge.net/projects/alphadroid-gsi/files/2023.07.07/AlphaDroid-v1.7.0-arm64_bvN-20230707-vanilla.img.xz/download).
+Proprietary release inputs are excluded. The former Google TurboAdapter and its
+PowerStats provider library were removed because Android 13 rejected the APK's
+legacy signature and neither copy of the library was loaded.
+
+On Huawei vendor images, the framework asynchronously emits the supported
+UniPerf touch, launch, scroll, fling, window, rotation, screen-on, and
+fingerprint events. The bridge is device-gated and rate-limited, and its vendor
+HIDL access is covered by narrowly scoped SELinux policy. It remains dormant
+unless the independently distributed
+[PAR Kirin 970 Scheduler](https://github.com/yukino1111/android_module_par_kirin970_scheduler)
+verifies and enables a compatible systemless policy.
 
 ## Upstream source base
 
@@ -44,13 +52,11 @@ use the companion release from
 
 ## Build
 
-Sync the revisions in `manifest/locked.xml`, download and decompress the
-reference image linked above, then run:
+Sync the revisions in `manifest/locked.xml`, then run:
 
 ```bash
 PATCH_REPO=/path/to/this-repo
 "$PATCH_REPO/scripts/apply.sh" /path/to/alphadroid
-"$PATCH_REPO/scripts/extract-proprietary.sh" /path/to/alphadroid-1.7-system.img /path/to/alphadroid
 cd /path/to/alphadroid
 source build/envsetup.sh
 lunch treble_arm64_bvN-userdebug

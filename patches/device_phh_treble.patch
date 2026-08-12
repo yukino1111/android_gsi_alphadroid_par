@@ -1,5 +1,5 @@
 diff --git a/base.mk b/base.mk
-index bf8f11783566c82395ae57b77acfa0a2d9d8fc86..c7e700e42df40855846bc658c8caeedc053d74b5 100644
+index bf8f117..c7e700e 100644
 --- a/base.mk
 +++ b/base.mk
 @@ -24,7 +24,7 @@ PRODUCT_COPY_FILES += \
@@ -83,10 +83,10 @@ index bf8f11783566c82395ae57b77acfa0a2d9d8fc86..c7e700e42df40855846bc658c8caeedc
  # Two-pane layout in Settings
  PRODUCT_PACKAGES += \
 diff --git a/lineage.mk b/lineage.mk
-index 172bb012af4e1e21bcfdf25476583b88fd005507..2905ad1bb64b45dd838b492e1744ff6620f0d91f 100644
+index 172bb01..4acb69a 100644
 --- a/lineage.mk
 +++ b/lineage.mk
-@@ -1,3 +1,32 @@
+@@ -1,3 +1,31 @@
 +# Match the validated PAR vanilla product composition.
 +TARGET_HAS_UDFPS := true
 +TARGET_EXCLUDE_LINEAGE_ADDON_D := true
@@ -110,8 +110,7 @@ index 172bb012af4e1e21bcfdf25476583b88fd005507..2905ad1bb64b45dd838b492e1744ff66
 +# Keep the vanilla image composition used by the working PAR build.
 +PRODUCT_PACKAGES += \
 +    par-vanilla-overrides \
-+    Music \
-+    TurboAdapter
++    Music
 +
 +# The APKs live outside the source tree and are bind-mounted by the PAR build
 +# wrapper. A missing mount keeps ordinary TrebleDroid builds on AOSP WebView.
@@ -120,7 +119,7 @@ index 172bb012af4e1e21bcfdf25476583b88fd005507..2905ad1bb64b45dd838b492e1744ff66
 +PRODUCT_SYSTEM_DEFAULT_PROPERTIES += \
 +    ro.oem_unlock_supported=0
 diff --git a/overlay/frameworks/base/core/res/res/xml/config_webview_packages.xml b/overlay/frameworks/base/core/res/res/xml/config_webview_packages.xml
-index 3f96e59a7cd1816c5c47b52c0efd16c815512d7b..8a460206fad238de5a8c3f470897d1ad1c1b3667 100644
+index 3f96e59..8a46020 100644
 --- a/overlay/frameworks/base/core/res/res/xml/config_webview_packages.xml
 +++ b/overlay/frameworks/base/core/res/res/xml/config_webview_packages.xml
 @@ -31,6 +31,6 @@
@@ -133,7 +132,7 @@ index 3f96e59a7cd1816c5c47b52c0efd16c815512d7b..8a460206fad238de5a8c3f470897d1ad
 +    <webviewprovider description="Cromite WebView" packageName="com.android.webview" availableByDefault="true" isFallback="true" />
  </webviewproviders>
 diff --git a/overrides/Android.mk b/overrides/Android.mk
-index 813d66bc4d2e4fb2eb1afe77a723e69d1867b2b7..1cd7c9fd226337e5ce9091a8e552169a8403a77c 100644
+index 813d66b..1cd7c9f 100644
 --- a/overrides/Android.mk
 +++ b/overrides/Android.mk
 @@ -1,5 +1,21 @@
@@ -160,7 +159,7 @@ index 813d66bc4d2e4fb2eb1afe77a723e69d1867b2b7..1cd7c9fd226337e5ce9091a8e552169a
  PACKAGES.$(LOCAL_MODULE).OVERRIDES := \
 diff --git a/par-default-permissions.xml b/par-default-permissions.xml
 new file mode 100644
-index 0000000000000000000000000000000000000000..636fc06a69f0d81b4e39310aa01094a648b2deec
+index 0000000..636fc06
 --- /dev/null
 +++ b/par-default-permissions.xml
 @@ -0,0 +1,8 @@
@@ -172,48 +171,8 @@ index 0000000000000000000000000000000000000000..636fc06a69f0d81b4e39310aa01094a6
 +        <permission name="android.permission.ACCESS_COARSE_LOCATION" fixed="false"/>
 +    </exception>
 +</exceptions>
-diff --git a/prebuilt/TurboAdapter/.gitignore b/prebuilt/TurboAdapter/.gitignore
-new file mode 100644
-index 0000000000000000000000000000000000000000..24463d51a30970e39ac358563acd91eb36d66701
---- /dev/null
-+++ b/prebuilt/TurboAdapter/.gitignore
-@@ -0,0 +1,2 @@
-+TurboAdapter.apk
-+lib64/*.so
-diff --git a/prebuilt/TurboAdapter/Android.mk b/prebuilt/TurboAdapter/Android.mk
-new file mode 100644
-index 0000000000000000000000000000000000000000..ca328c96abd3d8ecbe2562ee2adb7c694286975c
---- /dev/null
-+++ b/prebuilt/TurboAdapter/Android.mk
-@@ -0,0 +1,26 @@
-+LOCAL_PATH := $(call my-dir)
-+
-+include $(CLEAR_VARS)
-+LOCAL_MODULE := libpowerstatshaldataproviderPrebuilt
-+LOCAL_MODULE_CLASS := SHARED_LIBRARIES
-+LOCAL_MODULE_SUFFIX := .so
-+LOCAL_MULTILIB := 64
-+LOCAL_SRC_FILES := lib64/libpowerstatshaldataproviderPrebuilt.so
-+LOCAL_SYSTEM_EXT_MODULE := true
-+LOCAL_CHECK_ELF_FILES := false
-+LOCAL_STRIP_MODULE := false
-+include $(BUILD_PREBUILT)
-+
-+include $(CLEAR_VARS)
-+LOCAL_MODULE := TurboAdapter
-+LOCAL_MODULE_CLASS := APPS
-+LOCAL_MODULE_SUFFIX := .apk
-+LOCAL_SRC_FILES := TurboAdapter.apk
-+LOCAL_CERTIFICATE := PRESIGNED
-+LOCAL_PRIVILEGED_MODULE := true
-+LOCAL_SYSTEM_EXT_MODULE := true
-+LOCAL_DEX_PREOPT := false
-+LOCAL_MULTILIB := first
-+LOCAL_PREBUILT_JNI_LIBS := lib64/libpowerstatshaldataprovider.so
-+LOCAL_REQUIRED_MODULES := libpowerstatshaldataproviderPrebuilt
-+include $(BUILD_PREBUILT)
 diff --git a/rw-system.sh b/rw-system.sh
-index cda1de1aa66bdfad75b383b2e3cccb1983e4e135..35ac4faeb59ac2ae37ceab1bed3c4acaed2c6292 100644
+index cda1de1..35ac4fa 100644
 --- a/rw-system.sh
 +++ b/rw-system.sh
 @@ -606,6 +606,17 @@ if getprop ro.vendor.build.fingerprint | grep -iq -e Redmi/rosemary \
@@ -324,7 +283,7 @@ index cda1de1aa66bdfad75b383b2e3cccb1983e4e135..35ac4faeb59ac2ae37ceab1bed3c4aca
  if getprop ro.boot.boot_devices |grep -v , |grep -qE .;then
      ln -s /dev/block/platform/$(getprop ro.boot.boot_devices) /dev/block/bootdevice
 diff --git a/sepolicy/hal_audio_sysbta.te b/sepolicy/hal_audio_sysbta.te
-index d871ed3b93b396e84275ea43b30a7e2a3a36b00d..1e468fd0a2baebdb1dfea23e3325e7432e0efb22 100644
+index d871ed3..1e468fd 100644
 --- a/sepolicy/hal_audio_sysbta.te
 +++ b/sepolicy/hal_audio_sysbta.te
 @@ -1,5 +1,6 @@
@@ -335,7 +294,7 @@ index d871ed3b93b396e84275ea43b30a7e2a3a36b00d..1e468fd0a2baebdb1dfea23e3325e743
  type hal_audio_sysbta_exec, exec_type, system_file_type, file_type;
  init_daemon_domain(hal_audio_sysbta)
 diff --git a/sepolicy/huawei.te b/sepolicy/huawei.te
-index 2988ed6d4a0b816f4e411598d6a03fda2e5cb66d..976ab0c9a3a96e9dbcd2c3e9a1d958fccfb5db13 100644
+index 2988ed6..4055567 100644
 --- a/sepolicy/huawei.te
 +++ b/sepolicy/huawei.te
 @@ -16,6 +16,18 @@ allowxperm oeminfo_nvm oeminfo_nvm_device:blk_file ioctl { 0x1260 };
@@ -357,7 +316,7 @@ index 2988ed6d4a0b816f4e411598d6a03fda2e5cb66d..976ab0c9a3a96e9dbcd2c3e9a1d958fc
  # This is use exclusively for init to relabel /dev/selinux from tmpfs to device
  allow kernel tmpfs:{ dir file } relabelfrom;
  allow kernel device:{ dir file } relabelto;
-@@ -35,3 +47,15 @@ allowxperm vendor_init { teecd_data_file }:dir ioctl {
+@@ -35,3 +47,27 @@ allowxperm vendor_init { teecd_data_file }:dir ioctl {
  type sys_block_mmcblk0, file_type;
  allow init sys_block_mmcblk0:lnk_file read;
  allow init sysfs_zram:lnk_file read;
@@ -373,14 +332,27 @@ index 2988ed6d4a0b816f4e411598d6a03fda2e5cb66d..976ab0c9a3a96e9dbcd2c3e9a1d958fc
 +# Huawei IMS. Without this grant it loops on property-area denials before the
 +# IMS HAL is usable.
 +get_prop(rild, system_prop);
++
++# Allow system_server's device-gated compatibility bridge to deliver AOSP
++# touch, launch, scroll, fling, window, rotation, screen-on and fingerprint
++# events to Huawei's legacy UniPerf HIDL service.
++type untrusted_app_visible_hisi_hwservice, hwservice_manager_type;
++type uniperf, domain;
++type par_uniperf_enabled_prop, property_type;
++allow system_server untrusted_app_visible_hisi_hwservice:hwservice_manager find;
++binder_call(system_server, uniperf)
++get_prop(system_server, kirin_perfgenius_prop);
++get_prop(system_server, par_uniperf_enabled_prop);
++get_prop(uniperf, kirin_perfgenius_prop);
 diff --git a/sepolicy/property_contexts b/sepolicy/property_contexts
-index 185a08bc3442cbc6d9bed0c593222500bfc6c696..bdf438196666a62a95ef4438d247cb65317ff9ef 100644
+index 185a08b..e821e7a 100644
 --- a/sepolicy/property_contexts
 +++ b/sepolicy/property_contexts
-@@ -1,2 +1,30 @@
+@@ -1,2 +1,31 @@
  persist.sys.sf.hs_mode         u:object_r:sf_hs_mode_prop:s0
  hwc.exynos.vsync_mode      u:object_r:vendor_hwc_prop:s0
 +ro.kirin.config.hw_perfgenius u:object_r:kirin_perfgenius_prop:s0 exact bool
++sys.par.uniperf.enabled u:object_r:par_uniperf_enabled_prop:s0 exact bool
 +ro.config.hw_4.5gplus u:object_r:huawei_rild_config_prop:s0 exact bool
 +ro.config.hw_gcf u:object_r:huawei_rild_config_prop:s0 exact bool
 +ro.config.hw_updateCA_bycell u:object_r:huawei_rild_config_prop:s0 exact bool
@@ -409,7 +381,7 @@ index 185a08bc3442cbc6d9bed0c593222500bfc6c696..bdf438196666a62a95ef4438d247cb65
 +ro.config.power u:object_r:huawei_rild_config_prop:s0 exact
 +ro.config.support_wcdma_modem1 u:object_r:huawei_rild_config_prop:s0 exact bool
 diff --git a/system.prop b/system.prop
-index 986cb0921ed27a0487fbdd283246aad0e82c7006..83d1e2ace4ea92511f28a175f18c70c372414e86 100644
+index 986cb09..83d1e2a 100644
 --- a/system.prop
 +++ b/system.prop
 @@ -1,4 +1,24 @@
@@ -452,7 +424,7 @@ index 986cb0921ed27a0487fbdd283246aad0e82c7006..83d1e2ace4ea92511f28a175f18c70c3
  # Enable support of one-handed mode
  ro.support_one_handed_mode=true
 diff --git a/tdgsi_arm64_ab/BoardConfig.mk b/tdgsi_arm64_ab/BoardConfig.mk
-index 2fddc5240c4a44e9a7dbed945b29fd9e1489f3e4..4601c4513645582a2953c5f06f4c31dd8bd38523 100644
+index 2fddc52..4601c45 100644
 --- a/tdgsi_arm64_ab/BoardConfig.mk
 +++ b/tdgsi_arm64_ab/BoardConfig.mk
 @@ -1,8 +1,25 @@
@@ -482,7 +454,7 @@ index 2fddc5240c4a44e9a7dbed945b29fd9e1489f3e4..4601c4513645582a2953c5f06f4c31dd
 +# validated by the working PAR image.
 +MALLOC_SVELTE := true
 diff --git a/vndk.rc b/vndk.rc
-index 823456aad887cff993724ff59345d563030eba4c..dbd2d6e373bcff44c0ebaf0584c79e8a8fda4683 100644
+index 823456a..dbd2d6e 100644
 --- a/vndk.rc
 +++ b/vndk.rc
 @@ -1,9 +1,18 @@

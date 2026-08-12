@@ -73,11 +73,18 @@ deltas maintained by yukino1111 against the exact revisions in
 - `packages_modules_Permission.patch`
 - `system_security.patch`
 - `vendor_hardware_overlay_par.patch`
+- `vendor_interfaces.patch`
 - `vendor_lineage.patch`
 
 These deltas remain subject to the copyright and license of the files and
 projects they modify. AlphaDroid, LineageOS, AOSP, CalyxOS, Cromite, and
 TrebleDroid contributors retain authorship of their respective upstream code.
+
+`vendor_interfaces.patch` adds only the minimal HIDL interface declaration
+needed to call the Huawei UniPerf service already supplied by the EMUI 9 vendor
+image. The declaration was independently written from the observable service
+descriptor and transaction behavior. It contains no Huawei service
+implementation, extracted source, vendor XML, or proprietary binary.
 
 `vendor_hardware_overlay_par.patch` is a binary delta against the pinned
 PHH/TrebleDroid `TrebleApp/app.apk` prebuilt. It carries the PAR fixes for the

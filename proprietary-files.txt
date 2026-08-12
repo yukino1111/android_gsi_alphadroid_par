@@ -1,6 +1,0 @@
-# Files extracted from AlphaDroid-v1.7.0-arm64_bvN-20230707-vanilla.img.
-# Source: https://sourceforge.net/projects/alphadroid-gsi/files/2023.07.07/AlphaDroid-v1.7.0-arm64_bvN-20230707-vanilla.img.xz/download
-# source path|destination below device/phh/treble|SHA-256
-/system_ext/priv-app/TurboAdapter/TurboAdapter.apk|prebuilt/TurboAdapter/TurboAdapter.apk|7321ebb730d263d6f88992ec7cd366660b350a3e5aa60ceb4d39f8aebdf88f08
-/system_ext/lib64/libpowerstatshaldataproviderPrebuilt.so|prebuilt/TurboAdapter/lib64/libpowerstatshaldataprovider.so|72d013f3fb12f0f1a70d209832edee511dbc1f6c34bae35c32ec74a382f4c988
-/system_ext/lib64/libpowerstatshaldataproviderPrebuilt.so|prebuilt/TurboAdapter/lib64/libpowerstatshaldataproviderPrebuilt.so|72d013f3fb12f0f1a70d209832edee511dbc1f6c34bae35c32ec74a382f4c988
