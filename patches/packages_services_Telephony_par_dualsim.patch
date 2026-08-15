@@ -1,3 +1,5 @@
+# Provenance: PAR dual-SIM and Huawei NCFG integration maintained by yukino1111 against the pinned upstream project.
+# Upstream file copyrights and licenses still apply; see ../ATTRIBUTION.md.
 diff --git a/src/com/android/phone/HuaweiNcfgManager.java b/src/com/android/phone/HuaweiNcfgManager.java
 new file mode 100644
 index 0000000000000000000000000000000000000000..f6fcd15b77529cbbfa2286b2f6350611dce30d6c

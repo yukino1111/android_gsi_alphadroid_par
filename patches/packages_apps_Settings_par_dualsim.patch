@@ -1,3 +1,5 @@
+# Provenance: PAR dual-SIM integration maintained by yukino1111 against the pinned upstream project.
+# Upstream file copyrights and licenses still apply; see ../ATTRIBUTION.md.
 diff --git a/src/com/android/settings/network/SubscriptionUtil.java b/src/com/android/settings/network/SubscriptionUtil.java
 index ccfcfb0a752687a561b4453f508cc3107433eac9..2a5f510e4cc599e2c9b83e0c3b04f53f62352539 100644
 --- a/src/com/android/settings/network/SubscriptionUtil.java

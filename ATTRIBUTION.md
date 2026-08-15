@@ -80,10 +80,17 @@ These deltas remain subject to the copyright and license of the files and
 projects they modify. AlphaDroid, LineageOS, AOSP, CalyxOS, Cromite, and
 TrebleDroid contributors retain authorship of their respective upstream code.
 
-`vendor_interfaces.patch` adds only the minimal HIDL interface declaration
-needed to call the Huawei UniPerf service already supplied by the EMUI 9 vendor
-image. The declaration was independently written from the observable service
-descriptor and transaction behavior. It contains no Huawei service
+`device_phh_treble.patch` includes the source-built PAR IMS compatibility
+service derived from Penn Mackintosh's `penn5/hwims-java` and the maintained
+`Iceows/hwims-java` continuation. That application code is distributed under
+GPL-3.0-or-later; the complete license text is included beside its source. PAR
+removes the proprietary video library and Mapcon dependencies and targets the
+dedicated Kirin 970 IMS HAL.
+
+`vendor_interfaces.patch` adds only the minimal HIDL interface declarations
+needed to call the Huawei UniPerf and IMS services already supplied by the EMUI
+9 vendor image. The declarations were independently written from observable
+service descriptors and transaction behavior. They contain no Huawei service
 implementation, extracted source, vendor XML, or proprietary binary.
 
 `vendor_hardware_overlay_par.patch` is a binary delta against the pinned

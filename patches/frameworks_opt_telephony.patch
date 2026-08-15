@@ -1,3 +1,5 @@
+# Provenance: TrebleDroid ci-20230905 (Artem Borisov, Christian Hoffmann, corneranchu, ExactExampl, ironydelerium, LuK1337, Peter Cai, Pierre-Hugues Husson, and Raphael Mounier) plus PAR-local follow-ups maintained by yukino1111.
+# See ../ATTRIBUTION.md for the ownership boundary.
 diff --git a/src/java/com/android/internal/telephony/GsmCdmaPhone.java b/src/java/com/android/internal/telephony/GsmCdmaPhone.java
 index 1da9f4bba1d82bb0eabf719088bf93385812a2f7..34a0696c9aa3eeffc1eda21ae8647d49a326e584 100644
 --- a/src/java/com/android/internal/telephony/GsmCdmaPhone.java

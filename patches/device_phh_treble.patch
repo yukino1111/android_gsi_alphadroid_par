@@ -1,5 +1,7 @@
+# Provenance: TrebleDroid ci-20230905 plus PAR-local integrations maintained by yukino1111;
+# PARHwIms derives from penn5/Iceows hwims-java. See ../ATTRIBUTION.md for ownership and licenses.
 diff --git a/base.mk b/base.mk
-index bf8f117..c7e700e 100644
+index bf8f11783566c82395ae57b77acfa0a2d9d8fc86..9698a55b40f2f280f41d2cb0b53d29bb4aa17f80 100644
 --- a/base.mk
 +++ b/base.mk
 @@ -24,7 +24,7 @@ PRODUCT_COPY_FILES += \
@@ -32,17 +34,18 @@ index bf8f117..c7e700e 100644
  PRODUCT_COPY_FILES += \
  	device/phh/treble/files/samsung-gpio_keys.kl:system/phh/samsung-gpio_keys.kl \
  	device/phh/treble/files/samsung-sec_touchscreen.kl:system/phh/samsung-sec_touchscreen.kl \
-@@ -150,6 +155,9 @@ PRODUCT_COPY_FILES += \
+@@ -150,6 +155,10 @@ PRODUCT_COPY_FILES += \
  	device/phh/treble/files/tecno-touchpanel.kl:system/phh/tecno-touchpanel.kl \
  	device/phh/treble/files/rosemary-excluded-input-devices.xml:system/phh/rosemary-excluded-input-devices.xml
  
 +# PHH's privileged compatibility helper predates Android 13 neverallow rules
-+# and is also used by rw-system/hardware fixups, not only by legacy PHH su.
-+# Keep this explicit until the helper domain is split and tightened for PAR.
++# and is retained only in userdebug builds. Keep AOSP neverallow sources intact;
++# PAR relies on release signing plus the hardened device kernel instead of
++# weakening platform neverallow declarations to force a user build.
  SELINUX_IGNORE_NEVERALLOWS := true
  
  # Universal NoCutoutOverlay
-@@ -206,10 +214,6 @@ PRODUCT_COPY_FILES += \
+@@ -206,10 +215,6 @@ PRODUCT_COPY_FILES += \
  	device/phh/treble/remote/phh-remotectl.rc:system/etc/init/phh-remotectl.rc \
  	device/phh/treble/remote/phh-remotectl.sh:system/bin/phh-remotectl.sh \
  
@@ -53,7 +56,7 @@ index bf8f117..c7e700e 100644
  PRODUCT_PACKAGES += \
  	vr_hwc \
  	curl \
-@@ -240,9 +244,6 @@ PRODUCT_COPY_FILES += \
+@@ -240,9 +245,6 @@ PRODUCT_COPY_FILES += \
  
  PRODUCT_PACKAGES += phh-ota
  
@@ -63,7 +66,7 @@ index bf8f117..c7e700e 100644
  PRODUCT_COPY_FILES += \
  	frameworks/av/services/audiopolicy/config/a2dp_audio_policy_configuration_7_0.xml:system/etc/a2dp_audio_policy_configuration_7_0.xml \
  	frameworks/av/services/audiopolicy/config/a2dp_audio_policy_configuration.xml:system/etc/a2dp_audio_policy_configuration.xml \
-@@ -253,12 +254,13 @@ include build/make/target/product/gsi_release.mk
+@@ -253,12 +255,13 @@ include build/make/target/product/gsi_release.mk
  PRODUCT_COPY_FILES += \
  	device/phh/treble/files/com.android.deskclock_whitelist.xml:system/etc/sysconfig/com.android.deskclock_whitelist.xml
  
@@ -83,10 +86,10 @@ index bf8f117..c7e700e 100644
  # Two-pane layout in Settings
  PRODUCT_PACKAGES += \
 diff --git a/lineage.mk b/lineage.mk
-index 172bb01..4acb69a 100644
+index 172bb012af4e1e21bcfdf25476583b88fd005507..77f76cc22a249b0b3e8577481b3b86ebd2fed1ac 100644
 --- a/lineage.mk
 +++ b/lineage.mk
-@@ -1,3 +1,31 @@
+@@ -1,3 +1,36 @@
 +# Match the validated PAR vanilla product composition.
 +TARGET_HAS_UDFPS := true
 +TARGET_EXCLUDE_LINEAGE_ADDON_D := true
@@ -116,10 +119,15 @@ index 172bb01..4acb69a 100644
 +# wrapper. A missing mount keeps ordinary TrebleDroid builds on AOSP WebView.
 +-include vendor/par/chromium/product.mk
 +
++# Build the PAR IMS compatibility service entirely from source. The app only
++# contains GPL implementation code and hidl-gen client bindings; Huawei's
++# proprietary IMS service remains on the device vendor partition.
++PRODUCT_PACKAGES += PARHwIms
++
 +PRODUCT_SYSTEM_DEFAULT_PROPERTIES += \
 +    ro.oem_unlock_supported=0
 diff --git a/overlay/frameworks/base/core/res/res/xml/config_webview_packages.xml b/overlay/frameworks/base/core/res/res/xml/config_webview_packages.xml
-index 3f96e59..8a46020 100644
+index 3f96e59a7cd1816c5c47b52c0efd16c815512d7b..8a460206fad238de5a8c3f470897d1ad1c1b3667 100644
 --- a/overlay/frameworks/base/core/res/res/xml/config_webview_packages.xml
 +++ b/overlay/frameworks/base/core/res/res/xml/config_webview_packages.xml
 @@ -31,6 +31,6 @@
@@ -132,7 +140,7 @@ index 3f96e59..8a46020 100644
 +    <webviewprovider description="Cromite WebView" packageName="com.android.webview" availableByDefault="true" isFallback="true" />
  </webviewproviders>
 diff --git a/overrides/Android.mk b/overrides/Android.mk
-index 813d66b..1cd7c9f 100644
+index 813d66bc4d2e4fb2eb1afe77a723e69d1867b2b7..1cd7c9fd226337e5ce9091a8e552169a8403a77c 100644
 --- a/overrides/Android.mk
 +++ b/overrides/Android.mk
 @@ -1,5 +1,21 @@
@@ -159,7 +167,7 @@ index 813d66b..1cd7c9f 100644
  PACKAGES.$(LOCAL_MODULE).OVERRIDES := \
 diff --git a/par-default-permissions.xml b/par-default-permissions.xml
 new file mode 100644
-index 0000000..636fc06
+index 0000000000000000000000000000000000000000..636fc06a69f0d81b4e39310aa01094a648b2deec
 --- /dev/null
 +++ b/par-default-permissions.xml
 @@ -0,0 +1,8 @@
@@ -171,8 +179,1451 @@ index 0000000..636fc06
 +        <permission name="android.permission.ACCESS_COARSE_LOCATION" fixed="false"/>
 +    </exception>
 +</exceptions>
+diff --git a/par/ims/Android.bp b/par/ims/Android.bp
+new file mode 100644
+index 0000000000000000000000000000000000000000..5e083ed3936be2b91530d44979e4afce76e81b2a
+--- /dev/null
++++ b/par/ims/Android.bp
+@@ -0,0 +1,23 @@
++android_app {
++    name: "PARHwIms",
++    manifest: "AndroidManifest.xml",
++    srcs: [
++        "src/**/*.java",
++        "src/**/*.kt",
++    ],
++    platform_apis: true,
++    certificate: "platform",
++    privileged: true,
++    system_ext_specific: true,
++    static_libs: ["vendor.huawei.hardware.radio.ims-V1.0-java"],
++    libs: [
++        "ims-common",
++        "telephony-common",
++    ],
++    optimize: {
++        enabled: true,
++        shrink: true,
++        proguard_flags_files: ["proguard.flags"],
++    },
++    kotlincflags: ["-Xjvm-default=all"],
++}
+diff --git a/par/ims/AndroidManifest.xml b/par/ims/AndroidManifest.xml
+new file mode 100644
+index 0000000000000000000000000000000000000000..a7f9c487d77b1f91b27c5baa901b512883ce9b2a
+--- /dev/null
++++ b/par/ims/AndroidManifest.xml
+@@ -0,0 +1,29 @@
++<?xml version="1.0" encoding="utf-8"?>
++<manifest xmlns:android="http://schemas.android.com/apk/res/android"
++    package="com.huawei.ims"
++    android:sharedUserId="android.uid.phone"
++    android:versionCode="6"
++    android:versionName="2.4-par-open">
++
++    <uses-sdk android:minSdkVersion="28" android:targetSdkVersion="33" />
++    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
++    <uses-permission android:name="android.permission.MODIFY_PHONE_STATE" />
++
++    <application
++        android:allowBackup="false"
++        android:allowClearUserData="false"
++        android:directBootAware="true"
++        android:hasCode="true"
++        android:persistent="true">
++        <service
++            android:name=".HwImsService"
++            android:directBootAware="true"
++            android:exported="true"
++            android:permission="android.permission.BIND_IMS_SERVICE"
++            android:persistent="true">
++            <intent-filter>
++                <action android:name="android.telephony.ims.ImsService" />
++            </intent-filter>
++        </service>
++    </application>
++</manifest>
+diff --git a/par/ims/LICENSE b/par/ims/LICENSE
+new file mode 100644
+index 0000000000000000000000000000000000000000..c0294bece3413092273cecbaabac1b5a7e76acc4
+--- /dev/null
++++ b/par/ims/LICENSE
+@@ -0,0 +1,30 @@
++HwIms
++Copyright (C) 2019 Penn Mackintosh
++    This program is free software: you can redistribute it and/or modify
++    it under the terms of the GNU General Public License as published by
++    the Free Software Foundation, either version 3 of the License, or
++    (at your option) any later version.
++
++    This program is distributed in the hope that it will be useful,
++    but WITHOUT ANY WARRANTY; without even the implied warranty of
++    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++    GNU General Public License for more details.
++
++    You should have received a copy of the GNU General Public License
++    along with this program.  If not, see <https://www.gnu.org/licenses/>.
++
++This project incorporates code covered by the following copyright and permission notice:
++
++    Copyright (C) 2017 The Android Open Source Project
++
++    Licensed under the Apache License, Version 2.0 (the "License");
++    you may not use this file except in compliance with the License.
++    You may obtain a copy of the License at
++
++         http://www.apache.org/licenses/LICENSE-2.0
++
++    Unless required by applicable law or agreed to in writing, software
++    distributed under the License is distributed on an "AS IS" BASIS,
++    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++    See the License for the specific language governing permissions and
++    limitations under the License.
+diff --git a/par/ims/README.md b/par/ims/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..a012c68f65eb2c46cf7b562972fd68d3acf65110
+--- /dev/null
++++ b/par/ims/README.md
+@@ -0,0 +1,19 @@
++# PAR Open IMS compatibility service
++
++This platform-signed system application bridges Android's `ImsService` API to
++the legacy Huawei `vendor.huawei.hardware.radio.ims@1.0` service exposed by the
++Kirin 970 vendor image. It contains no Huawei APK, extracted Java archive,
++native library, resource, signing key, modem implementation, or firmware.
++
++The MMTEL and call-session implementation is derived from the GPL-3.0-or-later
++[`penn5/hwims-java`](https://github.com/penn5/hwims-java) project and its
++[`Iceows/hwims-java`](https://github.com/Iceows/hwims-java) continuation. PAR
++changes remove the proprietary video library and Mapcon dependencies, target
++the dedicated IMS HAL, and implement the nova 3 single-IMS DSDS policy. IMS
++enable/disable uses the public Huawei Radio and HisiRadio HIDL Binder ABI to
++toggle the modem IMS switch and request registration; it does not bundle or
++load Huawei framework code.
++
++The adjacent HIDL files are compatibility interface metadata used by AOSP
++`hidl-gen`. They generate the client-side Binder boilerplate at build time and
++do not contain Huawei's service implementation.
+diff --git a/par/ims/proguard.flags b/par/ims/proguard.flags
+new file mode 100644
+index 0000000000000000000000000000000000000000..b9e0fd2bd976b881534534dedcf7391a5a32ac61
+--- /dev/null
++++ b/par/ims/proguard.flags
+@@ -0,0 +1,2 @@
++-keep class com.huawei.ims.HwImsService { *; }
++-keep class vendor.huawei.hardware.radio.ims.V1_0.** { *; }
+diff --git a/par/ims/src/com/huawei/ims/HwImsCallSession.kt b/par/ims/src/com/huawei/ims/HwImsCallSession.kt
+new file mode 100644
+index 0000000000000000000000000000000000000000..29c8284bcd6a13367afc6766ddfb7ea33250c273
+--- /dev/null
++++ b/par/ims/src/com/huawei/ims/HwImsCallSession.kt
+@@ -0,0 +1,509 @@
++/*
++ * This file is part of HwIms
++ * Copyright (C) 2019 Penn Mackintosh
++ *     This program is free software: you can redistribute it and/or modify
++ *     it under the terms of the GNU General Public License as published by
++ *     the Free Software Foundation, either version 3 of the License, or
++ *     (at your option) any later version.
++ *
++ *     This program is distributed in the hope that it will be useful,
++ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *     GNU General Public License for more details.
++ *
++ *     You should have received a copy of the GNU General Public License
++ *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
++ */
++
++package com.huawei.ims
++
++import android.annotation.SuppressLint
++import android.os.Message
++import android.os.RemoteException
++import android.telephony.PhoneNumberUtils
++import android.telephony.Rlog
++import android.telephony.ims.ImsCallProfile
++import android.telephony.ims.ImsCallProfile.*
++import android.telephony.ims.ImsCallSessionListener
++import android.telephony.ims.ImsReasonInfo
++import android.telephony.ims.ImsStreamMediaProfile
++import android.telephony.ims.stub.ImsCallSessionImplBase
++import android.util.Log
++import com.android.ims.ImsConfig
++import vendor.huawei.hardware.radio.ims.V1_0.RILImsCall
++import vendor.huawei.hardware.radio.ims.V1_0.RILImsCallDomain
++import vendor.huawei.hardware.radio.ims.V1_0.RILImsCallType
++import vendor.huawei.hardware.radio.ims.V1_0.RILImsDial
++import java.util.concurrent.ConcurrentHashMap
++
++class HwImsCallSession
++/* For outgoing (MO) calls */ (private val mSlotId: Int, profile: ImsCallProfile) : ImsCallSessionImplBase() {
++    private val mProfile: ImsCallProfile
++    private val mLocalProfile: ImsCallProfile
++    private val mRemoteProfile: ImsCallProfile
++    private var listener: ImsCallSessionListener? = null
++
++    var rilImsCall: RILImsCall? = null
++    private var mInCall = false
++
++    private val mCallIdLock = Object()
++    private var confInProgress = false
++    private var mState: Int = 0
++
++    var mCallee: String = ""
++    private val mCount: Int
++
++    init {
++        this.mCount = sCount++
++        this.mProfile = ImsCallProfile(SERVICE_TYPE_NORMAL, profile.callType)
++        this.mLocalProfile = ImsCallProfile(SERVICE_TYPE_NORMAL, profile.callType)
++        this.mRemoteProfile = ImsCallProfile(SERVICE_TYPE_NORMAL, profile.callType)
++        this.mState = State.IDLE
++    }
++
++    // For incoming (MT) calls
++    constructor(slotId: Int, profile: ImsCallProfile, call: RILImsCall) : this(slotId, profile) {
++        updateCall(call)
++        calls[call.index] = this
++    }
++
++    fun addIdFromRIL(call: RILImsCall) {
++        synchronized(sCallsLock) {
++            var worked = awaitingIdFromRIL.remove("+" + call.number, this)
++            if (!worked)
++                worked = awaitingIdFromRIL.remove(call.number, this)
++            if (worked) {
++                synchronized(mCallIdLock) {
++                    updateCall(call)
++                    calls[call.index] = this
++                    mCallIdLock.notify()
++                }
++            }
++        }
++    }
++
++    private fun hwOirToOir(oir: Int): Int {
++        return when (oir) {
++            OIR_BEHAVIOUR_TYPE_DEFAULT -> OIR_PRESENTATION_NOT_RESTRICTED
++            OIR_BEHAVIOUR_TYPE_NOT_RESTRICTED -> OIR_PRESENTATION_NOT_RESTRICTED
++            OIR_BEHAVIOUR_TYPE_NOT_SUBSCRIBED -> OIR_PRESENTATION_PAYPHONE
++            OIR_BEHAVIOUR_TYPE_RESTRICTED -> OIR_PRESENTATION_RESTRICTED
++            else -> OIR_PRESENTATION_UNKNOWN
++        }
++    }
++
++    @SuppressLint("MissingPermission")
++    fun updateCall(call: RILImsCall) {
++        val lastState = mState
++        when (call.state) {
++            0 // ACTIVE
++            -> if (rilImsCall == null) {
++                mState = State.ESTABLISHED
++                listener?.callSessionInitiated(mProfile)
++            } else if (rilImsCall!!.state == 2 || // DIALING
++
++                    rilImsCall!!.state == 3 || // ALERTING
++
++                    rilImsCall!!.state == 4 || // INCOMING
++
++                    rilImsCall!!.state == 5) { // WAITING
++                mState = State.ESTABLISHED
++                listener?.callSessionInitiated(mProfile)
++            } else if (rilImsCall!!.state == 1 /* HOLDING */ && !confInProgress) { // HOLDING
++                listener?.callSessionResumed(mProfile)
++            } else {
++                Rlog.e(tag, "stuff")
++            }
++            1 // HOLDING
++            -> listener?.callSessionHeld(mProfile)
++            2 // DIALING
++            -> listener?.callSessionProgressing(ImsStreamMediaProfile())
++            3 // ALERTING
++            -> {
++                mState = State.NEGOTIATING
++                if (rilImsCall == null) {
++                    Rlog.e(tag, "Alerting an incoming call wtf?")
++                }
++                listener?.callSessionProgressing(ImsStreamMediaProfile())
++            }
++            4/*INCOMING*/, 5 // WAITING
++            -> {
++            }
++            6 // END
++            -> die(ImsReasonInfo())
++        }
++
++        val subId = HwImsService.instance!!.subscriptionManager
++                .getActiveSubscriptionInfoForSimSlotIndex(mSlotId).subscriptionId
++
++        val telephonyManager = HwImsService.instance!!.telephonyManager.createForSubscriptionId(subId)
++
++        // We have to do lots of complicated formatting stuff here because RIL returns different formats depending on the MCC-MNC
++        Log.d(tag, "CC ${telephonyManager.networkCountryIso.toUpperCase()}")
++        mProfile.setCallExtra(EXTRA_OI, PhoneNumberUtils.formatNumberToE164(
++                call.number,
++                (telephonyManager.networkCountryIso
++                        ?: telephonyManager.simCountryIso).toUpperCase()))
++
++        Log.d(tag, "Using OI ${Rlog.pii(tag, mProfile.getCallExtra(EXTRA_OI))} for profile")
++
++        mProfile.setCallExtraInt(EXTRA_OIR, hwOirToOir(call.numberPresentation))
++        mProfile.setCallExtra(EXTRA_CNA, if (call.name.isEmpty()) mProfile.getCallExtra(EXTRA_OI) else call.name)
++        mProfile.setCallExtraInt(EXTRA_CNAP, hwOirToOir(call.namePresentation))
++
++        if (rilImsCall?.callDetails?.callDomain != call.callDetails.callDomain)
++        //TODO
++            Log.w(tag, "NI change domain notify to aosp")
++
++        if (rilImsCall?.callDetails?.callType != call.callDetails.callType)
++        //TODO
++            Log.w(tag, "NI change tech notify to aosp")
++
++
++        if (lastState == mState /*state unchanged*/ && call.state != 6 /*END*/ && call != rilImsCall) {
++            listener?.callSessionUpdated(mProfile)
++        }
++        rilImsCall = call
++    }
++
++    private fun die(reason: ImsReasonInfo) {
++        if (rilImsCall != null)
++            calls.remove(rilImsCall!!.index)
++        awaitingIdFromRIL.remove(mCallee)
++        mState = State.TERMINATED
++        listener?.callSessionTerminated(reason)
++    }
++
++    fun notifyEnded() {
++        die(ImsReasonInfo())
++    }
++
++    override fun setListener(listener: ImsCallSessionListener?) {
++        this.listener = listener
++    }
++
++    override fun getCallId(): String {
++        return "slot" + mSlotId + "id" + if (rilImsCall == null) "unknown!" + Integer.toString(mCount) else rilImsCall!!.index
++    }
++
++    override fun getCallProfile(): ImsCallProfile {
++        return mProfile
++    }
++
++    override fun getRemoteCallProfile(): ImsCallProfile {
++        //return mRemoteProfile;
++        return mProfile
++    }
++
++    override fun getLocalCallProfile(): ImsCallProfile {
++        //return mLocalProfile;
++        return mProfile
++    }
++
++    override fun getProperty(name: String?): String {
++        return mProfile.getCallExtra(name)
++    }
++
++    override fun getState(): Int {
++        return mState
++    }
++
++    override fun isInCall(): Boolean {
++        return mInCall
++    }
++
++    override fun setMute(muted: Boolean) {
++        try {
++            val serial = RilHolder.prepareBlock(mSlotId)
++            RilHolder.getRadio(mSlotId)!!.setMute(serial, muted)
++            if (RilHolder.blockUntilComplete(serial).error != 0) {
++                Rlog.e(tag, "Failed to setMute! " + RilHolder.blockUntilComplete(serial))
++            }
++        } catch (e: RemoteException) {
++            Rlog.e(tag, "Error sending setMute request!", e)
++        }
++
++    }
++
++    private fun convertAospCallType(callType: Int): Int {
++        return when (callType) {
++            CALL_TYPE_VOICE_N_VIDEO, CALL_TYPE_VOICE -> RILImsCallType.CALL_TYPE_VOICE
++            CALL_TYPE_VIDEO_N_VOICE, CALL_TYPE_VT -> RILImsCallType.CALL_TYPE_VT
++            CALL_TYPE_VT_TX -> RILImsCallType.CALL_TYPE_VT_TX
++            CALL_TYPE_VT_RX -> RILImsCallType.CALL_TYPE_VT_RX
++            CALL_TYPE_VT_NODIR -> RILImsCallType.CALL_TYPE_VT_NODIR
++            CALL_TYPE_VS -> throw RuntimeException("NI VS!!")
++            CALL_TYPE_VS_TX -> RILImsCallType.CALL_TYPE_CS_VS_TX
++            CALL_TYPE_VS_RX -> RILImsCallType.CALL_TYPE_CS_VS_RX
++            else -> throw RuntimeException("Unknown callType $callType")
++        }
++    }
++
++    override fun start(callee: String, profile: ImsCallProfile?) {
++        Log.d(tag, "calling " + Rlog.pii(tag, callee))
++        mCallee = callee
++        val callInfo = RILImsDial()
++        callInfo.address = callee
++        callInfo.clir = profile!!.getCallExtraInt(EXTRA_OIR) // Huawei do this so it **must** be right... Oh wait...
++        val extras = profile.mCallExtras.getBundle("OemCallExtras")
++        if (extras != null) {
++            Rlog.e(tag, "NI reading oemcallextras, it is $extras")
++        }
++        val callType: Int
++        try {
++            callType = convertAospCallType(profile.callType)
++        } catch (e: RuntimeException) {
++            listener?.callSessionInitiatedFailed(ImsReasonInfo(ImsReasonInfo.CODE_LOCAL_INTERNAL_ERROR, ImsReasonInfo.CODE_UNSPECIFIED, e.message))
++            throw e
++        }
++
++        callInfo.callDetails.callType = callType
++        if (HwImsService.instance!!.getConfig(mSlotId)!!.getConfigInt(ImsConfig.ConfigConstants.VLT_SETTING_ENABLED) == ImsConfig.FeatureValueConstants.ON) {
++            callInfo.callDetails.callDomain = RILImsCallDomain.CALL_DOMAIN_AUTOMATIC
++        } else {
++            callInfo.callDetails.callDomain = RILImsCallDomain.CALL_DOMAIN_CS
++        }
++
++        try {
++            Rlog.d(tag, "adding to awaiting id from ril")
++            awaitingIdFromRIL[mCallee] = this // Do it sooner rather than later so that this call is not seen as a phantom
++            RilHolder.getRadio(mSlotId)!!.imsDial(RilHolder.callback(mSlotId) { radioResponseInfo, _ ->
++                if (radioResponseInfo.error == 0) {
++                    Rlog.d(tag, "successfully placed call")
++                    mInCall = true
++                    if (rilImsCall == null) mState = State.ESTABLISHING
++                    try {
++                        RilHolder.getRadio(mSlotId).getCurrentImsCalls(RilHolder.getNextSerial())
++                    } catch (e: RemoteException) {
++                        Rlog.e(tag, "Unable to synchronize IMS call after dial", e)
++                    }
++                } else {
++                    Rlog.e(tag, "call failed")
++                    mState = State.TERMINATED
++                    awaitingIdFromRIL.remove(callee, this)
++                    listener?.callSessionInitiatedFailed(ImsReasonInfo())
++                }
++            }, callInfo)
++        } catch (e: RemoteException) {
++            listener?.callSessionInitiatedFailed(ImsReasonInfo())
++            awaitingIdFromRIL.remove(callee, this)
++            Rlog.e(tag, "Sending imsDial failed with exception", e)
++        }
++
++    }
++
++    override fun startConference(members: Array<String>?, profile: ImsCallProfile?) {
++        // This method is to initiate the conference call, not to add all the members.
++        start(members!![0], profile)
++        //TODO is this right?
++    }
++
++    override fun accept(callType: Int, profile: ImsStreamMediaProfile?) {
++        mState = State.ESTABLISHING
++        try {
++            RilHolder.getRadio(mSlotId)!!.acceptImsCall(RilHolder.callback(mSlotId) { radioResponseInfo, _ ->
++                if (radioResponseInfo.error != 0) {
++                    listener?.callSessionInitiatedFailed(ImsReasonInfo())
++                    Rlog.e(tag, "error accepting ims call")
++                } else {
++                    listener?.callSessionInitiated(mProfile)
++                    mInCall = true
++                }
++            }, convertAospCallType(callType))
++        } catch (e: RemoteException) {
++            listener?.callSessionInitiatedFailed(ImsReasonInfo())
++            Rlog.e(tag, "failed to accept ims call")
++        }
++
++    }
++
++    override fun deflect(destination: String?) {
++        // Huawei shim this, we can do the same.
++    }
++
++    override fun reject(reason: Int) {
++        hangupCurrentCall(waitingOrBackground = true)
++    }
++
++    override fun terminate(reason: Int) {
++        hangupCurrentCall(waitingOrBackground = false)
++    }
++
++    private fun hangupCurrentCall(waitingOrBackground: Boolean) {
++        mState = State.TERMINATING
++        try {
++            val radio = RilHolder.getRadio(mSlotId)
++            val call = rilImsCall
++            if (call != null) {
++                Rlog.d(tag, "terminating IMS call ${call.index}")
++                radio.hangup(RilHolder.getNextSerial(), call.index)
++            } else {
++                // A call-state indication may race the user's hangup action. Never block the
++                // Telecom binder thread waiting for an ID; Huawei exposes aggregate hangup
++                // requests specifically for the foreground and waiting-call cases.
++                Rlog.w(tag, "IMS call ID unavailable; using aggregate hangup")
++                radio.getCurrentImsCalls(RilHolder.getNextSerial())
++                if (waitingOrBackground) {
++                    radio.hangupWaitingOrBackground(RilHolder.getNextSerial())
++                } else {
++                    radio.hangupForegroundResumeBackground(RilHolder.getNextSerial())
++                }
++            }
++            mState = State.TERMINATED
++            die(ImsReasonInfo())
++        } catch (e: RemoteException) {
++            mState = State.INVALID
++            Rlog.e(tag, "error hanging up", e)
++        }
++    }
++
++    override fun hold(profile: ImsStreamMediaProfile?) {
++        try {
++            RilHolder.getRadio(mSlotId)!!.switchWaitingOrHoldingAndActive(RilHolder.callback(mSlotId) { radioResponseInfo, _ ->
++                if (radioResponseInfo.error == 0) {
++                    listener?.callSessionHeld(mProfile)
++                } else {
++                    listener?.callSessionHoldFailed(ImsReasonInfo())
++                }
++            })
++        } catch (e: RemoteException) {
++            Rlog.e(tag, "Error holding", e)
++        }
++
++    }
++
++    override fun resume(profile: ImsStreamMediaProfile?) {
++        try {
++            RilHolder.getRadio(mSlotId)!!.switchWaitingOrHoldingAndActive(RilHolder.callback(mSlotId) { radioResponseInfo, _ ->
++                if (radioResponseInfo.error == 0) {
++                    listener?.callSessionResumed(mProfile)
++                } else {
++                    Rlog.e(tag, "failed to resume")
++                    listener?.callSessionResumeFailed(ImsReasonInfo())
++                }
++            })
++        } catch (e: RemoteException) {
++            listener?.callSessionResumeFailed(ImsReasonInfo())
++            Rlog.e(tag, "failed to resume", e)
++        }
++
++    }
++
++    override fun merge() {
++        try {
++            RilHolder.getRadio(mSlotId)!!.conference(RilHolder.callback(mSlotId) { radioResponseInfo, _ ->
++                if (radioResponseInfo.error == 0) {
++                    // Do nothing, notifyConfDone will be called by the RadioResponse code (triggered by RadioIndication)
++                } else {
++                    listener?.callSessionMergeFailed(ImsReasonInfo())
++                }
++            })
++        } catch (e: RemoteException) {
++            listener?.callSessionMergeFailed(ImsReasonInfo())
++            Rlog.e(tag, "failed to request conference", e)
++        }
++
++    }
++
++    fun notifyConfDone(call: RILImsCall) {
++        listener?.callSessionMergeComplete(HwImsCallSession(mSlotId, mProfile, call))
++    }
++
++    override fun update(callType: Int, profile: ImsStreamMediaProfile?) {
++        //TODO
++    }
++
++    override fun extendToConference(participants: Array<String>?) {
++        // Huawei shim this, so do we.
++    }
++
++    override fun inviteParticipants(participants: Array<String>?) {
++        // Huawei shim this, so do we.
++    }
++
++    override fun removeParticipants(participants: Array<String>?) {
++        // Huawei shim this, so do we.
++    }
++
++    override fun sendDtmf(c: Char, m: Message?) {
++        try {
++            RilHolder.getRadio(mSlotId)!!.sendDtmf(RilHolder.callback(mSlotId) { radioResponseInfo, _ ->
++                if (radioResponseInfo.error != 0) {
++                    Rlog.e(tag, "send DTMF error!")
++                    //TODO we need to reply don't we? Respond with an error to DTMF
++                } else {
++                    Rlog.d(tag, "sent dtmf ok!")
++                    if (m!!.replyTo != null) {
++                        try {
++                            m.replyTo.send(m)
++                        } catch (e: RemoteException) {
++                            Rlog.e(tag, "failed to reply to DTMF!", e)
++                        }
++
++                    }
++                }
++                Unit
++            }, Character.toString(c))
++        } catch (e: RemoteException) {
++            Rlog.e(tag, "failed to send DTMF!", e)
++        }
++
++    }
++
++    override fun startDtmf(c: Char) {
++        try {
++            RilHolder.getRadio(mSlotId)!!.startDtmf(RilHolder.callback(mSlotId) { radioResponseInfo, _ ->
++                if (radioResponseInfo.error != 0) {
++                    Rlog.e(tag, "DTMF error!")
++                } else {
++                    Rlog.d(tag, "start dtmf ok!")
++                }
++            }, Character.toString(c))
++        } catch (e: RemoteException) {
++            Rlog.e(tag, "failed to start DTMF!", e)
++        }
++
++    }
++
++    override fun stopDtmf() {
++        try {
++            RilHolder.getRadio(mSlotId)!!.stopDtmf(RilHolder.callback(mSlotId) { radioResponseInfo, _ ->
++                if (radioResponseInfo.error != 0) {
++                    Rlog.e(tag, "stop DTMF error!")
++                } else {
++                    Rlog.d(tag, "stopped dtmf ok!")
++                }
++            })
++        } catch (e: RemoteException) {
++            Rlog.e(tag, "failed to stop DTMF!", e)
++        }
++
++    }
++
++    //TODO USSD
++
++    //TODO Video Calling
++
++    override fun isMultiparty(): Boolean {
++        return (rilImsCall?.isMpty ?: 0) > 0
++        //return if (rilImsCall == null) false else rilImsCall!!.isMpty > 0
++    }
++
++    companion object {
++        private const val OIR_BEHAVIOUR_TYPE_DEFAULT = 0
++        private const val OIR_BEHAVIOUR_TYPE_NOT_RESTRICTED = 1
++        private const val OIR_BEHAVIOUR_TYPE_RESTRICTED = 2
++        private const val OIR_BEHAVIOUR_TYPE_NOT_SUBSCRIBED = 3
++
++
++        private const val tag = "HwImsCallSession"
++        val awaitingIdFromRIL = ConcurrentHashMap<String, HwImsCallSession>()
++        val calls = ConcurrentHashMap<Int, HwImsCallSession>()
++
++        private var sCount = 0
++
++        val sCallsLock = Object()
++    }
++
++    //TODO RealTimeText
++}
+diff --git a/par/ims/src/com/huawei/ims/HwImsConfig.kt b/par/ims/src/com/huawei/ims/HwImsConfig.kt
+new file mode 100644
+index 0000000000000000000000000000000000000000..cfdfafc90d6551e2c57f70ddf57d4f87c3f7bc61
+--- /dev/null
++++ b/par/ims/src/com/huawei/ims/HwImsConfig.kt
+@@ -0,0 +1,70 @@
++/*
++
++ * This file is part of HwIms
++ * Copyright (C) 2019 Penn Mackintosh
++ *     This program is free software: you can redistribute it and/or modify
++ *     it under the terms of the GNU General Public License as published by
++ *     the Free Software Foundation, either version 3 of the License, or
++ *     (at your option) any later version.
++ *
++ *     This program is distributed in the hope that it will be useful,
++ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *     GNU General Public License for more details.
++ *
++ *     You should have received a copy of the GNU General Public License
++ *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
++ *
++ *  This file incorporates code covered by the following copyright and permission notice:
++ *
++ *     Copyright (C) 2017 The Android Open Source Project
++ *
++ *     Licensed under the Apache License, Version 2.0 (the "License");
++ *     you may not use this file except in compliance with the License.
++ *     You may obtain a copy of the License at
++ *
++ *          http://www.apache.org/licenses/LICENSE-2.0
++ *
++ *     Unless required by applicable law or agreed to in writing, software
++ *     distributed under the License is distributed on an "AS IS" BASIS,
++ *     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ *     See the License for the specific language governing permissions and
++ *     limitations under the License.
++ */
++package com.huawei.ims
++
++import android.annotation.NonNull
++import android.telephony.ims.stub.ImsConfigImplBase
++import com.android.ims.ImsConfig
++import java.util.concurrent.ConcurrentHashMap
++
++class HwImsConfig : ImsConfigImplBase() {
++    private val configInt = ConcurrentHashMap<Int, Int>()
++    private val configString = ConcurrentHashMap<Int, String>()
++
++    init {
++        // We support VoLTE by default.
++        configInt[ImsConfig.ConfigConstants.VLT_SETTING_ENABLED] = ImsConfig.FeatureValueConstants.ON
++    }
++
++    override fun setConfig(item: Int, value: Int): Int {
++        configInt[item] = value
++        notifyProvisionedValueChanged(item, value)
++        return ImsConfig.OperationStatusConstants.SUCCESS
++    }
++
++    override fun setConfig(item: Int, value: String): Int {
++        configString[item] = value
++        notifyProvisionedValueChanged(item, value)
++        return ImsConfig.OperationStatusConstants.SUCCESS
++    }
++
++    override fun getConfigInt(@NonNull item: Int): Int {
++        return configInt.getOrDefault(item, null) ?: ImsConfig.FeatureValueConstants.ERROR
++
++    }
++
++    override fun getConfigString(item: Int): String? {
++        return configString.getOrDefault(item, null)
++    }
++}
+diff --git a/par/ims/src/com/huawei/ims/HwImsRadioIndication.kt b/par/ims/src/com/huawei/ims/HwImsRadioIndication.kt
+new file mode 100644
+index 0000000000000000000000000000000000000000..0754849120e2d70a5b2d4dcb595add01e9384a32
+--- /dev/null
++++ b/par/ims/src/com/huawei/ims/HwImsRadioIndication.kt
+@@ -0,0 +1,85 @@
++/*
++ * Copyright (C) 2019 Penn Mackintosh
++ * Copyright (C) 2026 PAR project contributors
++ * SPDX-License-Identifier: GPL-3.0-or-later
++ */
++package com.huawei.ims
++
++import android.os.RemoteException
++import android.telephony.Rlog
++import android.telephony.ims.ImsReasonInfo
++import android.util.Log
++import vendor.huawei.hardware.radio.ims.V1_0.*
++
++class HwImsRadioIndication(private val slotId: Int) : IRadioImsIndication.Stub() {
++    override fun imsNetworkStateChanged(type: Int) {
++        queryRegistration()
++    }
++
++    override fun UnsolMsg(type: Int, msgId: Int, payload: RILUnsolMsgPayload) {
++        when (msgId) {
++            RIL_UNSOL_HW_IMS_RESPONSE_CALL_STATE_CHANGED,
++            RIL_UNSOL_HW_IMS_CALL_RING,
++            1079,
++            1122 -> {
++                Log.d(TAG, "IMS call indication slot=$slotId msg=$msgId")
++                queryCalls()
++            }
++            else -> Log.v(TAG, "UnsolMsg slot=$slotId type=$type msg=$msgId")
++        }
++    }
++
++    override fun imsSrvStatusInd(type: Int, status: RILImsSrvstatusList) {
++        val voiceReady = status.srvstatusinfo.any { service ->
++            service.callType == RILImsCallType.CALL_TYPE_VOICE &&
++                (service.srvStatus == 2 || service.acctechstatus.any { it.srvStatus == 2 })
++        }
++        HwImsService.instance?.createMmTelFeature(slotId)?.updateVoiceCapability(voiceReady)
++    }
++
++    override fun imsRegErrRptInd(type: Int, report: RILImsRegErrReport) {
++        Log.w(TAG, "IMS registration error slot=$slotId cause=${report.failCause} stage=${report.failStage}")
++        HwImsService.instance?.getRegistration(slotId)?.notifyDeregistered(
++            ImsReasonInfo(ImsReasonInfo.CODE_REGISTRATION_ERROR, report.failCause, report.failStr)
++        )
++    }
++
++    override fun imsCallModifyInd(type: Int, callModify: RILImsCallModify) = queryCalls()
++    override fun imsCallModifyEndCauseInd(type: Int, cause: RILImsModifyEndCause) = queryCalls()
++    override fun imsCallMtStatusInd(type: Int, report: RILImsMtStatusReport) {
++        Log.i(TAG, "MT status slot=$slotId status=${report.callStatus} cause=${report.failCause}")
++        queryCalls()
++    }
++
++    override fun imsHandoverInd(type: Int, handover: RILImsHandover) {
++        Log.d(TAG, "IMS handover slot=$slotId ${handover.srcTech}->${handover.dstTech}")
++    }
++
++    override fun imsSuppSrvInd(type: Int, notification: RILImsSuppSvcNotification) {
++        Log.d(TAG, "Supplementary service slot=$slotId code=${notification.code}")
++    }
++
++    override fun vtFlowInfoReport(type: Int, report: RILVtFlowInfoReport) = Unit
++
++    private fun queryRegistration() {
++        try {
++            RilHolder.getRadio(slotId).getImsRegistrationState(RilHolder.getNextSerial())
++        } catch (e: RemoteException) {
++            Rlog.e(TAG, "Unable to query IMS registration", e)
++        }
++    }
++
++    private fun queryCalls() {
++        try {
++            RilHolder.getRadio(slotId).getCurrentImsCalls(RilHolder.getNextSerial())
++        } catch (e: RemoteException) {
++            Rlog.e(TAG, "Unable to query IMS calls", e)
++        }
++    }
++
++    companion object {
++        private const val TAG = "PARHwImsIndication"
++        private const val RIL_UNSOL_HW_IMS_RESPONSE_CALL_STATE_CHANGED = 0x7ef
++        private const val RIL_UNSOL_HW_IMS_CALL_RING = 0x7f0
++    }
++}
+diff --git a/par/ims/src/com/huawei/ims/HwImsRadioResponse.kt b/par/ims/src/com/huawei/ims/HwImsRadioResponse.kt
+new file mode 100644
+index 0000000000000000000000000000000000000000..6679bc4a64ea1114afe3f7203ecec3cf6956d3f1
+--- /dev/null
++++ b/par/ims/src/com/huawei/ims/HwImsRadioResponse.kt
+@@ -0,0 +1,187 @@
++/*
++ * Copyright (C) 2019 Penn Mackintosh
++ * Copyright (C) 2026 PAR project contributors
++ * SPDX-License-Identifier: GPL-3.0-or-later
++ */
++package com.huawei.ims
++
++import android.os.Bundle
++import android.os.Handler
++import android.os.Looper
++import android.os.RemoteException
++import android.telephony.Rlog
++import android.telephony.ims.ImsCallProfile
++import android.telephony.ims.ImsReasonInfo
++import android.util.Log
++import com.android.ims.ImsManager
++import vendor.huawei.hardware.radio.ims.V1_0.*
++import java.util.ArrayList
++
++class HwImsRadioResponse(private val slotId: Int) : IRadioImsResponse.Stub() {
++    private val callPollHandler = Handler(Looper.getMainLooper())
++    private var callPollScheduled = false
++    private val callPoll = Runnable {
++        callPollScheduled = false
++        if (HwImsCallSession.calls.isEmpty()) return@Runnable
++        try {
++            RilHolder.getRadio(slotId).getCurrentImsCalls(RilHolder.getNextSerial())
++        } catch (e: RemoteException) {
++            Rlog.e(TAG, "Unable to poll IMS calls for slot $slotId", e)
++        }
++    }
++
++    override fun RspMsg(info: RadioResponseInfo, msgId: Int, payload: RspMsgPayload) {
++        Log.d(TAG, "RspMsg slot=$slotId serial=${info.serial} msg=$msgId error=${info.error}")
++        RilHolder.complete(info, payload)
++    }
++
++    override fun getImsRegistrationStateResponse(
++        info: RadioResponseInfo,
++        registered: Boolean,
++        ratFamily: Int
++    ) {
++        Log.i(
++            TAG,
++            "IMS registration slot=$slotId registered=$registered rat=$ratFamily error=${info.error}"
++        )
++        HwImsService.instance?.createMmTelFeature(slotId)?.updateRegistration(
++            registered && info.error == 0
++        )
++        RilHolder.complete(info)
++    }
++
++    override fun getCurrentImsCallsResponse(info: RadioResponseInfo, rilCalls: ArrayList<RILImsCall>) {
++        updateCalls(rilCalls)
++        RilHolder.complete(info)
++    }
++
++    private fun updateCalls(rilCalls: List<RILImsCall>) {
++        synchronized(HwImsCallSession.sCallsLock) {
++            val liveIds = HashSet<Int>()
++            for (call in rilCalls) {
++                val awaitingSession = HwImsCallSession.awaitingIdFromRIL["+${call.number}"]
++                    ?: HwImsCallSession.awaitingIdFromRIL[call.number]
++                if (awaitingSession != null) {
++                    awaitingSession.addIdFromRIL(call)
++                    liveIds.add(call.index)
++                    continue
++                }
++
++                val session = HwImsCallSession.calls[call.index]
++                if (session == null) {
++                    val incoming = call.isMT.toInt() != 0
++                    val callSession = HwImsCallSession(slotId, ImsCallProfile(), call)
++                    val extras = Bundle().apply {
++                        putInt(ImsManager.EXTRA_PHONE_ID, slotId)
++                        putString(ImsManager.EXTRA_CALL_ID, callSession.callId)
++                        putBoolean(ImsManager.EXTRA_IS_UNKNOWN_CALL, !incoming)
++                    }
++                    HwImsService.instance?.createMmTelFeature(slotId)
++                        ?.notifyIncomingCall(callSession, extras)
++                    Log.i(TAG, "Reported ${if (incoming) "incoming" else "unknown"} call ${call.index}")
++                } else {
++                    session.updateCall(call)
++                }
++                liveIds.add(call.index)
++            }
++
++            HwImsCallSession.calls.values.toList().forEach { session ->
++                val index = session.rilImsCall?.index
++                if (index != null && !liveIds.contains(index)) session.notifyEnded()
++            }
++        }
++        scheduleCallPoll()
++    }
++
++    private fun scheduleCallPoll() {
++        if (HwImsCallSession.calls.isEmpty() || callPollScheduled) return
++        callPollScheduled = true
++        callPollHandler.postDelayed(callPoll, CALL_POLL_INTERVAL_MS)
++    }
++
++    private fun RILImsCallEx.toBaseCall(): RILImsCall = RILImsCall().also { base ->
++        base.state = state
++        base.index = index
++        base.toa = toa
++        base.isMpty = isMpty
++        base.isMT = isMT
++        base.als = als
++        base.isVoice = isVoice
++        base.isVoicePrivacy = isVoicePrivacy
++        base.number = number
++        base.numberPresentation = numberPresentation
++        base.name = name
++        base.namePresentation = namePresentation
++        base.callDetails.callType = callDetails.callType
++        base.callDetails.callDomain = callDetails.callDomain
++        base.isECOnference = isECOnference
++        base.peerVideoSupport = peerVideoSupport
++    }
++
++    private fun RILImsCallV1_2.toBaseCall(): RILImsCall = RILImsCall().also { base ->
++        base.state = state
++        base.index = index
++        base.toa = toa
++        base.isMpty = isMpty
++        base.isMT = isMT
++        base.als = als
++        base.isVoice = isVoice
++        base.isVoicePrivacy = isVoicePrivacy
++        base.number = number
++        base.numberPresentation = numberPresentation
++        base.name = name
++        base.namePresentation = namePresentation
++        base.callDetails.callType = callDetails.callType
++        base.callDetails.callDomain = callDetails.callDomain
++        base.isECOnference = isECOnference
++        base.peerVideoSupport = peerVideoSupport
++    }
++
++    override fun hangupConnectionResponse(info: RadioResponseInfo) = RilHolder.complete(info)
++    override fun switchWaitingOrHoldingAndActiveResponse(info: RadioResponseInfo) = RilHolder.complete(info)
++    override fun hangupForegroundResumeBackgroundResponse(info: RadioResponseInfo) = RilHolder.complete(info)
++    override fun hangupWaitingOrBackgroundResponse(info: RadioResponseInfo) = RilHolder.complete(info)
++    override fun conferenceResponse(info: RadioResponseInfo) = RilHolder.complete(info)
++    override fun explicitCallTransferResponse(info: RadioResponseInfo) = RilHolder.complete(info)
++    override fun rejectCallResponse(info: RadioResponseInfo) = RilHolder.complete(info)
++    override fun sendDtmfResponse(info: RadioResponseInfo) = RilHolder.complete(info)
++    override fun startDtmfResponse(info: RadioResponseInfo) = RilHolder.complete(info)
++    override fun stopDtmfResponse(info: RadioResponseInfo) = RilHolder.complete(info)
++    override fun setMuteResponse(info: RadioResponseInfo) = RilHolder.complete(info)
++    override fun setClirResponse(info: RadioResponseInfo) = RilHolder.complete(info)
++    override fun setImsRegErrReportResponse(info: RadioResponseInfo) = RilHolder.complete(info)
++
++    override fun getLastCallFailCauseResponse(info: RadioResponseInfo, cause: LastCallFailCauseInfo) {
++        if (info.error != 0) {
++            HwImsCallSession.calls.values.forEach {
++                it.notifyEnded()
++            }
++        }
++        RilHolder.complete(info)
++    }
++
++    override fun uiccAuthResponse(info: RadioResponseInfo, response: RILUICCAUTHRESPONSE) {
++        RilHolder.complete(info)
++    }
++
++    override fun getCurrentImsCallsWithImsDomainResponse(
++        info: RadioResponseInfo,
++        calls: ArrayList<RILImsCallEx>
++    ) {
++        updateCalls(calls.map { it.toBaseCall() })
++        RilHolder.complete(info)
++    }
++
++    override fun getCurrentImsCallsResponseV1_2(
++        info: RadioResponseInfo,
++        calls: ArrayList<RILImsCallV1_2>
++    ) {
++        updateCalls(calls.map { it.toBaseCall() })
++        RilHolder.complete(info)
++    }
++
++    companion object {
++        private const val TAG = "PARHwImsResponse"
++        private const val CALL_POLL_INTERVAL_MS = 1000L
++    }
++}
+diff --git a/par/ims/src/com/huawei/ims/HwImsRegistration.kt b/par/ims/src/com/huawei/ims/HwImsRegistration.kt
+new file mode 100644
+index 0000000000000000000000000000000000000000..a1f98ac9ec41d3ca713670f2a1236830b90c3444
+--- /dev/null
++++ b/par/ims/src/com/huawei/ims/HwImsRegistration.kt
+@@ -0,0 +1,42 @@
++/*
++ * This file is part of HwIms
++ * Copyright (C) 2019 Penn Mackintosh
++ *     This program is free software: you can redistribute it and/or modify
++ *     it under the terms of the GNU General Public License as published by
++ *     the Free Software Foundation, either version 3 of the License, or
++ *     (at your option) any later version.
++ *
++ *     This program is distributed in the hope that it will be useful,
++ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *     GNU General Public License for more details.
++ *
++ *     You should have received a copy of the GNU General Public License
++ *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
++ */
++
++package com.huawei.ims
++
++import android.telephony.ims.ImsReasonInfo
++import android.telephony.ims.stub.ImsRegistrationImplBase
++
++class HwImsRegistration(private val mSlotId: Int) : ImsRegistrationImplBase() {
++
++    // BEWARE FUTURE ME: https://android-review.googlesource.com/c/platform/frameworks/base/+/809459 is changing this big-time in AOSP Q
++
++    fun notifyRegistered(@ImsRegistrationTech imsRadioTech: Int) {
++        this.onRegistered(imsRadioTech)
++    }
++
++    fun notifyRegistering(@ImsRegistrationTech imsRadioTech: Int) {
++        this.onRegistering(imsRadioTech)
++    }
++
++    fun notifyDeregistered(info: ImsReasonInfo, @ImsRegistrationTech imsRadioTech: Int) {
++        this.onDeregistered(info)
++    }
++
++    fun notifyDeregistered(info: ImsReasonInfo = ImsReasonInfo()) {
++        this.onDeregistered(info)
++    }
++}
+diff --git a/par/ims/src/com/huawei/ims/HwImsService.kt b/par/ims/src/com/huawei/ims/HwImsService.kt
+new file mode 100644
+index 0000000000000000000000000000000000000000..e46fce33a7ed0cc31d85c85ca19be365a38b53dc
+--- /dev/null
++++ b/par/ims/src/com/huawei/ims/HwImsService.kt
+@@ -0,0 +1,167 @@
++/*
++ * Copyright (C) 2019 Penn Mackintosh
++ * Copyright (C) 2026 PAR project contributors
++ * SPDX-License-Identifier: GPL-3.0-or-later
++ */
++package com.huawei.ims
++
++import android.content.BroadcastReceiver
++import android.content.Context
++import android.content.Intent
++import android.content.IntentFilter
++import android.os.HwBinder
++import android.os.HwParcel
++import android.telephony.SubscriptionManager
++import android.telephony.TelephonyManager
++import android.telephony.ims.ImsService
++import android.telephony.ims.feature.ImsFeature
++import android.telephony.ims.stub.ImsConfigImplBase
++import android.telephony.ims.stub.ImsFeatureConfiguration
++import android.util.Log
++
++class HwImsService : ImsService() {
++    private val mmTelFeatures = arrayOfNulls<HwMmTelFeature>(2)
++    private val registrations = arrayOfNulls<HwImsRegistration>(2)
++    private val configs = arrayOfNulls<HwImsConfig>(2)
++    internal lateinit var subscriptionManager: SubscriptionManager
++    internal lateinit var telephonyManager: TelephonyManager
++    private var lastDefaultSlot = 0
++
++    private val defaultDataReceiver = object : BroadcastReceiver() {
++        override fun onReceive(context: Context, intent: Intent) {
++            val newSlot = defaultImsSlot()
++            if (newSlot == lastDefaultSlot) return
++            Log.i(TAG, "Default IMS slot changed $lastDefaultSlot -> $newSlot")
++            mmTelFeatures[lastDefaultSlot]?.unregisterIms()
++            lastDefaultSlot = newSlot
++            onUpdateSupportedImsFeatures(querySupportedImsFeatures())
++            mmTelFeatures[newSlot]?.queryRegistration()
++        }
++    }
++
++    override fun onCreate() {
++        super.onCreate()
++        instance = this
++        subscriptionManager = getSystemService(SubscriptionManager::class.java)
++        telephonyManager = getSystemService(TelephonyManager::class.java)
++        lastDefaultSlot = defaultImsSlot()
++        registerReceiver(
++            defaultDataReceiver,
++            IntentFilter(TelephonyManager.ACTION_DEFAULT_DATA_SUBSCRIPTION_CHANGED),
++            Context.RECEIVER_EXPORTED
++        )
++        Log.i(TAG, "Open PAR IMS service created; default slot=$lastDefaultSlot")
++    }
++
++    override fun onDestroy() {
++        unregisterReceiver(defaultDataReceiver)
++        instance = null
++        super.onDestroy()
++    }
++
++    override fun readyForFeatureCreation() {
++        instance = this
++    }
++
++    override fun enableIms(slotId: Int) {
++        if (slotId == defaultImsSlot()) {
++            setHuaweiImsEnabled(slotId, true)
++            createMmTelFeature(slotId)?.queryRegistration()
++        } else {
++            Log.i(TAG, "Ignoring enableIms for non-default slot $slotId")
++        }
++    }
++
++    override fun disableIms(slotId: Int) {
++        if (slotId == defaultImsSlot()) setHuaweiImsEnabled(slotId, false)
++        createMmTelFeature(slotId)?.unregisterIms()
++    }
++
++    override fun querySupportedImsFeatures(): ImsFeatureConfiguration {
++        return ImsFeatureConfiguration.Builder()
++            .addFeature(defaultImsSlot(), ImsFeature.FEATURE_MMTEL)
++            .build()
++    }
++
++    override fun createMmTelFeature(slotId: Int): HwMmTelFeature? {
++        if (slotId !in mmTelFeatures.indices) return null
++        if (mmTelFeatures[slotId] == null) {
++            mmTelFeatures[slotId] = HwMmTelFeature(slotId)
++        }
++        return mmTelFeatures[slotId]
++    }
++
++    override fun getConfig(slotId: Int): ImsConfigImplBase? {
++        if (slotId !in configs.indices) return null
++        if (configs[slotId] == null) configs[slotId] = HwImsConfig()
++        return configs[slotId]
++    }
++
++    override fun getRegistration(slotId: Int): HwImsRegistration? {
++        if (slotId !in registrations.indices) return null
++        if (registrations[slotId] == null) registrations[slotId] = HwImsRegistration(slotId)
++        return registrations[slotId]
++    }
++
++    private fun defaultImsSlot(): Int {
++        val slot = SubscriptionManager.getSlotIndex(SubscriptionManager.getDefaultDataSubscriptionId())
++        return if (slot in mmTelFeatures.indices) slot else 0
++    }
++
++    private fun setHuaweiImsEnabled(slotId: Int, enabled: Boolean) {
++        if (slotId !in mmTelFeatures.indices) return
++        val serviceName = if (slotId == 0) "slot1" else "slot2"
++        try {
++            transactOneway(HUAWEI_RADIO_DESCRIPTOR, serviceName, SET_IMS_SWITCH_TRANSACTION) {
++                it.writeInt32(IMS_SWITCH_SERIAL_BASE + slotId)
++                it.writeInt32(if (enabled) 1 else 0)
++            }
++            if (enabled) {
++                transactOneway(HISI_RADIO_DESCRIPTOR, serviceName, IMS_REGISTER_TRANSACTION) {
++                    it.writeInt32(IMS_REGISTER_SERIAL_BASE + slotId)
++                }
++                transactOneway(HISI_RADIO_DESCRIPTOR, serviceName, GET_IMS_DOMAIN_TRANSACTION) {
++                    it.writeInt32(GET_IMS_DOMAIN_SERIAL_BASE + slotId)
++                }
++            }
++            Log.i(TAG, "Huawei modem IMS ${if (enabled) "enabled" else "disabled"} on slot=$slotId")
++        } catch (e: Exception) {
++            Log.e(TAG, "Unable to ${if (enabled) "enable" else "disable"} Huawei modem IMS on slot=$slotId", e)
++        }
++    }
++
++    private inline fun transactOneway(
++        descriptor: String,
++        serviceName: String,
++        transaction: Int,
++        writeArguments: (HwParcel) -> Unit
++    ) {
++        val binder = HwBinder.getService(descriptor, serviceName)
++        val request = HwParcel()
++        val reply = HwParcel()
++        try {
++            request.writeInterfaceToken(descriptor)
++            writeArguments(request)
++            binder.transact(transaction, request, reply, HIDL_ONEWAY)
++        } finally {
++            request.releaseTemporaryStorage()
++            reply.release()
++        }
++    }
++
++    companion object {
++        private const val TAG = "PARHwImsService"
++        private const val HUAWEI_RADIO_DESCRIPTOR =
++            "vendor.huawei.hardware.radio@2.0::IRadio"
++        private const val HISI_RADIO_DESCRIPTOR =
++            "vendor.huawei.hardware.hisiradio@1.0::IHisiRadio"
++        private const val SET_IMS_SWITCH_TRANSACTION = 4
++        private const val IMS_REGISTER_TRANSACTION = 0x29
++        private const val GET_IMS_DOMAIN_TRANSACTION = 0x40
++        private const val HIDL_ONEWAY = 1
++        private const val IMS_SWITCH_SERIAL_BASE = 0x7f120000
++        private const val IMS_REGISTER_SERIAL_BASE = 0x7f130000
++        private const val GET_IMS_DOMAIN_SERIAL_BASE = 0x7f140000
++        @Volatile var instance: HwImsService? = null
++    }
++}
+diff --git a/par/ims/src/com/huawei/ims/HwMmTelFeature.java b/par/ims/src/com/huawei/ims/HwMmTelFeature.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..71cebdc6a953497a44a4591ad5b04f918da0f15b
+--- /dev/null
++++ b/par/ims/src/com/huawei/ims/HwMmTelFeature.java
+@@ -0,0 +1,106 @@
++/*
++ * Copyright (C) 2019 Penn Mackintosh
++ * Copyright (C) 2026 PAR project contributors
++ * SPDX-License-Identifier: GPL-3.0-or-later
++ */
++package com.huawei.ims;
++
++import android.annotation.NonNull;
++import android.os.RemoteException;
++import android.telephony.Rlog;
++import android.telephony.ims.ImsCallProfile;
++import android.telephony.ims.ImsReasonInfo;
++import android.telephony.ims.feature.CapabilityChangeRequest;
++import android.telephony.ims.feature.MmTelFeature;
++import android.telephony.ims.stub.ImsCallSessionImplBase;
++import android.telephony.ims.stub.ImsRegistrationImplBase;
++import android.util.Log;
++import android.util.SparseArray;
++
++public final class HwMmTelFeature extends MmTelFeature {
++    private static final String TAG = "PARHwImsMmTel";
++    private final SparseArray<MmTelCapabilities> enabledCapabilities = new SparseArray<>();
++    private final int slotId;
++
++    HwMmTelFeature(int slotId) {
++        this.slotId = slotId;
++        enabledCapabilities.put(ImsRegistrationImplBase.REGISTRATION_TECH_LTE,
++                new MmTelCapabilities(MmTelCapabilities.CAPABILITY_TYPE_VOICE));
++        setFeatureState(STATE_READY);
++    }
++
++    @Override
++    public boolean queryCapabilityConfiguration(int capability, int radioTech) {
++        MmTelCapabilities capabilities = enabledCapabilities.get(radioTech);
++        return capabilities != null && capabilities.isCapable(capability);
++    }
++
++    @Override
++    public void changeEnabledCapabilities(CapabilityChangeRequest request,
++            CapabilityCallbackProxy callback) {
++        for (CapabilityChangeRequest.CapabilityPair pair : request.getCapabilitiesToEnable()) {
++            if (pair.getRadioTech() == ImsRegistrationImplBase.REGISTRATION_TECH_LTE) {
++                enabledCapabilities.get(pair.getRadioTech()).addCapabilities(pair.getCapability());
++            }
++        }
++        for (CapabilityChangeRequest.CapabilityPair pair : request.getCapabilitiesToDisable()) {
++            MmTelCapabilities capabilities = enabledCapabilities.get(pair.getRadioTech());
++            if (capabilities != null) capabilities.removeCapabilities(pair.getCapability());
++        }
++    }
++
++    void queryRegistration() {
++        HwImsRegistration registration = HwImsService.Companion.getInstance().getRegistration(slotId);
++        if (registration != null) registration.notifyRegistering(
++                ImsRegistrationImplBase.REGISTRATION_TECH_LTE);
++        try {
++            RilHolder.INSTANCE.getRadio(slotId).getImsRegistrationState(
++                    RilHolder.INSTANCE.getNextSerial());
++        } catch (RemoteException | IllegalStateException e) {
++            if (registration != null) registration.notifyDeregistered(new ImsReasonInfo());
++            Rlog.e(TAG, "Unable to query IMS registration for slot " + slotId, e);
++        }
++    }
++
++    void updateRegistration(boolean registered) {
++        HwImsRegistration registration = HwImsService.Companion.getInstance().getRegistration(slotId);
++        if (registered) {
++            updateVoiceCapability(true);
++            if (registration != null) registration.notifyRegistered(
++                    ImsRegistrationImplBase.REGISTRATION_TECH_LTE);
++        } else {
++            updateVoiceCapability(false);
++            if (registration != null) registration.notifyDeregistered(new ImsReasonInfo());
++        }
++    }
++
++    void updateVoiceCapability(boolean available) {
++        MmTelCapabilities capabilities = new MmTelCapabilities();
++        if (available) capabilities.addCapabilities(MmTelCapabilities.CAPABILITY_TYPE_VOICE);
++        notifyCapabilitiesStatusChanged(capabilities);
++    }
++
++    void unregisterIms() {
++        HwImsRegistration registration = HwImsService.Companion.getInstance().getRegistration(slotId);
++        if (registration != null) registration.notifyDeregistered(new ImsReasonInfo());
++        updateVoiceCapability(false);
++    }
++
++    @Override
++    public ImsCallProfile createCallProfile(int callSessionType, int callType) {
++        if (callSessionType == ImsCallProfile.SERVICE_TYPE_EMERGENCY) return null;
++        return new ImsCallProfile(callSessionType, callType);
++    }
++
++    @Override
++    public synchronized ImsCallSessionImplBase createCallSession(
++            @NonNull ImsCallProfile profile) {
++        return new HwImsCallSession(slotId, profile);
++    }
++
++    @Override
++    public void onFeatureReady() {
++        super.onFeatureReady();
++        queryRegistration();
++    }
++}
+diff --git a/par/ims/src/com/huawei/ims/RilHolder.kt b/par/ims/src/com/huawei/ims/RilHolder.kt
+new file mode 100644
+index 0000000000000000000000000000000000000000..7345b178c704f3d8f847921fbcc54642fbafbfff
+--- /dev/null
++++ b/par/ims/src/com/huawei/ims/RilHolder.kt
+@@ -0,0 +1,96 @@
++/*
++ * Copyright (C) 2019 Penn Mackintosh
++ * Copyright (C) 2026 PAR project contributors
++ * SPDX-License-Identifier: GPL-3.0-or-later
++ */
++package com.huawei.ims
++
++import android.os.IHwBinder
++import android.util.Log
++import vendor.huawei.hardware.radio.ims.V1_0.IRadioIms
++import vendor.huawei.hardware.radio.ims.V1_0.RadioResponseInfo
++import vendor.huawei.hardware.radio.ims.V1_0.RspMsgPayload
++import java.util.concurrent.ConcurrentHashMap
++import java.util.concurrent.atomic.AtomicInteger
++
++object RilHolder {
++    private const val TAG = "PARHwImsRil"
++    private val serviceNames = arrayOf("rildi", "rildi2")
++    private val radios = arrayOfNulls<IRadioIms>(2)
++    private val responses = arrayOfNulls<HwImsRadioResponse>(2)
++    private val indications = arrayOfNulls<HwImsRadioIndication>(2)
++    private val serials = AtomicInteger(0)
++    private val callbacks = ConcurrentHashMap<Int, (RadioResponseInfo, RspMsgPayload?) -> Unit>()
++    private val blocks = ConcurrentHashMap<Int, BlockingCallback>()
++
++    @Synchronized
++    fun getRadio(slotId: Int): IRadioIms {
++        require(slotId in serviceNames.indices) { "Invalid IMS slot $slotId" }
++        radios[slotId]?.let { return it }
++
++        val response = HwImsRadioResponse(slotId)
++        val indication = HwImsRadioIndication(slotId)
++        try {
++            val radio = IRadioIms.getService(serviceNames[slotId])
++            radio.setResponseFunctionsHuawei(response, indication)
++            radio.linkToDeath(IHwBinder.DeathRecipient {
++                synchronized(this) {
++                    radios[slotId] = null
++                    responses[slotId] = null
++                    indications[slotId] = null
++                }
++                HwImsService.instance?.getRegistration(slotId)?.notifyDeregistered()
++                Log.w(TAG, "IMS HAL died for slot $slotId")
++            }, slotId.toLong())
++            radios[slotId] = radio
++            responses[slotId] = response
++            indications[slotId] = indication
++            Log.i(TAG, "Connected ${serviceNames[slotId]}")
++            return radio
++        } catch (e: Exception) {
++            throw IllegalStateException("Unable to connect IMS HAL for slot $slotId", e)
++        }
++    }
++
++    fun getNextSerial(): Int = serials.incrementAndGet()
++
++    fun callback(slotId: Int, callback: (RadioResponseInfo, RspMsgPayload?) -> Unit): Int {
++        val serial = getNextSerial()
++        callbacks[serial] = callback
++        Log.v(TAG, "Queued serial=$serial slot=$slotId")
++        return serial
++    }
++
++    fun complete(info: RadioResponseInfo, payload: RspMsgPayload? = null) {
++        callbacks.remove(info.serial)?.invoke(info, payload)
++    }
++
++    fun prepareBlock(slotId: Int): Int {
++        val block = BlockingCallback()
++        val serial = callback(slotId, block::run)
++        blocks[serial] = block
++        return serial
++    }
++
++    fun blockUntilComplete(serial: Int): RadioResponseInfo {
++        return blocks.remove(serial)?.get()
++            ?: throw IllegalStateException("No blocking request for serial $serial")
++    }
++
++    class BlockingCallback {
++        private val lock = Object()
++        private var result: RadioResponseInfo? = null
++
++        fun run(info: RadioResponseInfo, payload: RspMsgPayload?) {
++            synchronized(lock) {
++                result = info
++                lock.notifyAll()
++            }
++        }
++
++        fun get(): RadioResponseInfo = synchronized(lock) {
++            while (result == null) lock.wait()
++            result!!
++        }
++    }
++}
 diff --git a/rw-system.sh b/rw-system.sh
-index cda1de1..35ac4fa 100644
+index cda1de1aa66bdfad75b383b2e3cccb1983e4e135..35ac4faeb59ac2ae37ceab1bed3c4acaed2c6292 100644
 --- a/rw-system.sh
 +++ b/rw-system.sh
 @@ -606,6 +606,17 @@ if getprop ro.vendor.build.fingerprint | grep -iq -e Redmi/rosemary \
@@ -282,41 +1733,155 @@ index cda1de1..35ac4fa 100644
  
  if getprop ro.boot.boot_devices |grep -v , |grep -qE .;then
      ln -s /dev/block/platform/$(getprop ro.boot.boot_devices) /dev/block/bootdevice
-diff --git a/sepolicy/hal_audio_sysbta.te b/sepolicy/hal_audio_sysbta.te
-index d871ed3..1e468fd 100644
---- a/sepolicy/hal_audio_sysbta.te
-+++ b/sepolicy/hal_audio_sysbta.te
-@@ -1,5 +1,6 @@
- type hal_audio_sysbta, domain, coredomain;
- hal_server_domain(hal_audio_sysbta, hal_audio)
-+binder_use(hal_audio_sysbta)
+diff --git a/sepolicy/asus.te b/sepolicy/asus.te
+index 8965ab92d25997f907b9e4e2d4f575cfa5feffe1..656802ea3285f1624883bc13f7fc2c0218eb0d83 100644
+--- a/sepolicy/asus.te
++++ b/sepolicy/asus.te
+@@ -1,4 +1,4 @@
+-allow cameraserver phhsu_exec:file rx_file_perms;
++userdebug_or_eng(`allow cameraserver phhsu_exec:file rx_file_perms;')
  
- type hal_audio_sysbta_exec, exec_type, system_file_type, file_type;
- init_daemon_domain(hal_audio_sysbta)
+ type asus_motor_device, file_type;
+ allow cameraserver asus_motor_device:chr_file { open read write ioctl };
+@@ -7,4 +7,3 @@ allowxperm cameraserver asus_motor_device:chr_file ioctl { 0x4d02 };
+ type vendor_sysfs_graphics, file_type;
+ allow platform_app vendor_sysfs_graphics:dir r_dir_perms;
+ allow platform_app vendor_sysfs_graphics:file r_file_perms;
+-
+diff --git a/sepolicy/file_contexts b/sepolicy/file_contexts
+index beb639a712de09e0227f2172e085ae823ad5e5ff..f4f5a84f526cba8fbfd6321c84aaaa44b51fd15b 100644
+--- a/sepolicy/file_contexts
++++ b/sepolicy/file_contexts
+@@ -11,6 +11,9 @@
+ 
+ /sec_storage(/.*)?      u:object_r:teecd_data_file:s0
+ /dev/dsm                u:object_r:dmd_device:s0
++/dev/hwlog_dubai        u:object_r:huawei_hwlog_device:s0
++/dev/hwlog_exception    u:object_r:huawei_hwlog_device:s0
++/dev/hwlog_jank         u:object_r:huawei_hwlog_device:s0
+ 
+ /system/bin/hw/android.hardware.biometrics.fingerprint@2.1-service.oppo.compat u:object_r:hal_fingerprint_oppo_compat_exec:s0
+ /system/bin/hw/android.hardware.biometrics.fingerprint@2.1-service.oplus.compat u:object_r:hal_fingerprint_oppo_compat_exec:s0
+diff --git a/sepolicy/hal.te b/sepolicy/hal.te
+index cb44422d07615be9d183f910427f70c2fac838f5..46540b1069b9420196b486007619846f1b44a3ad 100644
+--- a/sepolicy/hal.te
++++ b/sepolicy/hal.te
+@@ -7,4 +7,4 @@ init_daemon_domain(hal_fingerprint_oppo_compat)
+ 
+ 
+ type hal_fingerprint_oppo, domain;
+-allow hal_fingerprint_oppo vendor_default_prop:property_service { set };
++userdebug_or_eng(`allow hal_fingerprint_oppo vendor_default_prop:property_service { set };')
+diff --git a/sepolicy/hostapd.te b/sepolicy/hostapd.te
+index fd37b6130ec1cfcdf732c44e866466f8eef3412e..c6d9f8c6d93596d31ef264d354d937b428040a45 100644
+--- a/sepolicy/hostapd.te
++++ b/sepolicy/hostapd.te
+@@ -1,4 +1,6 @@
+ type hostapd, domain;
+ 
++userdebug_or_eng(`
+ allow hostapd wifi_data_file:dir create_dir_perms;
+ allow hostapd wifi_data_file:file create_file_perms;
++')
 diff --git a/sepolicy/huawei.te b/sepolicy/huawei.te
-index 2988ed6..4055567 100644
+index 2988ed6d4a0b816f4e411598d6a03fda2e5cb66d..2f7118602ba58873f4a0c4cbdb04e03fa4a3483a 100644
 --- a/sepolicy/huawei.te
 +++ b/sepolicy/huawei.te
-@@ -16,6 +16,18 @@ allowxperm oeminfo_nvm oeminfo_nvm_device:blk_file ioctl { 0x1260 };
+@@ -1,5 +1,7 @@
++userdebug_or_eng(`
+ allow ueventd proc:file r_file_perms;
+ permissive ueventd;
++')
  
+ type teecd_data_file, file_type;
+ type dmd_device, file_type;
+@@ -7,24 +9,81 @@ allow hal_fingerprint_server dmd_device:chr_file rw_file_perms;
+ allow hal_fingerprint_server sysfs:file rw_file_perms;
+ allow tee hal_fingerprint_default:process { getattr };
+ allow tee teecd_data_file:dir { search read write create getattr add_name open };
+-allow tee teecd_data_file:file { read write create getattr open };
++allow tee teecd_data_file:file { read write create getattr open setattr };
+ allow tee system_data_file:dir { getattr };
+ 
+ type oeminfo_nvm, domain;
+ type oeminfo_nvm_device, file_type;
++type hinetmanager, domain;
++type mnt_modem_file, file_type;
++type modem_nv_file, file_type;
++type wpa_hisi, domain;
++type hal_usb_default, domain;
++type hi110x_daemon, domain;
++type storage_info, domain;
++type odm_etc_audio_algorithm, file_type;
+ allowxperm oeminfo_nvm oeminfo_nvm_device:blk_file ioctl { 0x1260 };
+ 
++# Keep the generic block-device denial for OEMInfo fail-closed. PAR never grants
++# a vendor helper raw access to an ambiguously labelled persistent partition.
++dontaudit oeminfo_nvm block_device:blk_file { read write };
++dontaudit oeminfo_nvm default_prop:file read;
++
++# Huawei's network manager launches Android's netutils wrappers with an
++# inherited result descriptor. Without this narrow grant, every ip/ndc probe
++# fails before the wrapper can report its result and creates an audit storm.
++allow netutils_wrapper hinetmanager:fd use;
++allow netutils_wrapper hinetmanager:fifo_file write;
++allow hinetmanager self:capability dac_override;
++
++# The Balong RIL only needs to traverse the already-labelled modem mount when
++# reconnecting after a radio/HAL cycle. File access remains vendor-controlled.
++allow rild mnt_modem_file:dir search;
++allow rild modem_nv_file:dir search;
++
++# Huawei's USB HAL runs as root and probes the dual-role USB sysfs interface
++# when the cable state changes. Its legacy implementation expects DAC bypass.
++userdebug_or_eng(`allow hal_usb_default self:capability dac_override;')
++dontaudit hal_usb_default self:capability dac_override;
++
++# The PAR vendor image leaves the optional EMUI recovery/country/ABS feature
++# properties unset. Keep the legacy supplicant's startup probes fail-closed
++# without emitting AVCs every time Wi-Fi is enabled.
++dontaudit wpa_hisi { default_prop config_prop }:file read;
++
++# Huawei kernel diagnostics write only to these three dedicated character
++# devices. Give them their own label instead of granting kernel access to every
++# generically-labelled device node.
++type huawei_hwlog_device, file_type;
++allow kernel huawei_hwlog_device:chr_file { open write };
++
++# bbox_main is a kernel diagnostic thread. Keep its broad DAC bypass denied;
++# suppress the one-shot probe because normal crash handling does not need it.
++dontaudit kernel self:capability dac_override;
++
  allow charger rootfs:file { ioctl read getattr lock map execute entrypoint open };
  
 +# Huawei HWC reads this property once during initialization to decide whether
 +# to connect to the vendor PerfGenius service. Keep the grant narrower than
 +# reading default_prop, which would expose unrelated system properties.
-+type kirin_perfgenius_prop, property_type;
++system_public_prop(kirin_perfgenius_prop)
 +get_prop(hal_graphics_composer_default, kirin_perfgenius_prop);
 +
 +# EMUI's Balong RIL probes these three Huawei radio feature flags. They used
 +# to inherit the broad config_prop label, which Android 13 denies to rild.
-+type huawei_rild_config_prop, property_type;
++system_public_prop(huawei_rild_config_prop)
 +get_prop(rild, huawei_rild_config_prop);
 +get_prop(radio, huawei_rild_config_prop);
 +
  # This is use exclusively for init to relabel /dev/selinux from tmpfs to device
  allow kernel tmpfs:{ dir file } relabelfrom;
  allow kernel device:{ dir file } relabelto;
-@@ -35,3 +47,27 @@ allowxperm vendor_init { teecd_data_file }:dir ioctl {
+ 
+ # system/core/init/mount_handler.cpp likes to browse all /sys/block/xxx, so let it do so...
+ type sys_block_sdd, file_type;
+-allow init { sysfs sys_block_sdd }:dir r_dir_perms;
+-allow init { sysfs sys_block_sdd }:file r_file_perms;
+-allow init { sysfs sys_block_sdd }:lnk_file read;
++allow init sys_block_sdd:dir r_dir_perms;
++allow init sys_block_sdd:file r_file_perms;
++allow init sys_block_sdd:lnk_file read;
+ 
+ allowxperm vendor_init { teecd_data_file }:dir ioctl { 
+   FS_IOC_GET_ENCRYPTION_POLICY
+@@ -35,3 +94,67 @@ allowxperm vendor_init { teecd_data_file }:dir ioctl {
  type sys_block_mmcblk0, file_type;
  allow init sys_block_mmcblk0:lnk_file read;
  allow init sysfs_zram:lnk_file read;
@@ -325,33 +1890,180 @@ index 2988ed6..4055567 100644
 +# HIDL interfaces have no public hwservice label. Permit lookup of both labels
 +# used by Huawei vendor policy; registration and all binder/HIDL calls remain
 +# governed by the vendor policy.
-+allow radio default_android_hwservice:hwservice_manager find;
 +allow radio default_hisi_hwservice:hwservice_manager find;
 +
-+# The legacy Balong RIL reads read-only system properties while bringing up
-+# Huawei IMS. Without this grant it loops on property-area denials before the
-+# IMS HAL is usable.
-+get_prop(rild, system_prop);
++# The legacy Balong RIL reads read-only system and untyped Huawei properties
++# while bringing up radio and IMS. These accesses are required in production
++# on the PAR userdebug build; production neverallow policy remains untouched.
++userdebug_or_eng(`get_prop(rild, system_prop)')
++userdebug_or_eng(`get_prop(rild, default_prop)')
++
++# Huawei's camera, audio and GNSS blobs still probe legacy EMUI properties
++# which Android 13 assigns to broad fallback labels. Keep these compatibility
++# reads confined to the PAR userdebug build rather than relabelling global
++# properties or weakening the platform neverallow sources.
++userdebug_or_eng(`get_prop(hal_camera_server, default_prop)')
++userdebug_or_eng(`get_prop(hal_camera_server, config_prop)')
++userdebug_or_eng(`get_prop(hal_audio_server, default_prop)')
++userdebug_or_eng(`get_prop(hal_audio_server, config_prop)')
++userdebug_or_eng(`get_prop(hal_audio_server, system_prop)')
++userdebug_or_eng(`get_prop(hal_audio_server, vendor_default_prop)')
++userdebug_or_eng(`get_prop(hal_audio_sysbta, vendor_default_prop)')
++userdebug_or_eng(`get_prop(audioserver, vendor_default_prop)')
++userdebug_or_eng(`get_prop(mediaserver, vendor_default_prop)')
++userdebug_or_eng(`get_prop(hi110x_daemon, default_prop)')
++userdebug_or_eng(`get_prop(storage_info, default_prop)')
++
++# Stagefright's MediaCodec waits for Android's typed package_native service
++# when mediaserver starts. This is a service lookup only; binder access remains
++# covered by the platform service policy.
++allow mediaserver package_native_service:service_manager find;
++
++# Legacy Huawei services return command and dump results through inherited
++# pipes, and the audio HAL probes its ODM algorithm directory at startup.
++allow hal_audio_server audioserver:fifo_file write;
++allow hal_audio_server odm_etc_audio_algorithm:dir search;
++allow hal_audio_server odm_etc_audio_algorithm:file { getattr open read };
++allow hi110x_daemon self:fifo_file ioctl;
++allowxperm hi110x_daemon self:fifo_file ioctl { TIOCGWINSZ };
++
++# Android 13 expects tethering maps below typed BPF subdirectories. Huawei's
++# 4.9 kernel exposes the same maps at the bpffs root, so the Network Stack must
++# use the legacy label on this userdebug compatibility build.
++userdebug_or_eng(`allow network_stack fs_bpf:file { read write };')
++
++# PAR's old zram and interactive-cpufreq layout needs these two narrow legacy
++# accesses for framework memory reporting and the kernel governor's io_is_busy
++# synchronization. No generic sysfs write permission is granted to userspace.
++allow system_server sysfs_zram:lnk_file read;
++allow kernel sysfs_devices_system_cpu:file write;
 +
 +# Allow system_server's device-gated compatibility bridge to deliver AOSP
 +# touch, launch, scroll, fling, window, rotation, screen-on and fingerprint
 +# events to Huawei's legacy UniPerf HIDL service.
 +type untrusted_app_visible_hisi_hwservice, hwservice_manager_type;
 +type uniperf, domain;
-+type par_uniperf_enabled_prop, property_type;
++system_internal_prop(par_uniperf_enabled_prop)
 +allow system_server untrusted_app_visible_hisi_hwservice:hwservice_manager find;
 +binder_call(system_server, uniperf)
 +get_prop(system_server, kirin_perfgenius_prop);
 +get_prop(system_server, par_uniperf_enabled_prop);
 +get_prop(uniperf, kirin_perfgenius_prop);
+diff --git a/sepolicy/init.te b/sepolicy/init.te
+index 42f5bf5efdc7040ee1cb245bde5173f8fa3909b3..71dd0b856e2c9c29d94ca2118766c02e9fa115bc 100644
+--- a/sepolicy/init.te
++++ b/sepolicy/init.te
+@@ -7,7 +7,7 @@ allow init userdata_block_device:lnk_file relabelto;
+ 
+ allow vendor_init vendor_init:capability { sys_module };
+ 
+-allow init system_file:lnk_file create_file_perms;
++userdebug_or_eng(`allow init system_file:lnk_file create_file_perms;')
+ 
+ #fix adb in some cases
+ allow init adbd_exec:lnk_file read;
+diff --git a/sepolicy/keymaster.te b/sepolicy/keymaster.te
+index 8d982114a8436ca93b7ff1eab204efcd37a00ffd..976704ea8914e0427b794e2dae3da71158cdabaf 100644
+--- a/sepolicy/keymaster.te
++++ b/sepolicy/keymaster.te
+@@ -1,8 +1,10 @@
+ #Access to fake keymaster SPL/Android version props
+-get_prop(hal_keymaster, default_prop);
+-get_prop(tee, default_prop);
+-
+-get_prop(hal_keymaster, system_prop);
+-
+-get_prop(hal_gatekeeper, system_prop);
++system_public_prop(phh_keymaster_prop)
++get_prop(hal_keymaster, phh_keymaster_prop)
+ 
++userdebug_or_eng(`
++get_prop(hal_keymaster, default_prop)
++get_prop(tee, default_prop)
++get_prop(hal_keymaster, system_prop)
++get_prop(hal_gatekeeper, system_prop)
++')
+diff --git a/sepolicy/lmkd.te b/sepolicy/lmkd.te
+index 46e1a6197dd5e86ef9fdf222f4774dbf4083209c..32f384727378b9b89a8396eec438400fadc9642e 100644
+--- a/sepolicy/lmkd.te
++++ b/sepolicy/lmkd.te
+@@ -1 +1 @@
+-allow lmkd self:capability sys_ptrace;
++userdebug_or_eng(`allow lmkd self:capability sys_ptrace;')
+diff --git a/sepolicy/mediatek.te b/sepolicy/mediatek.te
+index 24efe33735ba04e3b0a8656e2770a1ffc6909bee..4a509483939ee424f58990e0084b746b1afe3c56 100644
+--- a/sepolicy/mediatek.te
++++ b/sepolicy/mediatek.te
+@@ -5,10 +5,10 @@ allowxperm domain proc_ged:file ioctl { 0x6700-0x67ff };
+ allow init mnt_product_file:dir mounton;
+ 
+ type mtk_hal_audio, domain;
+-typeattribute mtk_hal_audio hal_broadcastradio_client;
++userdebug_or_eng(`typeattribute mtk_hal_audio hal_broadcastradio_client;')
+ 
+ type mtk_hal_power, domain;
+-allow mtk_hal_power system_data_root_file:file create_file_perms;
++userdebug_or_eng(`allow mtk_hal_power system_data_root_file:file create_file_perms;')
+ allow zygote ashmem_device:chr_file execute;
+ 
+ attribute hal_mms_server;
+@@ -23,4 +23,4 @@ allow { appdomain -isolated_app }  mtk_hal_mms_hwservice:hwservice_manager find;
+ #denied { getattr } for comm="tkuinit" path="/dev/__properties__/u:object_r:default_prop:s0" dev="tmpfs" ino=2029 scontext=u:r:tkcore:s0 tcontext=u:object_r:default_prop:s0 tclass=file permissive=1
+ 
+ type tkcore, domain;
+-permissive tkcore;
++userdebug_or_eng(`permissive tkcore;')
+diff --git a/sepolicy/oppo.te b/sepolicy/oppo.te
+index e43887ccef0495084a66d149651c045fad6d8afd..173dc2e12a7c607ae50451c0796de6764d3a9f75 100644
+--- a/sepolicy/oppo.te
++++ b/sepolicy/oppo.te
+@@ -3,8 +3,9 @@ type sysfs_usb_supply, file_type;
+ allow system_app sysfs_usb_supply:file rw_file_perms;
+ 
+ type hal_fingerprint_oplus, domain;
+-allow hal_fingerprint_oplus vendor_default_prop:property_service set;
+-
+-get_prop(hal_fingerprint_oplus, default_prop);
+-get_prop(system_server, vendor_default_prop);
++userdebug_or_eng(`allow hal_fingerprint_oplus vendor_default_prop:property_service set;')
+ 
++userdebug_or_eng(`
++get_prop(hal_fingerprint_oplus, default_prop)
++get_prop(system_server, vendor_default_prop)
++')
+diff --git a/sepolicy/phh.te b/sepolicy/phh.te
+index 9e233c38d90bc1e82049c578033dc7d4d96608bd..9af706dd5c6ab9c6a41eccd1eff75d50a297094c 100644
+--- a/sepolicy/phh.te
++++ b/sepolicy/phh.te
+@@ -1,8 +1,8 @@
+ type phhota_dev, dev_type, bdev_type;
+ typeattribute phhota_dev mlstrustedobject;
+ 
++userdebug_or_eng(`
+ allow phhsu_daemon phhota_dev:blk_file rw_file_perms;
+-allow system_app phhota_dev:blk_file rw_file_perms;
+ allow kernel phhsu_daemon:fd use;
+ 
+ allow phhsu_daemon gsi_data_file:file ioctl;
+@@ -13,5 +13,9 @@ allowxperm phhsu_daemon loop_device:blk_file ioctl { 0x4c00 };
+ 
+ allow phhsu_daemon userdata_block_device:blk_file ioctl;
+ allowxperm phhsu_daemon userdata_block_device:blk_file ioctl { 0x1278 0x127a };
++')
+ 
++userdebug_or_eng(`
++allow system_app phhota_dev:blk_file rw_file_perms;
+ allow kernel gsi_data_file:file rw_file_perms;
++')
 diff --git a/sepolicy/property_contexts b/sepolicy/property_contexts
-index 185a08b..e821e7a 100644
+index 185a08bc3442cbc6d9bed0c593222500bfc6c696..5cf4ec4f42485540b1936dd72b005ff93315d6e1 100644
 --- a/sepolicy/property_contexts
 +++ b/sepolicy/property_contexts
-@@ -1,2 +1,31 @@
+@@ -1,2 +1,32 @@
  persist.sys.sf.hs_mode         u:object_r:sf_hs_mode_prop:s0
  hwc.exynos.vsync_mode      u:object_r:vendor_hwc_prop:s0
 +ro.kirin.config.hw_perfgenius u:object_r:kirin_perfgenius_prop:s0 exact bool
++ro.keymaster. u:object_r:phh_keymaster_prop:s0 prefix
 +sys.par.uniperf.enabled u:object_r:par_uniperf_enabled_prop:s0 exact bool
 +ro.config.hw_4.5gplus u:object_r:huawei_rild_config_prop:s0 exact bool
 +ro.config.hw_gcf u:object_r:huawei_rild_config_prop:s0 exact bool
@@ -380,8 +2092,165 @@ index 185a08b..e821e7a 100644
 +ro.config.is_sup_cnap u:object_r:huawei_rild_config_prop:s0 exact bool
 +ro.config.power u:object_r:huawei_rild_config_prop:s0 exact
 +ro.config.support_wcdma_modem1 u:object_r:huawei_rild_config_prop:s0 exact bool
+diff --git a/sepolicy/qualcomm.te b/sepolicy/qualcomm.te
+index a1ddd5bc4b756334fd94e6ab18ec0616c79f75b0..2fbba03cf82e49cab858e2a8711222b1b1f1b1e8 100644
+--- a/sepolicy/qualcomm.te
++++ b/sepolicy/qualcomm.te
+@@ -2,7 +2,7 @@ type bt_firmware_file, file_type;
+ type rild, domain;
+ 
+ #me.phh.treble.qti.audio is system-signed
+-allow system_app hal_telephony_hwservice:hwservice_manager { find };
++userdebug_or_eng(`allow system_app hal_telephony_hwservice:hwservice_manager { find };')
+ allow { rild system_app } { rild system_app }:binder { call transfer };
+ 
+ #Pixel 1
+@@ -14,7 +14,7 @@ type vnd_qcrilhook_hwservice, hwservice_manager_type;
+ allow system_app vnd_qcrilhook_hwservice:hwservice_manager { find };
+ 
+ #OP6
+-allow system_app hal_telephony_hwservice:hwservice_manager { find };
++userdebug_or_eng(`allow system_app hal_telephony_hwservice:hwservice_manager { find };')
+ 
+ # cf https://github.com/phhusson/treble_experimentations/issues/131
+ # SELinux : avc:  denied  { add } for interface=android.hardware.tetheroffload.control::IOffloadControl pid=15220 scontext=u:r:ipacm:s0 tcontext=u:object_r:hal_tetheroffload_hwservice:s0 tclass=hwservice_manager permissive=0
+@@ -29,4 +29,4 @@ attribute smcinvoke_device_29_0;
+ type smcinvoke_device, dev_type;
+ typeattribute smcinvoke_device smcinvoke_device_29_0;
+ 
+-get_prop(rild, default_prop);
++userdebug_or_eng(`get_prop(rild, default_prop)')
+diff --git a/sepolicy/samsung.te b/sepolicy/samsung.te
+index 7dee39246a1c4e0d62a7d3809b74aa8af08c03f4..8cc0e969fffed6bee2bd8778f1099bca9cf73229 100644
+--- a/sepolicy/samsung.te
++++ b/sepolicy/samsung.te
+@@ -1,14 +1,14 @@
+-type boot_prop, property_type;
++system_internal_prop(boot_prop)
+ 
+-set_prop(system_server, boot_prop);
++userdebug_or_eng(`set_prop(system_server, boot_prop)')
+ 
+ type hal_graphics_composer_default, domain;
+ 
+-type sf_hs_mode_prop, property_type;
++system_public_prop(sf_hs_mode_prop)
+ 
+ get_prop(hal_graphics_composer_default, sf_hs_mode_prop);
+ 
+-type vendor_hwc_prop, property_type;
++vendor_public_prop(vendor_hwc_prop)
+ 
+ get_prop(hal_graphics_composer_default, vendor_hwc_prop);
+ 
+diff --git a/sepolicy/su.te b/sepolicy/su.te
+index f8829cd5087d47aef74849b8ad3ac511563ffc74..ad7f2001790f6cdd0ac2bcb5fab1f81fcc526999 100644
+--- a/sepolicy/su.te
++++ b/sepolicy/su.te
+@@ -1,12 +1,19 @@
+-type phhsu_daemon, domain, mlstrustedsubject;
+-type phhsu_exec, exec_type, file_type;
++type phhsu_daemon, domain;
++type phhsu_exec, system_file_type, exec_type, file_type;
+ type phhsu_daemon_tmpfs, file_type;
+ 
+ typeattribute phhsu_daemon coredomain;
+-permissive phhsu_daemon;
+-
+ tmpfs_domain(phhsu_daemon);
+ domain_auto_trans(init, phhsu_exec, phhsu_daemon);
++
++# The vanilla bvN product does not package PHH's legacy su implementation.
++# Keep only an enforcing init-launched compatibility domain in user builds;
++# the historical root/debug policy below is confined to debug variants.
++allow phhsu_daemon shell_exec:file rx_file_perms;
++
++userdebug_or_eng(`
++permissive phhsu_daemon;
++
+ file_type_auto_trans(phhsu_daemon, device, phhsu_daemon);
+ 
+ allow { appdomain shell } phhsu_daemon:unix_stream_socket { connectto write read };
+@@ -149,3 +156,4 @@ allow phhsu_daemon domain:process { transition };
+ 
+ allowxperm phhsu_daemon { file_type block_device }:blk_file ioctl { 0-0xffff };
+ allowxperm phhsu_daemon { system_block_device super_block_device dm_device }:blk_file ioctl { 0x1278-0x127a 0x125d };
++')
+diff --git a/sepolicy/treble_app.te b/sepolicy/treble_app.te
+index 2afdd245809ff3c0f32285affec22213a17c9456..23deb9dd3c501d64328b23e0f2b08a246e21e1c4 100644
+--- a/sepolicy/treble_app.te
++++ b/sepolicy/treble_app.te
+@@ -1,13 +1,15 @@
+-allow system_app hal_wifi_hostapd_hwservice:hwservice_manager { add find };
++userdebug_or_eng(`allow system_app hal_wifi_hostapd_hwservice:hwservice_manager { add find };')
+ allow system_app hidl_base_hwservice:hwservice_manager { add };
++userdebug_or_eng(`
+ allow system_app wifi_data_file:dir create_dir_perms;
+ allow system_app wifi_data_file:file create_file_perms;
++')
+ 
+-allow system_app sysfs_batteryinfo:file rw_file_perms;
++userdebug_or_eng(`allow system_app sysfs_batteryinfo:file rw_file_perms;')
+ 
+-type vendor_camera_prop, property_type;
+-set_prop(system_app, vendor_camera_prop);
+-type camera_prop, property_type;
++vendor_public_prop(vendor_camera_prop)
++userdebug_or_eng(`set_prop(system_app, vendor_camera_prop)')
++system_public_prop(camera_prop)
+ set_prop(system_app, camera_prop);
+ 
+ type hal_ext_fingerprint_hwservice, hwservice_manager_type;
+@@ -25,21 +27,20 @@ type hal_tp_default, domain;
+ allow system_app hal_tp_default:binder { call };
+ 
+ #cam2api
++userdebug_or_eng(`
+ allow system_app vendor_default_prop:property_service { set };
+-
+ set_prop(system_app, default_prop);
+-#set_prop(system_app, exported3_default_prop);
+ set_prop(system_app, telephony_config_prop);
++')
+ 
+ type mtk_hal_rild_hwservice, hwservice_manager_type;
+ allow system_app mtk_hal_rild_hwservice:hwservice_manager { find};
+ 
+-type mtk_vilte_support_prop, property_type;
+-allow system_app mtk_vilte_support_prop:property_service set;
++vendor_public_prop(mtk_vilte_support_prop)
++userdebug_or_eng(`allow system_app mtk_vilte_support_prop:property_service set;')
+ 
+ type hal_gesturewake_hwservice, hwservice_manager_type;
+ type hal_gesturewake_default, domain;
+ allow system_app hal_gesturewake_hwservice:hwservice_manager { find };
+ allow system_app hal_gesturewake_default:binder { call transfer };
+ allow hal_gesturewake_default system_app:binder { call transfer };
+-
+diff --git a/sepolicy/vndk_detect.te b/sepolicy/vndk_detect.te
+index 797094acdc3cd92b9de5f6dc589bbaccb74238a0..d933a3f1626edda9a997c30845d1b8da494b1248 100644
+--- a/sepolicy/vndk_detect.te
++++ b/sepolicy/vndk_detect.te
+@@ -1,5 +1,5 @@
+ type vndk_detect, coredomain, domain;
+-type vndk_detect_exec, exec_type, file_type;
++type vndk_detect_exec, exec_type, system_file_type, file_type;
+ 
+ init_daemon_domain(vndk_detect);
+ allow vndk_detect sepolicy_file:file r_file_perms;
+@@ -20,8 +20,10 @@ allow vndk_detect self:capability { sys_admin };
+ allow init vendor_configs_file:file { getattr mounton };
+ 
+ #/sys/module/five
++userdebug_or_eng(`
+ allow vndk_detect sysfs:file r_file_perms;
+ allow vndk_detect sysfs:dir r_dir_perms;
++')
+ 
+ #/proc/filesystems
+ allow vndk_detect proc_filesystems:file r_file_perms;
 diff --git a/system.prop b/system.prop
-index 986cb09..83d1e2a 100644
+index 986cb0921ed27a0487fbdd283246aad0e82c7006..a772799bacf7d192ed3213a6125e3d77c89db37b 100644
 --- a/system.prop
 +++ b/system.prop
 @@ -1,4 +1,24 @@
@@ -410,7 +2279,18 @@ index 986cb09..83d1e2a 100644
  #Some devices have sdcardfs kernel panicing on 8.0
  #Disable for everyone for the moment
  ro.sys.sdcardfs=0
-@@ -12,8 +32,10 @@ fw.max_users=10
+@@ -8,12 +28,21 @@ persist.sys.overlay.nightmode=true
+ persist.sys.strictmode.disable=true
+ persist.sys.phh.mainkeys=0
+ 
++# Huawei's legacy Mali-G72 r14p0/gralloc stack can return stale regions when
++# Android 13 HWUI reuses EGL buffer age damage. Keep partial updates on with
++# preserved buffers: forcing discard/full redraw causes 4-second dequeue
++# timeouts on this driver.
++debug.hwui.use_partial_updates=true
++debug.hwui.use_buffer_age=false
++
+ fw.max_users=10
  persist.sys.max_profiles=10
  ro.boot.realme.lockstate=0
  
@@ -424,7 +2304,7 @@ index 986cb09..83d1e2a 100644
  # Enable support of one-handed mode
  ro.support_one_handed_mode=true
 diff --git a/tdgsi_arm64_ab/BoardConfig.mk b/tdgsi_arm64_ab/BoardConfig.mk
-index 2fddc52..4601c45 100644
+index 2fddc5240c4a44e9a7dbed945b29fd9e1489f3e4..4601c4513645582a2953c5f06f4c31dd8bd38523 100644
 --- a/tdgsi_arm64_ab/BoardConfig.mk
 +++ b/tdgsi_arm64_ab/BoardConfig.mk
 @@ -1,8 +1,25 @@
@@ -454,7 +2334,7 @@ index 2fddc52..4601c45 100644
 +# validated by the working PAR image.
 +MALLOC_SVELTE := true
 diff --git a/vndk.rc b/vndk.rc
-index 823456a..dbd2d6e 100644
+index 823456aad887cff993724ff59345d563030eba4c..dbd2d6e373bcff44c0ebaf0584c79e8a8fda4683 100644
 --- a/vndk.rc
 +++ b/vndk.rc
 @@ -1,9 +1,18 @@

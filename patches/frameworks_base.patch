@@ -1,3 +1,5 @@
+# Provenance: TrebleDroid ci-20230905 (Alberto Ponces, Andy CrossGate Yan, Arne Coucheron, Danny Lin, ItsLynix, Peter Cai, Pierre-Hugues Husson, and Raphael Mounier) plus PAR-local follow-ups maintained by yukino1111.
+# See ../ATTRIBUTION.md for the ownership boundary.
 diff --git a/cmds/bootanimation/BootAnimation.cpp b/cmds/bootanimation/BootAnimation.cpp
 index 3e42a501e..0bffeedc7 100644
 --- a/cmds/bootanimation/BootAnimation.cpp

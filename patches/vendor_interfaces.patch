@@ -1,6 +1,8 @@
+# Provenance: PAR-local interface declarations maintained by yukino1111 from observable EMUI service descriptors and transactions.
+# See ../ATTRIBUTION.md; no Huawei implementation or extracted binary is included.
 diff --git a/vendor/huawei/hardware/iawareperf/1.0/Android.bp b/vendor/huawei/hardware/iawareperf/1.0/Android.bp
 new file mode 100644
-index 0000000..0673cfe
+index 0000000000000000000000000000000000000000..0673cfe9930b12d8cfc81eb0910ab0a8a436a6a7
 --- /dev/null
 +++ b/vendor/huawei/hardware/iawareperf/1.0/Android.bp
 @@ -0,0 +1,22 @@
@@ -28,7 +30,7 @@ index 0000000..0673cfe
 +}
 diff --git a/vendor/huawei/hardware/iawareperf/1.0/IUniPerf.hal b/vendor/huawei/hardware/iawareperf/1.0/IUniPerf.hal
 new file mode 100644
-index 0000000..0d81132
+index 0000000000000000000000000000000000000000..0d81132ba1e54ffea63c87fcab5dba25eb73f28a
 --- /dev/null
 +++ b/vendor/huawei/hardware/iawareperf/1.0/IUniPerf.hal
 @@ -0,0 +1,28 @@
@@ -59,4 +61,287 @@ index 0000000..0d81132
 +
 +    uniPerfGetConfig(vec<int32_t> tags)
 +        generates (int32_t result, vec<int32_t> values);
++};
+diff --git a/vendor/huawei/hardware/radio/ims/1.0/Android.bp b/vendor/huawei/hardware/radio/ims/1.0/Android.bp
+new file mode 100644
+index 0000000000000000000000000000000000000000..19ff00d21831e1962faa7827115e699c22ee7285
+--- /dev/null
++++ b/vendor/huawei/hardware/radio/ims/1.0/Android.bp
+@@ -0,0 +1,13 @@
++// Clean-room compatibility metadata for Huawei's legacy IMS radio HIDL service.
++hidl_interface {
++    name: "vendor.huawei.hardware.radio.ims@1.0",
++    root: "vendor",
++    srcs: [
++        "types.hal",
++        "IRadioIms.hal",
++        "IRadioImsIndication.hal",
++        "IRadioImsResponse.hal",
++    ],
++    interfaces: ["android.hidl.base@1.0"],
++    gen_java: true,
++}
+diff --git a/vendor/huawei/hardware/radio/ims/1.0/IRadioIms.hal b/vendor/huawei/hardware/radio/ims/1.0/IRadioIms.hal
+new file mode 100644
+index 0000000000000000000000000000000000000000..70e494a93767d516cd0001efd8fd4c4d0d57cbc4
+--- /dev/null
++++ b/vendor/huawei/hardware/radio/ims/1.0/IRadioIms.hal
+@@ -0,0 +1,60 @@
++package vendor.huawei.hardware.radio.ims@1.0;
++
++import vendor.huawei.hardware.radio.ims@1.0::IRadioImsIndication;
++import vendor.huawei.hardware.radio.ims@1.0::IRadioImsResponse;
++
++interface IRadioIms {
++    setResponseFunctionsHuawei(IRadioImsResponse response, IRadioImsIndication indication);
++    oneway responseAcknowledgement();
++    oneway hangup(int32_t serial, int32_t callId);
++    oneway getImsRegistrationState(int32_t serial);
++    oneway switchWaitingOrHoldingAndActive(int32_t serial);
++    oneway hangupForegroundResumeBackground(int32_t serial);
++    oneway hangupWaitingOrBackground(int32_t serial);
++    oneway conference(int32_t serial);
++    oneway explicitCallTransfer(int32_t serial);
++    oneway rejectCall(int32_t serial);
++    oneway sendDtmf(int32_t serial, string digit);
++    oneway startDtmf(int32_t serial, string digit);
++    oneway stopDtmf(int32_t serial);
++    oneway setMute(int32_t serial, bool muted);
++    oneway setClir(int32_t serial, int32_t mode);
++    oneway restartRILD(int32_t serial);
++    oneway imsDial(int32_t serial, RILImsDial dialInfo);
++    oneway getCurrentImsCalls(int32_t serial);
++    oneway getLastImsCallFailCause(int32_t serial);
++    oneway acceptImsCall(int32_t serial, int32_t callType);
++    oneway getImsImpu(int32_t serial, int32_t impuIndex);
++    oneway addImsConfMember(int32_t serial, string member);
++    oneway setImsCallWaiting(int32_t serial, bool enable, int32_t serviceClass);
++    oneway modifyImsCallInitiate(int32_t serial, RILImsCallModify callModifyInfo);
++    oneway modifyImsCallConfirm(int32_t serial, RILImsCallModify callModifyInfo);
++    oneway rejectCallWithReason(int32_t serial, int32_t callIndex, int32_t cause);
++    oneway uiccAuth(int32_t serial, RILUICCAUTH auth);
++    oneway uiccGbaBootStrap(int32_t serial, RILUICCAUTH auth);
++    oneway updateUiccFile(int32_t serial, RILCURSMUPDATEFILE update);
++    oneway getUiccFile(int32_t serial, int32_t appType, int32_t fileId);
++    oneway uiccKsNafAuth(int32_t serial, RILUICCKSNAFAUTH auth);
++    oneway setVtLlteQualityRptCfg(int32_t serial, int32_t enabled, int32_t threshold);
++    oneway setDmPcscf(int32_t serial, string pcscf);
++    oneway setDmDynamicPram(int32_t serial, string parameters);
++    oneway setDmTimer(int32_t serial, string timer);
++    oneway setDmSmsPsi(int32_t serial, string smsPsi);
++    oneway getDmPcscf(int32_t serial);
++    oneway getDmDynamicPram(int32_t serial);
++    oneway getDmTimer(int32_t serial);
++    oneway getSmsPsi(int32_t serial);
++    oneway getDmUser(int32_t serial);
++    oneway informBatteryStatus(int32_t serial, int32_t status);
++    oneway setImsvtCapability(int32_t serial, int32_t capabilityType, int32_t enabled);
++    oneway setWifiEmergencyAid(int32_t serial, string wifiAid);
++    oneway switchImsWaitingOrHoldingAndActiveWithType(int32_t serial, int32_t callType);
++    oneway getCurrentImsCallsWithImsDomain(int32_t serial);
++    oneway getVolteImpi(int32_t serial);
++    oneway getVolteDomain(int32_t serial);
++    oneway cancelImsVideoCall(int32_t serial, int32_t callId);
++    oneway setImsSmsConfig(int32_t serial, int32_t config);
++    oneway getImsSmsConfig(int32_t serial);
++    oneway getCurrentImsCallsV1_2(int32_t serial);
++    oneway setImsRegErrReport(int32_t serial, int32_t enabled);
++};
+diff --git a/vendor/huawei/hardware/radio/ims/1.0/IRadioImsIndication.hal b/vendor/huawei/hardware/radio/ims/1.0/IRadioImsIndication.hal
+new file mode 100644
+index 0000000000000000000000000000000000000000..7908d7a6289008f3cc57e3e34033ac690c9a3c97
+--- /dev/null
++++ b/vendor/huawei/hardware/radio/ims/1.0/IRadioImsIndication.hal
+@@ -0,0 +1,14 @@
++package vendor.huawei.hardware.radio.ims@1.0;
++
++interface IRadioImsIndication {
++    oneway imsNetworkStateChanged(int32_t type);
++    oneway UnsolMsg(int32_t type, int32_t msgId, RILUnsolMsgPayload payload);
++    oneway imsHandoverInd(int32_t type, RILImsHandover handover);
++    oneway imsSrvStatusInd(int32_t type, RILImsSrvstatusList status);
++    oneway imsSuppSrvInd(int32_t type, RILImsSuppSvcNotification notification);
++    oneway imsCallModifyInd(int32_t type, RILImsCallModify callModify);
++    oneway imsCallModifyEndCauseInd(int32_t type, RILImsModifyEndCause cause);
++    oneway imsCallMtStatusInd(int32_t type, RILImsMtStatusReport report);
++    oneway vtFlowInfoReport(int32_t type, RILVtFlowInfoReport report);
++    oneway imsRegErrRptInd(int32_t type, RILImsRegErrReport report);
++};
+diff --git a/vendor/huawei/hardware/radio/ims/1.0/IRadioImsResponse.hal b/vendor/huawei/hardware/radio/ims/1.0/IRadioImsResponse.hal
+new file mode 100644
+index 0000000000000000000000000000000000000000..d7e9d4b8255a776de8b9fef7eb50fe05e1c5d472
+--- /dev/null
++++ b/vendor/huawei/hardware/radio/ims/1.0/IRadioImsResponse.hal
+@@ -0,0 +1,24 @@
++package vendor.huawei.hardware.radio.ims@1.0;
++
++interface IRadioImsResponse {
++    oneway hangupConnectionResponse(RadioResponseInfo info);
++    oneway getImsRegistrationStateResponse(RadioResponseInfo info, bool registered, int32_t ratFamily);
++    oneway switchWaitingOrHoldingAndActiveResponse(RadioResponseInfo info);
++    oneway hangupForegroundResumeBackgroundResponse(RadioResponseInfo info);
++    oneway hangupWaitingOrBackgroundResponse(RadioResponseInfo info);
++    oneway conferenceResponse(RadioResponseInfo info);
++    oneway explicitCallTransferResponse(RadioResponseInfo info);
++    oneway rejectCallResponse(RadioResponseInfo info);
++    oneway sendDtmfResponse(RadioResponseInfo info);
++    oneway startDtmfResponse(RadioResponseInfo info);
++    oneway stopDtmfResponse(RadioResponseInfo info);
++    oneway setMuteResponse(RadioResponseInfo info);
++    oneway setClirResponse(RadioResponseInfo info);
++    oneway getLastCallFailCauseResponse(RadioResponseInfo info, LastCallFailCauseInfo cause);
++    oneway RspMsg(RadioResponseInfo info, int32_t msgId, RspMsgPayload payload);
++    oneway getCurrentImsCallsResponse(RadioResponseInfo info, vec<RILImsCall> calls);
++    oneway uiccAuthResponse(RadioResponseInfo info, RILUICCAUTHRESPONSE response);
++    oneway getCurrentImsCallsWithImsDomainResponse(RadioResponseInfo info, vec<RILImsCallEx> calls);
++    oneway getCurrentImsCallsResponseV1_2(RadioResponseInfo info, vec<RILImsCallV1_2> calls);
++    oneway setImsRegErrReportResponse(RadioResponseInfo info);
++};
+diff --git a/vendor/huawei/hardware/radio/ims/1.0/types.hal b/vendor/huawei/hardware/radio/ims/1.0/types.hal
+new file mode 100644
+index 0000000000000000000000000000000000000000..df69590f5986eac0bda49800777a0cdca5df6442
+--- /dev/null
++++ b/vendor/huawei/hardware/radio/ims/1.0/types.hal
+@@ -0,0 +1,142 @@
++package vendor.huawei.hardware.radio.ims@1.0;
++
++struct RadioResponseInfo {
++    int32_t type;
++    int32_t serial;
++    int32_t error;
++};
++
++struct RILImsCallDetails {
++    int32_t callType;
++    int32_t callDomain;
++};
++
++struct RILImsCall {
++    int32_t state;
++    int32_t index;
++    int32_t toa;
++    int8_t isMpty;
++    int8_t isMT;
++    int8_t als;
++    int8_t isVoice;
++    int8_t isVoicePrivacy;
++    string number;
++    int32_t numberPresentation;
++    string name;
++    int32_t namePresentation;
++    RILImsCallDetails callDetails;
++    int32_t isECOnference;
++    int32_t peerVideoSupport;
++};
++
++struct RILImsCallEx {
++    int32_t state;
++    int32_t index;
++    int32_t toa;
++    int8_t isMpty;
++    int8_t isMT;
++    int8_t als;
++    int8_t isVoice;
++    int8_t isVoicePrivacy;
++    string number;
++    int32_t numberPresentation;
++    string name;
++    int32_t namePresentation;
++    RILImsCallDetails callDetails;
++    int32_t isECOnference;
++    int32_t peerVideoSupport;
++    int32_t imsDomain;
++};
++
++struct RILImsCallV1_2 {
++    int32_t state;
++    int32_t index;
++    int32_t toa;
++    int8_t isMpty;
++    int8_t isMT;
++    int8_t als;
++    int8_t isVoice;
++    int8_t isVoicePrivacy;
++    string number;
++    int32_t numberPresentation;
++    string name;
++    int32_t namePresentation;
++    RILImsCallDetails callDetails;
++    int32_t isECOnference;
++    int32_t peerVideoSupport;
++    int32_t imsDomain;
++    string redirectNumber;
++    int32_t redirectNumberToa;
++    int32_t redirectNumberPresentation;
++};
++
++struct RILImsDial {
++    string address;
++    int32_t clir;
++    RILImsCallDetails callDetails;
++};
++
++struct RILImsCallModify {
++    int32_t callIndex;
++    RILImsCallDetails currCallDetails;
++    RILImsCallDetails destCallDetails;
++    int32_t modifyReason;
++};
++
++struct RILImsUserData { int32_t len; string data; };
++struct RILImsStatusForAccTech { int32_t nwMode; int32_t srvStatus; int32_t restrictCause; int32_t regStatus; };
++struct RILImsServiceStatus {
++    int32_t isValid;
++    int32_t callType;
++    int32_t srvStatus;
++    RILImsUserData userData;
++    int32_t nAcctechstatus;
++    RILImsStatusForAccTech[1] acctechstatus;
++};
++struct RILImsSrvstatusList { int32_t nSrvstatusinfo; RILImsServiceStatus[4] srvstatusinfo; };
++struct RILImsSuppSvcNotification {
++    int32_t notificationType; int32_t code; int32_t callId; int32_t index;
++    int32_t type; string number; int32_t callForwardReason;
++};
++struct RILImsMtStatusReport { int32_t failCause; int32_t callStatus; string pNumber; };
++struct RILImsRegErrReport { int32_t failCause; int32_t failDomain; int32_t failStage; string failStr; };
++struct RILImsExtraInfo { int32_t len; string data; };
++struct RILImsExtra { int32_t extraType; RILImsExtraInfo extraInfo; };
++struct RILImsHandover {
++    int32_t hoType; int32_t srcTech; int32_t dstTech; RILImsExtra hoExtra; int32_t errorCode;
++};
++struct RILImsModifyEndCause { int32_t callIndex; int32_t err; };
++struct RILVtFlowInfoReport { string currVtTime; string currTxFlow; string currRxFlow; };
++
++struct RILUnsolMsgPayload { int32_t nData; vec<int32_t> nDatas; string strData; vec<string> strDatas; };
++struct RspMsgPayload { int32_t nData; vec<int32_t> nDatas; string strData; vec<string> strDatas; };
++struct LastCallFailCauseInfo { int32_t causeCode; string vendorCause; };
++
++struct RILCURSMFILEPARAMS { int32_t len; string data; };
++struct RILCURSMUPDATEFILE { int32_t appType; int32_t fileId; RILCURSMFILEPARAMS fileParams; };
++struct RILUICCAUTHPARAMS { int32_t randLen; string rand; int32_t authLen; string auth; };
++struct RILUICCAUTH { int32_t authType; RILUICCAUTHPARAMS authParams; };
++struct RILUICCKSNAFAUTHPARAMS { int32_t nafLen; string nafId; int32_t impiLen; string impi; };
++struct RILUICCKSNAFAUTH { int32_t authType; RILUICCKSNAFAUTHPARAMS authParams; };
++struct RILUICCAUTHCKTYPE { int32_t ckPresent; int32_t ckLen; string ck; };
++struct RILUICCAUTHIKTYPE { int32_t ikPresent; int32_t ikLen; string ik; };
++struct RILUICCAUTHRESTYPE { int32_t resPresent; int32_t resLen; string res; };
++struct RILUICCAUTHAUTSTYPE { int32_t autsPresent; int32_t autsLen; string auts; };
++struct RILUICCAUTHRESPCHALLENGETYPE {
++    RILUICCAUTHCKTYPE ckData; RILUICCAUTHIKTYPE ikData; RILUICCAUTHRESTYPE resData;
++};
++struct RILUICCAUTHRESPSYNCFAILTYPE { RILUICCAUTHAUTSTYPE autsData; };
++struct RILUICCAUTHRESPONSE {
++    int32_t authStatus; RILUICCAUTHRESPCHALLENGETYPE authChallenge;
++    RILUICCAUTHRESPSYNCFAILTYPE authSyncfail;
++};
++
++enum RILImsCallDomain : uint32_t {
++    CALL_DOMAIN_UNKNOWN = 0, CALL_DOMAIN_CS = 1, CALL_DOMAIN_PS = 2, CALL_DOMAIN_AUTOMATIC = 3,
++};
++enum RILImsCallType : uint32_t {
++    CALL_TYPE_VOICE = 0, CALL_TYPE_VT_TX = 1, CALL_TYPE_VT_RX = 2, CALL_TYPE_VT = 3,
++    CALL_TYPE_VT_NODIR = 4, CALL_TYPE_CS_VS_TX = 5, CALL_TYPE_CS_VS_RX = 6,
++    CALL_TYPE_PS_VS_TX = 7, CALL_TYPE_PS_VS_RX = 8, CALL_TYPE_UNKNOWN = 9,
++    CALL_TYPE_SMS = 10, CALL_TYPE_UT = 11,
 +};

@@ -1108,31 +1108,31 @@ index 3e9b18cada386a986f8968196f8f799ca0ed1847..64682f9525d71359dd6623fc07223984
      }
  
 diff --git a/services/mediacodec/seccomp_policy/mediacodec-arm.policy b/services/mediacodec/seccomp_policy/mediacodec-arm.policy
-index b4a9ff6249b4d3f010323d036cb4ad312c52dcfa..aa6fc70d45bd5ceefa6aff6a7313362405b8319f 100644
+index b4a9ff6249b4d3f010323d036cb4ad312c52dcfa..0ce4b0f2abba766ab79fa04fe056ca668e81e54b 100644
 --- a/services/mediacodec/seccomp_policy/mediacodec-arm.policy
 +++ b/services/mediacodec/seccomp_policy/mediacodec-arm.policy
-@@ -58,6 +58,8 @@ ugetrlimit: 1
+@@ -58,6 +58,6 @@ ugetrlimit: 1
  getdents64: 1
  getrandom: 1
  
+-@include /system/etc/seccomp_policy/crash_dump.arm.policy
 +uname: 1
-+
- @include /system/etc/seccomp_policy/crash_dump.arm.policy
  
- @include /system/etc/seccomp_policy/code_coverage.arm.policy
+-@include /system/etc/seccomp_policy/code_coverage.arm.policy
++@include /system/etc/seccomp_policy/crash_dump.arm.policy
 diff --git a/services/mediacodec/seccomp_policy/mediacodec-arm64.policy b/services/mediacodec/seccomp_policy/mediacodec-arm64.policy
-index b4a9ff6249b4d3f010323d036cb4ad312c52dcfa..aa6fc70d45bd5ceefa6aff6a7313362405b8319f 100644
+index b4a9ff6249b4d3f010323d036cb4ad312c52dcfa..0ce4b0f2abba766ab79fa04fe056ca668e81e54b 100644
 --- a/services/mediacodec/seccomp_policy/mediacodec-arm64.policy
 +++ b/services/mediacodec/seccomp_policy/mediacodec-arm64.policy
-@@ -58,6 +58,8 @@ ugetrlimit: 1
+@@ -58,6 +58,6 @@ ugetrlimit: 1
  getdents64: 1
  getrandom: 1
  
+-@include /system/etc/seccomp_policy/crash_dump.arm.policy
 +uname: 1
-+
- @include /system/etc/seccomp_policy/crash_dump.arm.policy
  
- @include /system/etc/seccomp_policy/code_coverage.arm.policy
+-@include /system/etc/seccomp_policy/code_coverage.arm.policy
++@include /system/etc/seccomp_policy/crash_dump.arm.policy
 diff --git a/services/mediacodec/seccomp_policy/mediacodec-x86.policy b/services/mediacodec/seccomp_policy/mediacodec-x86.policy
 index 4bcc077ce8c90dfdf14e5d695f0f2e327379710b..3a08ff6f09b245e81daa2b100da36c8858a8e6c8 100644
 --- a/services/mediacodec/seccomp_policy/mediacodec-x86.policy
