@@ -210,7 +210,7 @@ index 0000000000000000000000000000000000000000..5e083ed3936be2b91530d44979e4afce
 +}
 diff --git a/par/ims/AndroidManifest.xml b/par/ims/AndroidManifest.xml
 new file mode 100644
-index 0000000000000000000000000000000000000000..a7f9c487d77b1f91b27c5baa901b512883ce9b2a
+index 0000000000000000000000000000000000000000..aa691c49b58e0c778adea43c820cfcd641010530
 --- /dev/null
 +++ b/par/ims/AndroidManifest.xml
 @@ -0,0 +1,29 @@
@@ -218,8 +218,8 @@ index 0000000000000000000000000000000000000000..a7f9c487d77b1f91b27c5baa901b5128
 +<manifest xmlns:android="http://schemas.android.com/apk/res/android"
 +    package="com.huawei.ims"
 +    android:sharedUserId="android.uid.phone"
-+    android:versionCode="6"
-+    android:versionName="2.4-par-open">
++    android:versionCode="7"
++    android:versionName="2.5-par-open">
 +
 +    <uses-sdk android:minSdkVersion="28" android:targetSdkVersion="33" />
 +    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
@@ -1237,10 +1237,10 @@ index 0000000000000000000000000000000000000000..a1f98ac9ec41d3ca713670f2a1236830
 +}
 diff --git a/par/ims/src/com/huawei/ims/HwImsService.kt b/par/ims/src/com/huawei/ims/HwImsService.kt
 new file mode 100644
-index 0000000000000000000000000000000000000000..e46fce33a7ed0cc31d85c85ca19be365a38b53dc
+index 0000000000000000000000000000000000000000..2eed0d59103622e2784e383165991362ee86af80
 --- /dev/null
 +++ b/par/ims/src/com/huawei/ims/HwImsService.kt
-@@ -0,0 +1,167 @@
+@@ -0,0 +1,178 @@
 +/*
 + * Copyright (C) 2019 Penn Mackintosh
 + * Copyright (C) 2026 PAR project contributors
@@ -1278,7 +1278,8 @@ index 0000000000000000000000000000000000000000..e46fce33a7ed0cc31d85c85ca19be365
 +            mmTelFeatures[lastDefaultSlot]?.unregisterIms()
 +            lastDefaultSlot = newSlot
 +            onUpdateSupportedImsFeatures(querySupportedImsFeatures())
-+            mmTelFeatures[newSlot]?.queryRegistration()
++            setHuaweiImsEnabled(newSlot, true)
++            createMmTelFeature(newSlot)?.queryRegistration()
 +        }
 +    }
 +
@@ -1344,6 +1345,16 @@ index 0000000000000000000000000000000000000000..e46fce33a7ed0cc31d85c85ca19be365
 +        if (slotId !in registrations.indices) return null
 +        if (registrations[slotId] == null) registrations[slotId] = HwImsRegistration(slotId)
 +        return registrations[slotId]
++    }
++
++    internal fun onImsHalRecovered(slotId: Int) {
++        if (slotId != defaultImsSlot()) {
++            Log.i(TAG, "Ignoring recovered IMS HAL for non-default slot $slotId")
++            return
++        }
++        Log.i(TAG, "Restoring Huawei modem IMS after HAL recovery on slot=$slotId")
++        setHuaweiImsEnabled(slotId, true)
++        createMmTelFeature(slotId)?.queryRegistration()
 +    }
 +
 +    private fun defaultImsSlot(): Int {
@@ -1522,10 +1533,10 @@ index 0000000000000000000000000000000000000000..71cebdc6a953497a44a4591ad5b04f91
 +}
 diff --git a/par/ims/src/com/huawei/ims/RilHolder.kt b/par/ims/src/com/huawei/ims/RilHolder.kt
 new file mode 100644
-index 0000000000000000000000000000000000000000..7345b178c704f3d8f847921fbcc54642fbafbfff
+index 0000000000000000000000000000000000000000..d488568e65170719282389846ab040844173564f
 --- /dev/null
 +++ b/par/ims/src/com/huawei/ims/RilHolder.kt
-@@ -0,0 +1,96 @@
+@@ -0,0 +1,129 @@
 +/*
 + * Copyright (C) 2019 Penn Mackintosh
 + * Copyright (C) 2026 PAR project contributors
@@ -1539,6 +1550,8 @@ index 0000000000000000000000000000000000000000..7345b178c704f3d8f847921fbcc54642
 +import vendor.huawei.hardware.radio.ims.V1_0.RadioResponseInfo
 +import vendor.huawei.hardware.radio.ims.V1_0.RspMsgPayload
 +import java.util.concurrent.ConcurrentHashMap
++import java.util.concurrent.Executors
++import java.util.concurrent.TimeUnit
 +import java.util.concurrent.atomic.AtomicInteger
 +
 +object RilHolder {
@@ -1550,6 +1563,8 @@ index 0000000000000000000000000000000000000000..7345b178c704f3d8f847921fbcc54642
 +    private val serials = AtomicInteger(0)
 +    private val callbacks = ConcurrentHashMap<Int, (RadioResponseInfo, RspMsgPayload?) -> Unit>()
 +    private val blocks = ConcurrentHashMap<Int, BlockingCallback>()
++    private val reconnectExecutor = Executors.newSingleThreadScheduledExecutor()
++    private val reconnectScheduled = BooleanArray(serviceNames.size)
 +
 +    @Synchronized
 +    fun getRadio(slotId: Int): IRadioIms {
@@ -1569,6 +1584,7 @@ index 0000000000000000000000000000000000000000..7345b178c704f3d8f847921fbcc54642
 +                }
 +                HwImsService.instance?.getRegistration(slotId)?.notifyDeregistered()
 +                Log.w(TAG, "IMS HAL died for slot $slotId")
++                scheduleReconnect(slotId)
 +            }, slotId.toLong())
 +            radios[slotId] = radio
 +            responses[slotId] = response
@@ -1577,6 +1593,31 @@ index 0000000000000000000000000000000000000000..7345b178c704f3d8f847921fbcc54642
 +            return radio
 +        } catch (e: Exception) {
 +            throw IllegalStateException("Unable to connect IMS HAL for slot $slotId", e)
++        }
++    }
++
++    @Synchronized
++    private fun scheduleReconnect(slotId: Int) {
++        if (reconnectScheduled[slotId]) return
++        reconnectScheduled[slotId] = true
++        reconnectExecutor.schedule({ reconnect(slotId) }, RECONNECT_DELAY_SECONDS, TimeUnit.SECONDS)
++    }
++
++    private fun reconnect(slotId: Int) {
++        try {
++            getRadio(slotId)
++            synchronized(this) {
++                reconnectScheduled[slotId] = false
++            }
++            Log.i(TAG, "Reconnected ${serviceNames[slotId]}")
++            HwImsService.instance?.onImsHalRecovered(slotId)
++        } catch (e: Exception) {
++            Log.w(TAG, "IMS HAL reconnect pending for slot $slotId", e)
++            reconnectExecutor.schedule(
++                { reconnect(slotId) },
++                RECONNECT_RETRY_SECONDS,
++                TimeUnit.SECONDS
++            )
 +        }
 +    }
 +
@@ -1621,6 +1662,9 @@ index 0000000000000000000000000000000000000000..7345b178c704f3d8f847921fbcc54642
 +            result!!
 +        }
 +    }
++
++    private const val RECONNECT_DELAY_SECONDS = 5L
++    private const val RECONNECT_RETRY_SECONDS = 3L
 +}
 diff --git a/rw-system.sh b/rw-system.sh
 index cda1de1aa66bdfad75b383b2e3cccb1983e4e135..35ac4faeb59ac2ae37ceab1bed3c4acaed2c6292 100644

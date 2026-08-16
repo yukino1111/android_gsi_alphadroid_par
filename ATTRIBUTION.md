@@ -67,6 +67,7 @@ deltas maintained by yukino1111 against the exact revisions in
 - `external_fastrpc.patch`
 - `external_libncurses.patch`
 - `packages_apps_Eleven.patch`
+- `packages_apps_CarrierConfig.patch`
 - `packages_apps_Settings_par_dualsim.patch`
 - `packages_apps_WallpaperPicker2.patch`
 - `packages_services_Telephony_par_dualsim.patch`
@@ -95,6 +96,8 @@ implementation, extracted source, vendor XML, or proprietary binary.
 
 `vendor_hardware_overlay_par.patch` is a binary delta against the pinned
 PHH/TrebleDroid `TrebleApp/app.apk` prebuilt. It carries the PAR fixes for the
-Doze-page crash, Huawei NCFG bridge, and
-PAR-only suppression of unrelated vendor probes and preset downloads; the
-upstream application and its original authorship remain unchanged.
+Doze-page crash, Huawei NCFG bridge, PAR charging-current profiles, Chinese
+translations, Material 3 SettingsLib-compatible preference UI, and PAR-only
+suppression of unrelated vendor probes and preset downloads. The replacement
+APK is built entirely from source and contains no Huawei proprietary binary;
+the upstream application and its original authorship remain unchanged.

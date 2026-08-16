@@ -1,0 +1,60 @@
+# Provenance: AOSP CarrierConfig base plus PAR-local China Telecom VoLTE declarations maintained by yukino1111.
+diff --git a/AndroidManifest.xml b/AndroidManifest.xml
+index cd03659b11f9cd4e26cd4f35c1243ce49f09ebac..bb82320cbb9ece0a57e10c179a22fbd6ee130be2 100644
+--- a/AndroidManifest.xml
++++ b/AndroidManifest.xml
+@@ -15,8 +15,8 @@
+ -->
+ 
+ <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+-     android:versionCode="1"
+-     android:versionName="1.0.0"
++     android:versionCode="2"
++     android:versionName="1.0.1-par"
+      package="com.android.carrierconfig">
+ 
+     <uses-permission android:name="android.permission.READ_PRIVILEGED_PHONE_STATE"/>
+diff --git a/assets/carrier_config_carrierid_2237_China-Telecom.xml b/assets/carrier_config_carrierid_2237_China-Telecom.xml
+index f398957ad07a022dd3671b03ca4b8373c88e8996..3876f6e5dd54e92ed1d6fa50fc2a5aa361a0150c 100644
+--- a/assets/carrier_config_carrierid_2237_China-Telecom.xml
++++ b/assets/carrier_config_carrierid_2237_China-Telecom.xml
+@@ -4,6 +4,11 @@
+     <boolean name="show_apn_setting_cdma_bool" value="true"/>
+     <string name="sim_country_iso_override_string">cn</string>
+     <boolean name="ascii_7_bit_support_for_long_message_bool" value="true"/>
++    <boolean name="carrier_volte_available_bool" value="true"/>
++    <boolean name="carrier_volte_provisioned_bool" value="true"/>
++    <boolean name="carrier_allow_turnoff_ims_bool" value="false"/>
++    <boolean name="editable_enhanced_4g_lte_bool" value="true"/>
++    <boolean name="enhanced_4g_lte_on_by_default_bool" value="true"/>
+     <string-array name="telephony_network_capability_priorities_string_array" num="11">
+         <item value="eims:90"/>
+         <item value="supl:80"/>
+diff --git a/assets/carrier_config_mccmnc_46003.xml b/assets/carrier_config_mccmnc_46003.xml
+new file mode 100644
+index 0000000000000000000000000000000000000000..4308f5cc9158df5ff0897e9113565806a6e81bd7
+--- /dev/null
++++ b/assets/carrier_config_mccmnc_46003.xml
+@@ -0,0 +1,8 @@
++<?xml version="1.0" encoding="utf-8" standalone="yes"?>
++<carrier_config>
++    <boolean name="carrier_volte_available_bool" value="true"/>
++    <boolean name="carrier_volte_provisioned_bool" value="true"/>
++    <boolean name="carrier_allow_turnoff_ims_bool" value="false"/>
++    <boolean name="editable_enhanced_4g_lte_bool" value="true"/>
++    <boolean name="enhanced_4g_lte_on_by_default_bool" value="true"/>
++</carrier_config>
+diff --git a/assets/carrier_config_mccmnc_46011.xml b/assets/carrier_config_mccmnc_46011.xml
+new file mode 100644
+index 0000000000000000000000000000000000000000..4308f5cc9158df5ff0897e9113565806a6e81bd7
+--- /dev/null
++++ b/assets/carrier_config_mccmnc_46011.xml
+@@ -0,0 +1,8 @@
++<?xml version="1.0" encoding="utf-8" standalone="yes"?>
++<carrier_config>
++    <boolean name="carrier_volte_available_bool" value="true"/>
++    <boolean name="carrier_volte_provisioned_bool" value="true"/>
++    <boolean name="carrier_allow_turnoff_ims_bool" value="false"/>
++    <boolean name="editable_enhanced_4g_lte_bool" value="true"/>
++    <boolean name="enhanced_4g_lte_on_by_default_bool" value="true"/>
++</carrier_config>
