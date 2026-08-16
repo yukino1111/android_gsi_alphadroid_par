@@ -2333,6 +2333,20 @@ index 2fddc5240c4a44e9a7dbed945b29fd9e1489f3e4..4601c4513645582a2953c5f06f4c31dd
 +# Huawei's camera vendor library crashes with Scudo; use the jemalloc path
 +# validated by the working PAR image.
 +MALLOC_SVELTE := true
+diff --git a/vndk-detect b/vndk-detect
+index a0002e523599bb8c563c96647bd13484c155124a..7010920d6bd95c7a90fc322efed81f1261b05b5d 100644
+--- a/vndk-detect
++++ b/vndk-detect
+@@ -30,7 +30,8 @@ if [ -n "$FOUND_HUAWEI" ];then
+  	setprop persist.sys.camera.huawei true
+ 	setprop persist.sys.radio.ussd.fix true
+ 	setprop persist.sys.radio.huawei true
+-	setprop debug.hwui.profile true
++	# Console profiling is diagnostic-only and adds per-frame work.
++	setprop debug.hwui.profile false
+ fi
+ 
+ if getprop ro.hardware |grep -qiE -e qcom -e judyln -e judypn;then
 diff --git a/vndk.rc b/vndk.rc
 index 823456aad887cff993724ff59345d563030eba4c..dbd2d6e373bcff44c0ebaf0584c79e8a8fda4683 100644
 --- a/vndk.rc
