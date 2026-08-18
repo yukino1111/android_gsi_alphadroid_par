@@ -19,6 +19,11 @@ unless the independently distributed
 [PAR Kirin 970 Scheduler](https://github.com/yukino1111/android_module_par_kirin970_scheduler)
 verifies and enables a compatible systemless policy.
 
+The current patch set also normalizes legacy Health HAL capacity units, prevents
+low-power fused requests from falling back to GPS when no network provider is
+available, scopes Launcher shake detection to the visible overview lifecycle,
+and makes Telephony the single AP-side owner of Huawei NCFG writes.
+
 ## Upstream source base
 
 - AlphaDroid 1.10 provides the ROM source base.
@@ -49,6 +54,14 @@ and build instructions to compile it yourself.
 If hardware video decoding causes freezes or restarts with an unpatched kernel,
 use the companion release from
 [android_kernel_huawei_par_sukisu_patches](https://github.com/yukino1111/android_kernel_huawei_par_sukisu_patches).
+
+## Known limitations
+
+Huawei's `charge_counter` does not represent Android's expected remaining
+coulomb count. Learned full-charge capacity is corrected, but BatteryStats may
+still retain an implausibly small estimated-capacity value; this affects mAh
+accounting, not the displayed battery percentage. Long-uptime wired ADB
+stability also remains under observation.
 
 ## Build
 

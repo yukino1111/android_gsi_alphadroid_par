@@ -2,10 +2,10 @@
 # Upstream file copyrights and licenses still apply; see ../ATTRIBUTION.md.
 diff --git a/src/com/android/phone/HuaweiNcfgManager.java b/src/com/android/phone/HuaweiNcfgManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..f6fcd15b77529cbbfa2286b2f6350611dce30d6c
+index 000000000..326d2bbc4
 --- /dev/null
 +++ b/src/com/android/phone/HuaweiNcfgManager.java
-@@ -0,0 +1,259 @@
+@@ -0,0 +1,258 @@
 +/*
 + * Copyright (C) 2026 The AlphaDroid Project
 + *
@@ -144,21 +144,20 @@ index 0000000000000000000000000000000000000000..f6fcd15b77529cbbfa2286b2f6350611
 +        CarrierProfile profile = CarrierProfile.forOperator(operatorNumeric);
 +        String profileKey = profile.operatorKey + ':' + profile.operatorName;
 +        synchronized (this) {
-+            if (!mProfileInitialized[phoneId]) {
-+                mProfileInitialized[phoneId] = true;
-+                mLastProfile[phoneId] = profileKey;
-+                persistProfile(phoneId, profileKey);
-+                Log.i(TAG, "Baselined slot" + (phoneId + 1) + " profile=" + profileKey);
-+                return;
-+            }
-+            if (profileKey.equals(mLastProfile[phoneId])) {
++            if (mProfileInitialized[phoneId] && profileKey.equals(mLastProfile[phoneId])) {
 +                return;
 +            }
 +        }
 +
++        // The modem is the source of the current NCFG, but Telephony is the sole AP-side writer.
++        // A missing persisted profile means this is the first run after a data wipe or migration;
++        // do not merely baseline it, otherwise removing the legacy TrebleApp writer would leave
++        // a new SIM on the modem's stale profile.
++
 +        if (send(phoneId, profile.operatorKey, profile.operatorName, STATE_SIM_LOADED)) {
 +            synchronized (this) {
 +                if (isCurrentLocked(phoneId, generation)) {
++                    mProfileInitialized[phoneId] = true;
 +                    mLastProfile[phoneId] = profileKey;
 +                    persistProfile(phoneId, profileKey);
 +                }
@@ -266,7 +265,7 @@ index 0000000000000000000000000000000000000000..f6fcd15b77529cbbfa2286b2f6350611
 +    }
 +}
 diff --git a/src/com/android/phone/PhoneGlobals.java b/src/com/android/phone/PhoneGlobals.java
-index f6ec75d802a61a2871d463b34156c3c8cb7e3e67..251c209d6db15ddb4ac2c34349786318eeca0f6f 100644
+index f6ec75d80..251c209d6 100644
 --- a/src/com/android/phone/PhoneGlobals.java
 +++ b/src/com/android/phone/PhoneGlobals.java
 @@ -156,6 +156,7 @@ public class PhoneGlobals extends ContextWrapper {
@@ -294,7 +293,7 @@ index f6ec75d802a61a2871d463b34156c3c8cb7e3e67..251c209d6db15ddb4ac2c34349786318
              imsRcsController = ImsRcsController.init(this);
  
 diff --git a/src/com/android/phone/PhoneInterfaceManager.java b/src/com/android/phone/PhoneInterfaceManager.java
-index 1c145534ec67a6824f44f434ccd15f7758aa9763..5539430c7ba207e80ed9ed42e23f4e47714ee31d 100755
+index 1c145534e..5539430c7 100755
 --- a/src/com/android/phone/PhoneInterfaceManager.java
 +++ b/src/com/android/phone/PhoneInterfaceManager.java
 @@ -345,6 +345,7 @@ public class PhoneInterfaceManager extends ITelephony.Stub {

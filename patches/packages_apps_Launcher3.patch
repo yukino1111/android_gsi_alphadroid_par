@@ -1,0 +1,193 @@
+# Provenance: PAR Launcher3 lifecycle integration maintained by yukino1111 against the pinned upstream project.
+# Upstream file copyrights and licenses still apply; see ../ATTRIBUTION.md.
+diff --git a/quickstep/src/com/android/quickstep/views/OverviewActionsView.java b/quickstep/src/com/android/quickstep/views/OverviewActionsView.java
+index 546bb35456..bb392e8a50 100644
+--- a/quickstep/src/com/android/quickstep/views/OverviewActionsView.java
++++ b/quickstep/src/com/android/quickstep/views/OverviewActionsView.java
+@@ -108,7 +108,8 @@ public class OverviewActionsView<T extends OverlayUICallbacks> extends FrameLayo
+ 
+     private MultiValueAlpha mMultiValueAlpha;
+     private Button mSplitButton;
+-    private ShakeUtils mShakeUtils;
++    private final SharedPreferences mPrefs;
++    private final ShakeUtils mShakeUtils;
+ 
+     @ActionsHiddenFlags
+     private int mHiddenFlags;
+@@ -134,6 +135,7 @@ public class OverviewActionsView<T extends OverlayUICallbacks> extends FrameLayo
+     private boolean mLens;
+     private boolean mLock;
+     private boolean mShakeClearAll;
++    private boolean mIsAggregatedVisible;
+ 
+     public OverviewActionsView(Context context) {
+         this(context, null);
+@@ -145,23 +147,48 @@ public class OverviewActionsView<T extends OverlayUICallbacks> extends FrameLayo
+ 
+     public OverviewActionsView(Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
+         super(context, attrs, defStyleAttr, 0);
+-        SharedPreferences prefs = LauncherPrefs.getPrefs(context);
+-        mScreenshot = prefs.getBoolean(KEY_RECENTS_SCREENSHOT, true);
+-        mClearAll = prefs.getBoolean(KEY_RECENTS_CLEAR_ALL, true);
+-        mLens = prefs.getBoolean(KEY_RECENTS_LENS, false);
+-        mLock = prefs.getBoolean(KEY_RECENTS_LOCK, true);
+-        prefs.registerOnSharedPreferenceChangeListener(this);
++        mPrefs = LauncherPrefs.getPrefs(context);
++        loadPreferences();
+         mShakeUtils = new ShakeUtils(context);
+-        mShakeClearAll = prefs.getBoolean(KEY_RECENTS_SHAKE_CLEAR_ALL, false);
++    }
++
++    private void loadPreferences() {
++        mScreenshot = mPrefs.getBoolean(KEY_RECENTS_SCREENSHOT, true);
++        mClearAll = mPrefs.getBoolean(KEY_RECENTS_CLEAR_ALL, true);
++        mLens = mPrefs.getBoolean(KEY_RECENTS_LENS, false);
++        mLock = mPrefs.getBoolean(KEY_RECENTS_LOCK, true);
++        mShakeClearAll = mPrefs.getBoolean(KEY_RECENTS_SHAKE_CLEAR_ALL, false);
++    }
++
++    @Override
++    protected void onAttachedToWindow() {
++        super.onAttachedToWindow();
++        loadPreferences();
++        mPrefs.registerOnSharedPreferenceChangeListener(this);
++        mIsAggregatedVisible = isShown();
++        updateShakeListener();
++    }
++
++    @Override
++    protected void onDetachedFromWindow() {
++        mPrefs.unregisterOnSharedPreferenceChangeListener(this);
++        mShakeUtils.destroy();
++        mIsAggregatedVisible = false;
++        super.onDetachedFromWindow();
+     }
+ 
+     @Override
+     public void onVisibilityAggregated(boolean isVisible) {
+         super.onVisibilityAggregated(isVisible);
+-        if (isVisible) {
++        mIsAggregatedVisible = isVisible;
++        updateShakeListener();
++    }
++
++    private void updateShakeListener() {
++        if (isAttachedToWindow() && mIsAggregatedVisible && mShakeClearAll) {
+             mShakeUtils.bindShakeListener(this);
+         } else {
+-            mShakeUtils.unBindShakeListener(this);
++            mShakeUtils.unbindShakeListener(this);
+         }
+     }
+ 
+@@ -261,6 +288,7 @@ public class OverviewActionsView<T extends OverlayUICallbacks> extends FrameLayo
+             mLock = prefs.getBoolean(KEY_RECENTS_LOCK, false);
+         } else if (key.equals(KEY_RECENTS_SHAKE_CLEAR_ALL)) {
+             mShakeClearAll = prefs.getBoolean(KEY_RECENTS_SHAKE_CLEAR_ALL, false);
++            updateShakeListener();
+         }
+         updateVisibilities();
+     }
+diff --git a/src/com/android/launcher3/util/ShakeUtil.kt b/src/com/android/launcher3/util/ShakeUtil.kt
+index e1b5f5b7d3..778a82b1f3 100644
+--- a/src/com/android/launcher3/util/ShakeUtil.kt
++++ b/src/com/android/launcher3/util/ShakeUtil.kt
+@@ -14,7 +14,7 @@
+  * limitations under the License.
+  */
+ 
+-package com.android.launcher3.util;
++package com.android.launcher3.util
+ 
+ import android.content.Context
+ import android.hardware.Sensor
+@@ -24,7 +24,11 @@ import android.hardware.SensorManager
+ import kotlin.math.sqrt
+ 
+ class ShakeUtils(context: Context) : SensorEventListener {
+-    private var mOnShakeListeners: ArrayList<OnShakeListener>? = null
++    private val mOnShakeListeners = ArrayList<OnShakeListener>()
++    private val mSensorManager =
++        context.applicationContext.getSystemService(Context.SENSOR_SERVICE) as SensorManager
++    private val mAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
++    private var mSensorRegistered = false
+ 
+     // Last time we triggered shake
+     private var mLastShakeTime = 0L
+@@ -40,19 +44,36 @@ class ShakeUtils(context: Context) : SensorEventListener {
+     }
+ 
+     fun bindShakeListener(listener: OnShakeListener?) {
+-        if (listener != null) {
+-            mOnShakeListeners?.add(listener)
++        if (listener == null || mOnShakeListeners.contains(listener)) {
++            return
+         }
++        mOnShakeListeners.add(listener)
++        updateSensorRegistration()
+     }
+ 
+-    fun unBindShakeListener(listener: OnShakeListener) {
+-        mOnShakeListeners?.remove(listener)
++    fun unbindShakeListener(listener: OnShakeListener) {
++        mOnShakeListeners.remove(listener)
++        updateSensorRegistration()
+     }
+ 
+-    override fun onSensorChanged(event: SensorEvent) {
+-        if (event == null) {
+-            return
++    fun destroy() {
++        mOnShakeListeners.clear()
++        updateSensorRegistration()
++    }
++
++    private fun updateSensorRegistration() {
++        if (mOnShakeListeners.isNotEmpty() && !mSensorRegistered) {
++            mLastUpdateTime = 0L
++            mSensorRegistered = mAccelerometer?.let {
++                mSensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI)
++            } ?: false
++        } else if (mOnShakeListeners.isEmpty() && mSensorRegistered) {
++            mSensorManager.unregisterListener(this)
++            mSensorRegistered = false
+         }
++    }
++
++    override fun onSensorChanged(event: SensorEvent) {
+         val curUpdateTime = System.currentTimeMillis()
+         // Times between two shakes
+         val timeInterval = curUpdateTime - mLastUpdateTime
+@@ -85,18 +106,14 @@ class ShakeUtils(context: Context) : SensorEventListener {
+             return
+         }
+         mLastShakeTime = curShakeTime
+-        mOnShakeListeners?.let {
+-            for (i in it.indices) {
+-                it[i].onShake(speed)
+-            }
+-        }
++        mOnShakeListeners.forEach { it.onShake(speed) }
+     }
+ 
+     override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {}
+ 
+     companion object {
+ 
+-        //  Minimal time interval of position changes
++        // Minimal time interval of position changes
+         private const val MIN_SHAKE_INTERVAL = 1024
+ 
+         // Minimal shake speed
+@@ -105,11 +122,4 @@ class ShakeUtils(context: Context) : SensorEventListener {
+         // Minimal time interval between two shakes
+         private const val SHAKE_INTERVAL_MILLISECOND = 55
+     }
+-
+-    init {
+-        val mSensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+-        val sensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+-        mSensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_UI)
+-        mOnShakeListeners = ArrayList()
+-    }
+ }

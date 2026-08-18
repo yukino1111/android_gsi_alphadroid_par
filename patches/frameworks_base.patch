@@ -324,6 +324,39 @@ index 0e818a3fc..d885f5584 100644
              case KeyEvent.KEYCODE_PAIRING:
              case KeyEvent.KEYCODE_STEM_1:
              case KeyEvent.KEYCODE_STEM_2:
+diff --git a/core/java/com/android/internal/os/BatteryStatsImpl.java b/core/java/com/android/internal/os/BatteryStatsImpl.java
+index d951956a5..516d327c7 100644
+--- a/core/java/com/android/internal/os/BatteryStatsImpl.java
++++ b/core/java/com/android/internal/os/BatteryStatsImpl.java
+@@ -15930,6 +15930,14 @@ public class BatteryStatsImpl extends BatteryStats {
+             mRecordingHistory = DEBUG;
+         }
+ 
++        if (chargeFullUah >= 100_000) {
++            mLastLearnedBatteryCapacityUah = convertLegacyBatteryCapacityUah(
++                    mLastLearnedBatteryCapacityUah);
++            mMinLearnedBatteryCapacityUah = convertLegacyBatteryCapacityUah(
++                    mMinLearnedBatteryCapacityUah);
++            mMaxLearnedBatteryCapacityUah = convertLegacyBatteryCapacityUah(
++                    mMaxLearnedBatteryCapacityUah);
++        }
+         mLastLearnedBatteryCapacityUah = chargeFullUah;
+         if (mMinLearnedBatteryCapacityUah == -1) {
+             mMinLearnedBatteryCapacityUah = chargeFullUah;
+@@ -15941,6 +15949,13 @@ public class BatteryStatsImpl extends BatteryStats {
+         mBatteryTimeToFullSeconds = chargeTimeToFullSeconds;
+     }
+ 
++    static int convertLegacyBatteryCapacityUah(int capacity) {
++        if (capacity > 0 && capacity < 100_000) {
++            return capacity * 1000;
++        }
++        return capacity;
++    }
++
+     public static boolean isOnBattery(int plugType, int status) {
+         return plugType == BATTERY_PLUGGED_NONE && status != BatteryManager.BATTERY_STATUS_UNKNOWN;
+     }
 diff --git a/core/java/com/android/internal/os/RoSystemProperties.java b/core/java/com/android/internal/os/RoSystemProperties.java
 index cccd80e82..adb5c107b 100644
 --- a/core/java/com/android/internal/os/RoSystemProperties.java
@@ -521,6 +554,69 @@ index 38d325c40..b8ae2284e 100644
  
      <!-- Control the behavior when the user long presses the back button.  Non-zero values are only
           valid for watches as part of CDD/CTS.
+diff --git a/core/tests/coretests/src/com/android/internal/os/BatteryStatsImplTest.java b/core/tests/coretests/src/com/android/internal/os/BatteryStatsImplTest.java
+index d9b98a562..ff9b3df47 100644
+--- a/core/tests/coretests/src/com/android/internal/os/BatteryStatsImplTest.java
++++ b/core/tests/coretests/src/com/android/internal/os/BatteryStatsImplTest.java
+@@ -93,6 +93,14 @@ public class BatteryStatsImplTest {
+                 .setKernelSingleUidTimeReader(mKernelSingleUidTimeReader);
+     }
+ 
++    @Test
++    public void testConvertLegacyBatteryCapacityUah() {
++        assertEquals(-1, BatteryStatsImpl.convertLegacyBatteryCapacityUah(-1));
++        assertEquals(0, BatteryStatsImpl.convertLegacyBatteryCapacityUah(0));
++        assertEquals(3_000_000, BatteryStatsImpl.convertLegacyBatteryCapacityUah(3_000));
++        assertEquals(3_475_000, BatteryStatsImpl.convertLegacyBatteryCapacityUah(3_475_000));
++    }
++
+     @Test
+     public void testUpdateProcStateCpuTimes() {
+         mBatteryStatsImpl.setOnBatteryInternal(true);
+diff --git a/packages/FusedLocation/src/com/android/location/fused/FusedLocationProvider.java b/packages/FusedLocation/src/com/android/location/fused/FusedLocationProvider.java
+index 068074ae1..0d34be5ec 100644
+--- a/packages/FusedLocation/src/com/android/location/fused/FusedLocationProvider.java
++++ b/packages/FusedLocation/src/com/android/location/fused/FusedLocationProvider.java
+@@ -164,9 +164,10 @@ public class FusedLocationProvider extends LocationProviderBase {
+             mNlpPresent = mLocationManager.hasProvider(NETWORK_PROVIDER);
+         }
+ 
+-        long gpsInterval =
+-                mGpsPresent && (!mNlpPresent || mRequest.getQuality() < QUALITY_LOW_POWER)
+-                        ? mRequest.getIntervalMillis() : INTERVAL_DISABLED;
++        // Low-power requests must not fall back to GPS when no network provider exists. Legacy
++        // vendor GNSS implementations may keep the hardware active for the entire request interval.
++        long gpsInterval = mGpsPresent && mRequest.getQuality() < QUALITY_LOW_POWER
++                ? mRequest.getIntervalMillis() : INTERVAL_DISABLED;
+         long networkInterval = mNlpPresent ? mRequest.getIntervalMillis() : INTERVAL_DISABLED;
+ 
+         mGpsListener.resetProviderRequest(gpsInterval);
+diff --git a/packages/FusedLocation/test/src/com/android/location/fused/tests/FusedLocationServiceTest.java b/packages/FusedLocation/test/src/com/android/location/fused/tests/FusedLocationServiceTest.java
+index c4c60ea5a..3b538c6e1 100644
+--- a/packages/FusedLocation/test/src/com/android/location/fused/tests/FusedLocationServiceTest.java
++++ b/packages/FusedLocation/test/src/com/android/location/fused/tests/FusedLocationServiceTest.java
+@@ -128,6 +128,21 @@ public class FusedLocationServiceTest {
+         assertThat(mManager.getNextLocation(TIMEOUT_MS)).isEqualTo(location);
+     }
+ 
++    @Test
++    public void testLowPowerRequestDoesNotFallBackToGpsWithoutNetworkProvider() throws Exception {
++        mLocationManager.removeTestProvider(NETWORK_PROVIDER);
++        mProvider.setRequest(
++                new ProviderRequest.Builder()
++                        .setQuality(LocationRequest.QUALITY_LOW_POWER)
++                        .setIntervalMillis(1000)
++                        .build());
++
++        mLocationManager.setTestProviderLocation(GPS_PROVIDER,
++                createLocation(GPS_PROVIDER, mRandom));
++
++        assertThat(mManager.getNextLocation(100)).isNull();
++    }
++
+     @Test
+     public void testGpsRequest() throws Exception {
+         mProvider.setRequest(
 diff --git a/packages/SettingsLib/src/com/android/settingslib/DeviceInfoUtils.java b/packages/SettingsLib/src/com/android/settingslib/DeviceInfoUtils.java
 index ff00fb328..f21c0c2b5 100644
 --- a/packages/SettingsLib/src/com/android/settingslib/DeviceInfoUtils.java
@@ -1747,6 +1843,103 @@ index 36b73c65a..6d87fee7f 100644
                          // If we're entering a suspended (but not OFF) power state and we
                          // have a sidekick available, tell it now that it can take control.
                          if (Display.isSuspendedState(state) && state != Display.STATE_OFF
+diff --git a/services/core/java/com/android/server/health/HealthHalCallbackHidl.java b/services/core/java/com/android/server/health/HealthHalCallbackHidl.java
+index 7a6698085..93da730d3 100644
+--- a/services/core/java/com/android/server/health/HealthHalCallbackHidl.java
++++ b/services/core/java/com/android/server/health/HealthHalCallbackHidl.java
+@@ -17,6 +17,7 @@
+ package com.android.server.health;
+ 
+ import static android.hardware.health.Translate.h2aTranslate;
++import static com.android.server.health.Utils.normalizeBatteryCapacityUnits;
+ 
+ import android.annotation.NonNull;
+ import android.hardware.health.V2_0.IHealth;
+@@ -66,12 +67,12 @@ class HealthHalCallbackHidl extends IHealthInfoCallback.Stub
+         propsLatest.batteryChargeTimeToFullNowSeconds =
+                 Constants.BATTERY_CHARGE_TIME_TO_FULL_NOW_SECONDS_UNSUPPORTED;
+ 
+-        mCallback.update(h2aTranslate(propsLatest));
++        mCallback.update(normalizeBatteryCapacityUnits(h2aTranslate(propsLatest)));
+     }
+ 
+     @Override
+     public void healthInfoChanged_2_1(android.hardware.health.V2_1.HealthInfo props) {
+-        mCallback.update(h2aTranslate(props));
++        mCallback.update(normalizeBatteryCapacityUnits(h2aTranslate(props)));
+     }
+ 
+     // on new service registered
+diff --git a/services/core/java/com/android/server/health/HealthServiceWrapperHidl.java b/services/core/java/com/android/server/health/HealthServiceWrapperHidl.java
+index 0301174a4..da278a176 100644
+--- a/services/core/java/com/android/server/health/HealthServiceWrapperHidl.java
++++ b/services/core/java/com/android/server/health/HealthServiceWrapperHidl.java
+@@ -78,7 +78,9 @@ final class HealthServiceWrapperHidl extends HealthServiceWrapper {
+                     service.getChargeCounter(
+                             (int result, int value) -> {
+                                 outResult.value = result;
+-                                if (result == Result.SUCCESS) prop.setLong(value);
++                                if (result == Result.SUCCESS) {
++                                    prop.setLong(Utils.normalizeBatteryCapacityUah(value));
++                                }
+                             });
+                     break;
+                 case BatteryManager.BATTERY_PROPERTY_CURRENT_NOW:
+@@ -157,7 +159,7 @@ final class HealthServiceWrapperHidl extends HealthServiceWrapper {
+         service.getHealthInfo(
+                 (result, value) -> {
+                     if (result == Result.SUCCESS) {
+-                        ret.value = h2aTranslate(value.legacy);
++                        ret.value = Utils.normalizeBatteryCapacityUnits(h2aTranslate(value.legacy));
+                     }
+                 });
+         return ret.value;
+diff --git a/services/core/java/com/android/server/health/Utils.java b/services/core/java/com/android/server/health/Utils.java
+index a8c978c50..f354205a4 100644
+--- a/services/core/java/com/android/server/health/Utils.java
++++ b/services/core/java/com/android/server/health/Utils.java
+@@ -22,8 +22,41 @@ package com.android.server.health;
+  * @hide
+  */
+ public class Utils {
++    private static final int MAH_TO_UAH = 1000;
++    private static final int MIN_VALID_BATTERY_CAPACITY_UAH = 100_000;
+     private Utils() {}
+ 
++    /** Correct legacy health HAL capacity values reported in mAh instead of uAh. */
++    public static android.hardware.health.HealthInfo normalizeBatteryCapacityUnits(
++            android.hardware.health.HealthInfo info) {
++        if (info == null) {
++            return info;
++        }
++
++        info.batteryChargeCounterUah = normalizeBatteryCapacityUah(
++                info.batteryChargeCounterUah);
++        info.batteryFullChargeUah = normalizeBatteryCapacityUah(info.batteryFullChargeUah);
++        info.batteryFullChargeDesignCapacityUah = normalizeBatteryCapacityUah(
++                info.batteryFullChargeDesignCapacityUah);
++        return info;
++    }
++
++    /** Correct a single legacy battery capacity value. */
++    public static long normalizeBatteryCapacityUah(long capacity) {
++        return normalizeBatteryCapacityUahForTest(capacity);
++    }
++
++    static int normalizeBatteryCapacityUah(int capacity) {
++        return (int) normalizeBatteryCapacityUahForTest(capacity);
++    }
++
++    static long normalizeBatteryCapacityUahForTest(long capacity) {
++        if (capacity <= 0 || capacity >= MIN_VALID_BATTERY_CAPACITY_UAH) {
++            return capacity;
++        }
++        return capacity * MAH_TO_UAH;
++    }
++
+     /**
+      * Copy health info struct.
+      *
 diff --git a/services/core/java/com/android/server/lights/LightsService.java b/services/core/java/com/android/server/lights/LightsService.java
 index fea6b29d9..caf9eba7d 100644
 --- a/services/core/java/com/android/server/lights/LightsService.java
@@ -2217,6 +2410,39 @@ index 63daa3503..d068ec06f 100644
      return mHal != nullptr;
  }
  
+diff --git a/services/tests/servicestests/src/com/android/server/health/HealthServiceWrapperTest.java b/services/tests/servicestests/src/com/android/server/health/HealthServiceWrapperTest.java
+index 16d97a454..a9e3a5cb9 100644
+--- a/services/tests/servicestests/src/com/android/server/health/HealthServiceWrapperTest.java
++++ b/services/tests/servicestests/src/com/android/server/health/HealthServiceWrapperTest.java
+@@ -16,6 +16,7 @@
+ 
+ package com.android.server.health;
+ 
++import static junit.framework.Assert.assertEquals;
+ import static junit.framework.Assert.assertFalse;
+ import static junit.framework.Assert.fail;
+ 
+@@ -63,6 +64,20 @@ public class HealthServiceWrapperTest {
+     private static final String VENDOR = HealthServiceWrapperHidl.INSTANCE_VENDOR;
+     private static final String AIDL_SERVICE_NAME = HealthServiceWrapperAidl.SERVICE_NAME;
+ 
++    @Test
++    public void normalizeBatteryCapacityUah_convertsMahToUah() {
++        assertEquals(1_558_000, Utils.normalizeBatteryCapacityUahForTest(1_558));
++        assertEquals(3_475_000, Utils.normalizeBatteryCapacityUahForTest(3_475));
++    }
++
++    @Test
++    public void normalizeBatteryCapacityUah_preservesUnsupportedAndUahValues() {
++        assertEquals(0, Utils.normalizeBatteryCapacityUahForTest(0));
++        assertEquals(-1, Utils.normalizeBatteryCapacityUahForTest(-1));
++        assertEquals(100_000, Utils.normalizeBatteryCapacityUahForTest(100_000));
++        assertEquals(3_475_000, Utils.normalizeBatteryCapacityUahForTest(3_475_000));
++    }
++
+     @Before
+     public void setUp() {
+         MockitoAnnotations.initMocks(this);
 diff --git a/telephony/java/android/telephony/CarrierConfigManager.java b/telephony/java/android/telephony/CarrierConfigManager.java
 index 78df3f6f1..cb6cc048c 100644
 --- a/telephony/java/android/telephony/CarrierConfigManager.java

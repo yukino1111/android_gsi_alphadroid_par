@@ -151,10 +151,19 @@ index 688c29af818840e89e62449b5317b63bdc05579b..1d40e324789f90c5ab8234c1c1302c2f
      }
  }
 diff --git a/src/com/android/settings/homepage/TopLevelSettings.java b/src/com/android/settings/homepage/TopLevelSettings.java
-index abfc7f23874505b926ca450385b8cba94c9d03f5..3939695289ea3ccc0d64f9a9134b839be5120eb7 100644
+index abfc7f23874505b926ca450385b8cba94c9d03f5..67d8fb3f17f36bba8e5357655245da2ddb2b1ae2 100644
 --- a/src/com/android/settings/homepage/TopLevelSettings.java
 +++ b/src/com/android/settings/homepage/TopLevelSettings.java
-@@ -355,7 +355,11 @@ public class TopLevelSettings extends DashboardFragment implements SplitLayoutLi
+@@ -284,6 +284,8 @@ public class TopLevelSettings extends DashboardFragment implements SplitLayoutLi
+                     preference.setLayoutResource(R.layout.dot_dashboard_preference_middle);
+                 } else if (key.equals("dashboard_tile_pref_com.google.android.apps.wellbeing.home.TopLevelSettingsActivity")) {
+                     preference.setLayoutResource(R.layout.dot_dashboard_preference_middle);
++                } else if (key.equals("dashboard_tile_pref_me.phh.treble.app.TopLevelSettingsActivity")) {
++                    preference.setLayoutResource(R.layout.dot_dashboard_preference_full);
+                 } else if (key.equals("top_level_wellbeing")) {
+                     preference.setLayoutResource(R.layout.dot_dashboard_preference_middle);
+                 }
+@@ -355,7 +357,11 @@ public class TopLevelSettings extends DashboardFragment implements SplitLayoutLi
  
              @Override
              public void doForEach(Preference preference) {

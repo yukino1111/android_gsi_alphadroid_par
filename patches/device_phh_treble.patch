@@ -210,7 +210,7 @@ index 0000000000000000000000000000000000000000..5e083ed3936be2b91530d44979e4afce
 +}
 diff --git a/par/ims/AndroidManifest.xml b/par/ims/AndroidManifest.xml
 new file mode 100644
-index 0000000000000000000000000000000000000000..aa691c49b58e0c778adea43c820cfcd641010530
+index 0000000000000000000000000000000000000000..aa691c4c8dda18014db6811e70712ac2a883e676
 --- /dev/null
 +++ b/par/ims/AndroidManifest.xml
 @@ -0,0 +1,29 @@
@@ -1237,7 +1237,7 @@ index 0000000000000000000000000000000000000000..a1f98ac9ec41d3ca713670f2a1236830
 +}
 diff --git a/par/ims/src/com/huawei/ims/HwImsService.kt b/par/ims/src/com/huawei/ims/HwImsService.kt
 new file mode 100644
-index 0000000000000000000000000000000000000000..2eed0d59103622e2784e383165991362ee86af80
+index 0000000000000000000000000000000000000000..2eed0d5cc57adc036910f5351f75b537fd3ce129
 --- /dev/null
 +++ b/par/ims/src/com/huawei/ims/HwImsService.kt
 @@ -0,0 +1,178 @@
@@ -1533,7 +1533,7 @@ index 0000000000000000000000000000000000000000..71cebdc6a953497a44a4591ad5b04f91
 +}
 diff --git a/par/ims/src/com/huawei/ims/RilHolder.kt b/par/ims/src/com/huawei/ims/RilHolder.kt
 new file mode 100644
-index 0000000000000000000000000000000000000000..d488568e65170719282389846ab040844173564f
+index 0000000000000000000000000000000000000000..d48856813f546ec9c8ab3c460b8be57dfa777876
 --- /dev/null
 +++ b/par/ims/src/com/huawei/ims/RilHolder.kt
 @@ -0,0 +1,129 @@
@@ -2294,7 +2294,7 @@ index 797094acdc3cd92b9de5f6dc589bbaccb74238a0..d933a3f1626edda9a997c30845d1b8da
  #/proc/filesystems
  allow vndk_detect proc_filesystems:file r_file_perms;
 diff --git a/system.prop b/system.prop
-index 986cb0921ed27a0487fbdd283246aad0e82c7006..a772799bacf7d192ed3213a6125e3d77c89db37b 100644
+index 986cb0921ed27a0487fbdd283246aad0e82c7006..201a1ee8d4d33133406942f50b1933eca73aa192 100644
 --- a/system.prop
 +++ b/system.prop
 @@ -1,4 +1,24 @@
@@ -2323,16 +2323,15 @@ index 986cb0921ed27a0487fbdd283246aad0e82c7006..a772799bacf7d192ed3213a6125e3d77
  #Some devices have sdcardfs kernel panicing on 8.0
  #Disable for everyone for the moment
  ro.sys.sdcardfs=0
-@@ -8,12 +28,21 @@ persist.sys.overlay.nightmode=true
+@@ -8,12 +28,20 @@ persist.sys.overlay.nightmode=true
  persist.sys.strictmode.disable=true
  persist.sys.phh.mainkeys=0
  
-+# Huawei's legacy Mali-G72 r14p0/gralloc stack can return stale regions when
-+# Android 13 HWUI reuses EGL buffer age damage. Keep partial updates on with
-+# preserved buffers: forcing discard/full redraw causes 4-second dequeue
-+# timeouts on this driver.
++# Keep partial updates and EGL buffer-age damage tracking enabled on Huawei's
++# legacy Mali-G72 r14p0/gralloc stack. Validate this combination against long-
++# uptime rendering stalls before promoting the candidate.
 +debug.hwui.use_partial_updates=true
-+debug.hwui.use_buffer_age=false
++debug.hwui.use_buffer_age=true
 +
  fw.max_users=10
  persist.sys.max_profiles=10
