@@ -1793,16 +1793,17 @@ index 8965ab92d25997f907b9e4e2d4f575cfa5feffe1..656802ea3285f1624883bc13f7fc2c02
  allow platform_app vendor_sysfs_graphics:file r_file_perms;
 -
 diff --git a/sepolicy/file_contexts b/sepolicy/file_contexts
-index beb639a712de09e0227f2172e085ae823ad5e5ff..f4f5a84f526cba8fbfd6321c84aaaa44b51fd15b 100644
+index beb639a712de09e0227f2172e085ae823ad5e5ff..7f066fde41dc89707ca91e2901dde9624225a83c 100644
 --- a/sepolicy/file_contexts
 +++ b/sepolicy/file_contexts
-@@ -11,6 +11,9 @@
+@@ -11,6 +11,10 @@
  
  /sec_storage(/.*)?      u:object_r:teecd_data_file:s0
  /dev/dsm                u:object_r:dmd_device:s0
 +/dev/hwlog_dubai        u:object_r:huawei_hwlog_device:s0
 +/dev/hwlog_exception    u:object_r:huawei_hwlog_device:s0
 +/dev/hwlog_jank         u:object_r:huawei_hwlog_device:s0
++/dev/block/zram0        u:object_r:swap_block_device:s0
  
  /system/bin/hw/android.hardware.biometrics.fingerprint@2.1-service.oppo.compat u:object_r:hal_fingerprint_oppo_compat_exec:s0
  /system/bin/hw/android.hardware.biometrics.fingerprint@2.1-service.oplus.compat u:object_r:hal_fingerprint_oppo_compat_exec:s0
@@ -2294,7 +2295,7 @@ index 797094acdc3cd92b9de5f6dc589bbaccb74238a0..d933a3f1626edda9a997c30845d1b8da
  #/proc/filesystems
  allow vndk_detect proc_filesystems:file r_file_perms;
 diff --git a/system.prop b/system.prop
-index 986cb0921ed27a0487fbdd283246aad0e82c7006..201a1ee8d4d33133406942f50b1933eca73aa192 100644
+index 986cb0921ed27a0487fbdd283246aad0e82c7006..741495367f1ae38e4bf9f01447f1e49e0ea2a06f 100644
 --- a/system.prop
 +++ b/system.prop
 @@ -1,4 +1,24 @@
@@ -2323,15 +2324,20 @@ index 986cb0921ed27a0487fbdd283246aad0e82c7006..201a1ee8d4d33133406942f50b1933ec
  #Some devices have sdcardfs kernel panicing on 8.0
  #Disable for everyone for the moment
  ro.sys.sdcardfs=0
-@@ -8,12 +28,20 @@ persist.sys.overlay.nightmode=true
+@@ -8,12 +28,25 @@ persist.sys.overlay.nightmode=true
  persist.sys.strictmode.disable=true
  persist.sys.phh.mainkeys=0
  
-+# Keep partial updates and EGL buffer-age damage tracking enabled on Huawei's
-+# legacy Mali-G72 r14p0/gralloc stack. Validate this combination against long-
-+# uptime rendering stalls before promoting the candidate.
++# Keep partial updates enabled while disabling EGL buffer-age damage tracking
++# on Huawei's legacy Mali-G72 r14p0/gralloc stack. This pair avoids both stale
++# damage reuse and the full-redraw path that previously caused stalls.
 +debug.hwui.use_partial_updates=true
-+debug.hwui.use_buffer_age=true
++debug.hwui.use_buffer_age=false
++
++# Huawei's legacy HWC can reject present after accepting a multi-layer frame,
++# exposing a mix of old and new device-composited layers. Submit one complete
++# client-composited frame so a rejected present can only retain the prior frame.
++debug.sf.force_client_composition=true
 +
  fw.max_users=10
  persist.sys.max_profiles=10
@@ -2391,11 +2397,16 @@ index a0002e523599bb8c563c96647bd13484c155124a..7010920d6bd95c7a90fc322efed81f12
  
  if getprop ro.hardware |grep -qiE -e qcom -e judyln -e judypn;then
 diff --git a/vndk.rc b/vndk.rc
-index 823456aad887cff993724ff59345d563030eba4c..dbd2d6e373bcff44c0ebaf0584c79e8a8fda4683 100644
+index 823456aad887cff993724ff59345d563030eba4c..3854cc604a7aa5154359ff50ddb7686465ea7303 100644
 --- a/vndk.rc
 +++ b/vndk.rc
-@@ -1,9 +1,18 @@
+@@ -1,9 +1,23 @@
  on post-fs
++	# EMUI's RAM-size property is absent on some GSI boots, so its vendor init
++	# never reaches the zram-specific swapon_all actions. Reuse the zram entry
++	# already shipped in Huawei's fstab instead of duplicating its size here.
++	swapon_all /vendor/etc/fstab.kirin970
++
 +	# EMUI normally exposes the selected ODM product at /hw_odm. A GSI has no
 +	# such rootfs link, so point Huawei's config-policy client at PAR's real ODM
 +	# directory before vendor.ril-daemon starts and builds its NCFG index.

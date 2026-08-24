@@ -1,5 +1,3 @@
-# Provenance: TrebleDroid ci-20230905 (Andy CrossGate Yan and Pierre-Hugues Husson) plus PAR/release follow-ups
-# maintained by yukino1111. See ../ATTRIBUTION.md for the ownership boundary.
 diff --git a/cmds/installd/migrate_legacy_obb_data.sh b/cmds/installd/migrate_legacy_obb_data.sh
 index 7399681c3e65d650cca698a602f4e63d768f5650..9d5b73eae2fb2e797a17507f8a1ee5dcb6538297 100644
 --- a/cmds/installd/migrate_legacy_obb_data.sh
@@ -656,6 +654,54 @@ index d0d3c2e6d7d2ef128306ba5ce4234f4e2d514eaf..c40986fae9bbd30d7635306c73ae92ff
  private:
      class CommandWriter : public CommandWriterBase {
      public:
+diff --git a/services/surfaceflinger/SurfaceFlinger.cpp b/services/surfaceflinger/SurfaceFlinger.cpp
+index d032203ac31c9d5e1121309183175507af33be8e..e1a72ad0702c13e5b1dcfc6faafd9e86b118d26f 100644
+--- a/services/surfaceflinger/SurfaceFlinger.cpp
++++ b/services/surfaceflinger/SurfaceFlinger.cpp
+@@ -428,6 +428,10 @@ SurfaceFlinger::SurfaceFlinger(Factory& factory) : SurfaceFlinger(factory, SkipI
+     property_get("debug.sf.disable_client_composition_cache", value, "0");
+     mDisableClientCompositionCache = atoi(value);
+ 
++    mForceClientComposition =
++            base::GetBoolProperty("debug.sf.force_client_composition"s, false);
++    ALOGI_IF(mForceClientComposition, "Forcing client composition");
++
+     property_get("debug.sf.predict_hwc_composition_strategy", value, "1");
+     mPredictCompositionStrategy = atoi(value);
+ 
+@@ -2254,7 +2258,8 @@ void SurfaceFlinger::composite(nsecs_t frameTime, int64_t vsyncId)
+         mDrawingState.colorMatrixChanged = false;
+     }
+ 
+-    refreshArgs.devOptForceClientComposition = mDebugDisableHWC;
++    refreshArgs.devOptForceClientComposition =
++            mForceClientComposition || mDebugDisableHWC;
+ 
+     if (mDebugFlashDelay != 0) {
+         refreshArgs.devOptForceClientComposition = true;
+@@ -5585,7 +5590,8 @@ void SurfaceFlinger::dumpAllLocked(const DumpArgs& args, const std::string& comp
+     colorizer.bold(result);
+     result.append("h/w composer state:\n");
+     colorizer.reset(result);
+-    const bool hwcDisabled = mDebugDisableHWC || mDebugFlashDelay;
++    const bool hwcDisabled =
++            mForceClientComposition || mDebugDisableHWC || mDebugFlashDelay;
+     StringAppendF(&result, "  h/w composer %s\n", hwcDisabled ? "disabled" : "enabled");
+     dumpHwc(result);
+ 
+diff --git a/services/surfaceflinger/SurfaceFlinger.h b/services/surfaceflinger/SurfaceFlinger.h
+index c14e37a47ed5041a5ba4759544e35c8327d3b178..ea92da6366d2190a0b392b4689862103aab2ca23 100644
+--- a/services/surfaceflinger/SurfaceFlinger.h
++++ b/services/surfaceflinger/SurfaceFlinger.h
+@@ -1268,6 +1268,8 @@ private:
+     } mVirtualDisplayIdGenerators;
+ 
+     std::atomic_uint mDebugFlashDelay = 0;
++    // System policy is kept separate from the developer option toggled through Binder 1008.
++    bool mForceClientComposition = false;
+     std::atomic_bool mDebugDisableHWC = false;
+     std::atomic_bool mDebugDisableTransformHint = false;
+     std::atomic<nsecs_t> mDebugInTransaction = 0;
 diff --git a/services/vibratorservice/VibratorHalController.cpp b/services/vibratorservice/VibratorHalController.cpp
 index c1795f5c329f47ced53a87fb711b7db4db0743fd..345016efd6fb78fec866d1d930a2da0e1116382d 100644
 --- a/services/vibratorservice/VibratorHalController.cpp

@@ -1,5 +1,5 @@
 diff --git a/HW-IMS/AndroidManifest.xml b/HW-IMS/AndroidManifest.xml
-index f3d5a00..32257a4 100644
+index f3d5a00b68a22a6bcb67cda368652edd18fd892a..32257a48d1a93c08b26cb94ce7938860a51a8d7a 100644
 --- a/HW-IMS/AndroidManifest.xml
 +++ b/HW-IMS/AndroidManifest.xml
 @@ -3,8 +3,6 @@
@@ -13,7 +13,7 @@ index f3d5a00..32257a4 100644
  </manifest>
 diff --git a/Huawei/kirin970/PAR/Android.mk b/Huawei/kirin970/PAR/Android.mk
 new file mode 100644
-index 0000000..6a55fe7
+index 0000000000000000000000000000000000000000..6a55fe7ce27badf7f08ab6d122b76a0b582407da
 --- /dev/null
 +++ b/Huawei/kirin970/PAR/Android.mk
 @@ -0,0 +1,8 @@
@@ -27,7 +27,7 @@ index 0000000..6a55fe7
 +include $(BUILD_PACKAGE)
 diff --git a/Huawei/kirin970/PAR/AndroidManifest.xml b/Huawei/kirin970/PAR/AndroidManifest.xml
 new file mode 100644
-index 0000000..37f3e2d
+index 0000000000000000000000000000000000000000..37f3e2d49e764a614fd2fc244cd262e5a0e75308
 --- /dev/null
 +++ b/Huawei/kirin970/PAR/AndroidManifest.xml
 @@ -0,0 +1,11 @@
@@ -44,7 +44,7 @@ index 0000000..37f3e2d
 +</manifest>
 diff --git a/Huawei/kirin970/PAR/res/values/config.xml b/Huawei/kirin970/PAR/res/values/config.xml
 new file mode 100644
-index 0000000..800c0ad
+index 0000000000000000000000000000000000000000..800c0add886bdda0ddd2a6c4c23e6d12794355f7
 --- /dev/null
 +++ b/Huawei/kirin970/PAR/res/values/config.xml
 @@ -0,0 +1,9 @@
@@ -58,7 +58,7 @@ index 0000000..800c0ad
 +    <bool name="config_voice_data_sms_auto_fallback">true</bool>
 +</resources>
 diff --git a/Telephony/HW-IMS/AndroidManifest.xml b/Telephony/HW-IMS/AndroidManifest.xml
-index 699cc6e..9f0c1be 100644
+index 699cc6e7316e6d849f3c4633e52b3f8179b6b89b..9f0c1be4b2d84bf82c42af15a43a84aaa4dbedd6 100644
 --- a/Telephony/HW-IMS/AndroidManifest.xml
 +++ b/Telephony/HW-IMS/AndroidManifest.xml
 @@ -4,5 +4,6 @@
@@ -140194,10 +140194,10 @@ VdP0@rWyiDQTMxjtJzDUe{|n$kSM&e?
 
 diff --git a/overlay-par.mk b/overlay-par.mk
 new file mode 100644
-index 0000000..61ed231
+index 0000000000000000000000000000000000000000..a71f46faa7aa18a30ff49e907ab57830bca94800
 --- /dev/null
 +++ b/overlay-par.mk
-@@ -0,0 +1,15 @@
+@@ -0,0 +1,16 @@
 +# Hardware overlays retained for the nova 3 (PAR) release. Both published GSI identities use this
 +# same package set; the generic filename is not a multi-device compatibility build.
 +PRODUCT_PACKAGES += \
@@ -140207,6 +140207,7 @@ index 0000000..61ed231
 +	treble-overlay-NightMode \
 +	treble-overlay-SystemUI-FalseLocks \
 +	treble-overlay-Telephony-LTE \
++	treble-overlay-devinputjack \
 +	treble-overlay-highpriomisc \
 +	treble-overlay-huawei \
 +	treble-overlay-huawei-PAR \
@@ -140214,7 +140215,7 @@ index 0000000..61ed231
 +	treble-overlay-telephony-hw-ims \
 +	treble-overlay-tethering
 diff --git a/overlay.mk b/overlay.mk
-index 5438dfc..3d973b3 100644
+index 5438dfcecd627490dec61fb493a5e720303f8333..3d973b39417bc1a3e819af540dcbe59ea487d6f2 100644
 --- a/overlay.mk
 +++ b/overlay.mk
 @@ -45,6 +45,7 @@ PRODUCT_PACKAGES += \
