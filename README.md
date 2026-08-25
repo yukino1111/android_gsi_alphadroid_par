@@ -63,6 +63,12 @@ still retain an implausibly small estimated-capacity value; this affects mAh
 accounting, not the displayed battery percentage. Long-uptime wired ADB
 stability also remains under observation.
 
+Huawei's legacy hardware composer can intermittently reject a present. The
+current release keeps hardware composition enabled and disables Kirin 970
+gralloc AFBC before SurfaceFlinger starts; this substantially reduces visible
+corruption, but an occasional flash may remain. Full client composition is a
+more conservative fallback with higher GPU composition overhead.
+
 ## Build
 
 Sync the revisions in `manifest/locked.xml`, then run:

@@ -2295,7 +2295,7 @@ index 797094acdc3cd92b9de5f6dc589bbaccb74238a0..d933a3f1626edda9a997c30845d1b8da
  #/proc/filesystems
  allow vndk_detect proc_filesystems:file r_file_perms;
 diff --git a/system.prop b/system.prop
-index 986cb0921ed27a0487fbdd283246aad0e82c7006..741495367f1ae38e4bf9f01447f1e49e0ea2a06f 100644
+index 986cb0921ed27a0487fbdd283246aad0e82c7006..4dd1f3f6aa052e80833cacadd204e1b9a8b3b26a 100644
 --- a/system.prop
 +++ b/system.prop
 @@ -1,4 +1,24 @@
@@ -2324,7 +2324,7 @@ index 986cb0921ed27a0487fbdd283246aad0e82c7006..741495367f1ae38e4bf9f01447f1e49e
  #Some devices have sdcardfs kernel panicing on 8.0
  #Disable for everyone for the moment
  ro.sys.sdcardfs=0
-@@ -8,12 +28,25 @@ persist.sys.overlay.nightmode=true
+@@ -8,12 +28,20 @@ persist.sys.overlay.nightmode=true
  persist.sys.strictmode.disable=true
  persist.sys.phh.mainkeys=0
  
@@ -2333,11 +2333,6 @@ index 986cb0921ed27a0487fbdd283246aad0e82c7006..741495367f1ae38e4bf9f01447f1e49e
 +# damage reuse and the full-redraw path that previously caused stalls.
 +debug.hwui.use_partial_updates=true
 +debug.hwui.use_buffer_age=false
-+
-+# Huawei's legacy HWC can reject present after accepting a multi-layer frame,
-+# exposing a mix of old and new device-composited layers. Submit one complete
-+# client-composited frame so a rejected present can only retain the prior frame.
-+debug.sf.force_client_composition=true
 +
  fw.max_users=10
  persist.sys.max_profiles=10
@@ -2397,10 +2392,10 @@ index a0002e523599bb8c563c96647bd13484c155124a..7010920d6bd95c7a90fc322efed81f12
  
  if getprop ro.hardware |grep -qiE -e qcom -e judyln -e judypn;then
 diff --git a/vndk.rc b/vndk.rc
-index 823456aad887cff993724ff59345d563030eba4c..3854cc604a7aa5154359ff50ddb7686465ea7303 100644
+index 823456aad887cff993724ff59345d563030eba4c..cdcedfd834474b8ac96dc692e96732d6fae21584 100644
 --- a/vndk.rc
 +++ b/vndk.rc
-@@ -1,9 +1,23 @@
+@@ -1,9 +1,29 @@
  on post-fs
 +	# EMUI's RAM-size property is absent on some GSI boots, so its vendor init
 +	# never reaches the zram-specific swapon_all actions. Reuse the zram entry
@@ -2416,6 +2411,12 @@ index 823456aad887cff993724ff59345d563030eba4c..3854cc604a7aa5154359ff50ddb76864
  	mount none /system/etc/usb_audio_policy_configuration.xml /vendor/etc/usb_audio_policy_configuration.xml bind
          setprop ro.vndk.version ${persist.sys.vndk}
  
++# Kirin 970's stock gralloc enables AFBC by default. Set the vendor knob from
++# init before SurfaceFlinger and app processes load gralloc, while retaining
++# hardware composition.
++on post-fs && property:ro.board.platform=kirin970
++	setprop vendor.debug.gralloc_afbc 0
++
 +# Huawei's HWC caches the first failed PerfGenius connection. Start the HAL as
 +# soon as rw-system enables it, before the normal HAL class reaches HWC.
 +on property:ro.kirin.config.hw_perfgenius=true
