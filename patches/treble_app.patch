@@ -1,0 +1,3262 @@
+diff --git a/app/build.gradle b/app/build.gradle
+index 6d6d71d..ed9fbb4 100644
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -34,6 +34,8 @@ dependencies {
+ 
+     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+     implementation 'org.tukaani:xz:1.9'
++    implementation 'androidx.appcompat:appcompat:1.6.1'
+     implementation 'androidx.preference:preference-ktx:1.2.0'
++    implementation 'com.google.android.material:material:1.9.0'
+     implementation 'com.squareup.okhttp3:okhttp:4.9.0'
+ }
+diff --git a/app/src/main/java/me/phh/treble/app/CustomSettings.kt b/app/src/main/java/me/phh/treble/app/CustomSettings.kt
+index 870fee1..e1869c0 100644
+--- a/app/src/main/java/me/phh/treble/app/CustomSettings.kt
++++ b/app/src/main/java/me/phh/treble/app/CustomSettings.kt
+@@ -3,6 +3,7 @@ package me.phh.treble.app
+ import android.content.pm.PackageInfo
+ import android.os.Bundle
+ import androidx.preference.ListPreference
++import androidx.preference.Preference
+ 
+ object CustomSettings : Settings {
+     val accentColor = "key_custom_accent_color"
+@@ -21,48 +22,57 @@ class CustomSettingsFragment : SettingsFragment() {
+     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
+         super.onCreatePreferences(savedInstanceState, rootKey)
+ 
+-        packages = activity.packageManager.getInstalledPackages(0)
++        packages = requireActivity().packageManager.getInstalledPackages(0)
+ 
+         val accentColorPref = findPreference<ListPreference>(CustomSettings.accentColor)!!
+         val accentColorOverlays = OverlayPicker.getThemeOverlays(OverlayPicker.ThemeOverlay.AccentColor)
+-        val accentColorEntries = listOf("Default") + accentColorOverlays.map { getTargetName(it.packageName) }
++        val accentColorEntries = listOf(getString(R.string.preference_default)) + accentColorOverlays.map { getTargetName(it.packageName) }
+         val accentColorValues = listOf("") + accentColorOverlays.map { it.packageName }
+ 
+         accentColorPref.setEntries(accentColorEntries.toTypedArray())
+         accentColorPref.setEntryValues(accentColorValues.toTypedArray())
++        accentColorPref.isVisible = accentColorOverlays.isNotEmpty()
+ 
+         val iconShapePref = findPreference<ListPreference>(CustomSettings.iconShape)!!
+         val iconShapeOverlays = OverlayPicker.getThemeOverlays(OverlayPicker.ThemeOverlay.IconShape)
+-        val iconShapeEntries = listOf("Default") + iconShapeOverlays.map { getTargetName(it.packageName) }
++        val iconShapeEntries = listOf(getString(R.string.preference_default)) + iconShapeOverlays.map { getTargetName(it.packageName) }
+         val iconShapeValues = listOf("") + iconShapeOverlays.map { it.packageName }
+ 
+         iconShapePref.setEntries(iconShapeEntries.toTypedArray())
+         iconShapePref.setEntryValues(iconShapeValues.toTypedArray())
++        iconShapePref.isVisible = iconShapeOverlays.isNotEmpty()
+ 
+         val fontFamilyPref = findPreference<ListPreference>(CustomSettings.fontFamily)!!
+         val fontFamilyOverlays = OverlayPicker.getThemeOverlays(OverlayPicker.ThemeOverlay.FontFamily)
+-        val fontFamilyEntries = listOf("Default") + fontFamilyOverlays.map { getTargetName(it.packageName) }
++        val fontFamilyEntries = listOf(getString(R.string.preference_default)) + fontFamilyOverlays.map { getTargetName(it.packageName) }
+         val fontFamilyValues = listOf("") + fontFamilyOverlays.map { it.packageName }
+ 
+         fontFamilyPref.setEntries(fontFamilyEntries.toTypedArray())
+         fontFamilyPref.setEntryValues(fontFamilyValues.toTypedArray())
++        fontFamilyPref.isVisible = fontFamilyOverlays.isNotEmpty()
+ 
+         val iconPackPref = findPreference<ListPreference>(CustomSettings.iconPack)!!
+         val iconPackOverlays = OverlayPicker.getThemeOverlays(OverlayPicker.ThemeOverlay.IconPack)
+         var iconPackMap = hashMapOf<String, String>()
+         iconPackOverlays.forEach() { iconPackMap = addOverlayToMap(iconPackMap, it.packageName) }
+-        val iconPackEntries = listOf("Default") + iconPackMap.values
++        val iconPackEntries = listOf(getString(R.string.preference_default)) + iconPackMap.values
+         val iconPackValues = listOf("") + iconPackMap.keys
+ 
+         iconPackPref.setEntries(iconPackEntries.toTypedArray())
+         iconPackPref.setEntryValues(iconPackValues.toTypedArray())
++        iconPackPref.isVisible = iconPackMap.isNotEmpty()
++
++        if (Tools.isParDevice) {
++            findPreference<Preference>(CustomSettings.pointerType)?.isVisible = false
++            findPreference<Preference>("key_custom_ui_category")?.isVisible = false
++        }
+     }
+ 
+     fun getTargetName(p: String): String {
+         var targetName = p.substringAfterLast(".").capitalize()
+         val packageInfo = packages.find { it.packageName == p }
+         if (packageInfo != null) {
+-            targetName = packageInfo.applicationInfo.loadLabel(activity.packageManager).toString()
++            targetName = packageInfo.applicationInfo.loadLabel(requireActivity().packageManager).toString()
+         }
+         return targetName
+     }
+diff --git a/app/src/main/java/me/phh/treble/app/Doze.kt b/app/src/main/java/me/phh/treble/app/Doze.kt
+index 0f3363b..7d1d9bc 100644
+--- a/app/src/main/java/me/phh/treble/app/Doze.kt
++++ b/app/src/main/java/me/phh/treble/app/Doze.kt
+@@ -238,11 +238,11 @@ object Doze: EntryStartup {
+         sensorManager = ctxt.getSystemService(SensorManager::class.java)
+         proximitySensor = sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY, true)
+         accelerometerSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER, false)
++        cameraManager = ctxt.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+ 
+         try {
+             chopchopSensor = Doze.sensorManager.getSensorList(Sensor.TYPE_ALL).first { it.stringType == "com.motorola.sensor.chopchop" }
+             Log.d("PHH", "Found ChopChop Sensor, Initalizing needed Services")
+-            cameraManager = ctxt.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+             torchCameraId = cameraManager.cameraIdList[0]
+             vibrator = ctxt.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+ 
+diff --git a/app/src/main/java/me/phh/treble/app/DozeSettings.kt b/app/src/main/java/me/phh/treble/app/DozeSettings.kt
+index 4ccebbd..a17e112 100644
+--- a/app/src/main/java/me/phh/treble/app/DozeSettings.kt
++++ b/app/src/main/java/me/phh/treble/app/DozeSettings.kt
+@@ -3,7 +3,7 @@ package me.phh.treble.app
+ import android.hardware.Sensor
+ import android.os.Bundle
+ import android.preference.PreferenceManager
+-import androidx.preference.SwitchPreference
++import androidx.preference.SwitchPreferenceCompat
+ import me.phh.treble.app.DozeSettings.chopchopkey
+ 
+ object DozeSettings : Settings {
+@@ -23,7 +23,7 @@ class DozeSettingsFragment : SettingsFragment() {
+     //Checking for ChopChop Sensor
+     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
+         super.onCreatePreferences(savedInstanceState, rootKey)
+-        val chopchopPref = findPreference<SwitchPreference>(DozeSettings.chopchopkey)
++        val chopchopPref = findPreference<SwitchPreferenceCompat>(DozeSettings.chopchopkey)
+         var chopchopSensor: Sensor? = null
+         try {
+             chopchopSensor = Doze.sensorManager.getSensorList(Sensor.TYPE_ALL).first { it.stringType == "com.motorola.sensor.chopchop" }
+diff --git a/app/src/main/java/me/phh/treble/app/EntryService.kt b/app/src/main/java/me/phh/treble/app/EntryService.kt
+index ace32ed..98c7fed 100644
+--- a/app/src/main/java/me/phh/treble/app/EntryService.kt
++++ b/app/src/main/java/me/phh/treble/app/EntryService.kt
+@@ -37,30 +37,41 @@ class EntryService: Service() {
+         service = this
+ 
+         thread {
++            val isPar = SystemProperties.get("ro.hw.oemName", "")
++                    .startsWith("PAR", ignoreCase = true)
+             tryC { Tools.startup(this) }
+-            tryC { QtiAudio.startup(this) }
+-            tryC { Lenovo.startup(this) }
+-            tryC { OnePlus.startup(this) }
+-            tryC { Oppo.startup(this) }
++            if (!isPar) {
++                tryC { QtiAudio.startup(this) }
++                tryC { Lenovo.startup(this) }
++                tryC { OnePlus.startup(this) }
++                tryC { Oppo.startup(this) }
++            }
+             tryC { OverlayPicker.startup(this) }
+             tryC { Doze.startup(this) }
+             tryC { Huawei.startup(this) }
++            tryC { HuaweiNcfgBridge.startup(this) }
+             tryC { Misc.startup(this) }
+-            tryC { Samsung.startup(this) }
+             tryC { Hostapd.startup(this) }
+-            tryC { Xiaomi.startup(this) }
+-            tryC { Asus.startup(this) }
+-            tryC { Qualcomm.startup(this) }
+-            tryC { Vsmart.startup(this) }
+-            tryC { Nubia.startup(this) }
++            if (!isPar) {
++                tryC { Samsung.startup(this) }
++                tryC { Xiaomi.startup(this) }
++                tryC { Asus.startup(this) }
++                tryC { Qualcomm.startup(this) }
++                tryC { Vsmart.startup(this) }
++                tryC { Nubia.startup(this) }
++            }
+             tryC { Ims.startup(this) }
+             tryC { Custom.startup(this) }
+-            tryC { Hct.startup(this) }
++            if (!isPar) {
++                tryC { Hct.startup(this) }
++            }
+ 
+             tryC { Desktop.startup(this) }
+             tryC { Lid.startup(this) }
+ 
+-            tryC { PresetDownloader.startup(this) }
++            if (!isPar) {
++                tryC { PresetDownloader.startup(this) }
++            }
+             tryC {
+                 val p = SystemProperties.get("ro.system.ota.json_url", "")
+                 val c = ComponentName(this, UpdaterActivity::class.java)
+diff --git a/app/src/main/java/me/phh/treble/app/Hostapd.kt b/app/src/main/java/me/phh/treble/app/Hostapd.kt
+index c982f17..61db189 100644
+--- a/app/src/main/java/me/phh/treble/app/Hostapd.kt
++++ b/app/src/main/java/me/phh/treble/app/Hostapd.kt
+@@ -14,6 +14,8 @@ import javax.crypto.spec.PBEKeySpec
+ 
+ class Hostapd: EntryStartup {
+     val hostapdSvc = object: android.hardware.wifi.hostapd.V1_0.IHostapd.Stub() {
++        override fun debug(p0: android.os.NativeHandle, p1: ArrayList<String>) {
++        }
+         override fun terminate() {
+             Log.d("PHH", "Terminating access point")
+             SystemProperties.set("ctl.stop", "hostapd")
+diff --git a/app/src/main/java/me/phh/treble/app/Huawei.kt b/app/src/main/java/me/phh/treble/app/Huawei.kt
+index 724d15e..fe7f44a 100644
+--- a/app/src/main/java/me/phh/treble/app/Huawei.kt
++++ b/app/src/main/java/me/phh/treble/app/Huawei.kt
+@@ -1,9 +1,15 @@
+ package me.phh.treble.app
+ 
+ import android.content.Context
++import android.content.BroadcastReceiver
+ import android.content.Intent
++import android.content.IntentFilter
+ import android.content.SharedPreferences
+ import android.net.Uri
++import android.os.BatteryManager
++import android.os.Build
++import android.os.Handler
++import android.os.Looper
+ import android.os.SystemProperties
+ import android.os.Parcel
+ import android.os.ServiceManager
+@@ -15,12 +21,20 @@ import vendor.huawei.hardware.tp.V1_0.ITouchscreen
+ import java.io.File
+ 
+ class Huawei: EntryStartup {
+-    val fastChargeCharger = "/sys/class/hw_power/charger/direct_charger/iin_thermal"
+     val fastChargeData = "/sys/class/hw_power/charger/charge_data/iin_thermal"
+     val fpService = try { IExtBiometricsFingerprint.getService() } catch(t: Throwable) { Log.d("PHH", "Failed getting fp svc" , t);null }
+     val tsService = try { ITouchscreen.getService() } catch(t: Throwable) { Log.d("PHH", "Failed getting tp svc" , t); null }
+     val surfaceFlinger = ServiceManager.getService("SurfaceFlinger")
++    val chargeHandler = Handler(Looper.getMainLooper())
+     var ctxt: Context? = null
++    var chargePreferences: SharedPreferences? = null
++
++    val chargeRefresh = Runnable { applyFastChargeProfile() }
++    val chargeReceiver = object: BroadcastReceiver() {
++        override fun onReceive(context: Context, intent: Intent) {
++            scheduleChargeRefresh()
++        }
++    }
+ 
+     fun enableHwcOverlay(v: Boolean) {
+         val data = Parcel.obtain()
+@@ -31,11 +45,72 @@ class Huawei: EntryStartup {
+         Log.d("PHH", "Set surface flinger hwc overlay to $v")
+     }
+ 
+-    fun writeToFileNofail(path: String, content: String) {
+-        try {
+-            File(path).printWriter().use { it.println(content) }
++    fun writeToFileNofail(path: String, content: String): Boolean {
++        return try {
++            val target = File(path)
++            if (!target.exists()) return false
++            target.printWriter().use { it.println(content) }
++            true
+         } catch(t: Throwable) {
+             Log.d("PHH", "Failed writing to $path", t)
++            false
++        }
++    }
++
++    fun readIntNofail(path: String, fallback: Int): Int {
++        return try {
++            File(path).readText().trim().toInt()
++        } catch(t: Throwable) {
++            fallback
++        }
++    }
++
++    fun normalizeChargeProfile(value: String?): String {
++        return when(value) {
++            "900", "stock" -> "900"
++            "1200", "balanced", "2750" -> "1200"
++            "1400", "4000" -> "1400"
++            "auto", "-1", null -> "auto"
++            else -> "auto"
++        }
++    }
++
++    fun scheduleChargeRefresh() {
++        chargeHandler.removeCallbacks(chargeRefresh)
++        chargeHandler.post(chargeRefresh)
++        chargeHandler.postDelayed(chargeRefresh, 3000)
++        chargeHandler.postDelayed(chargeRefresh, 15000)
++    }
++
++    fun selectChargeCurrent(profile: String, temperature: Int, plugged: Int): Int {
++        if (plugged == 0) return 900
++
++        val fixedCurrent = profile.toIntOrNull()
++        if (fixedCurrent != null) return fixedCurrent
++
++        return when {
++            temperature == Int.MIN_VALUE -> 900
++            temperature >= 450 -> 600
++            temperature >= 420 -> 900
++            temperature >= 400 -> 1200
++            else -> 1400
++        }
++    }
++
++    fun applyFastChargeProfile() {
++        val context = ctxt ?: return
++        val preferences = chargePreferences ?: return
++        if (!File(fastChargeData).exists()) return
++
++        val profile = normalizeChargeProfile(preferences.getString(HuaweiSettings.fastCharge, "auto"))
++        val battery = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
++        val temperature = battery?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, Int.MIN_VALUE) ?: Int.MIN_VALUE
++        val plugged = battery?.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) ?: 0
++        val target = selectChargeCurrent(profile, temperature, plugged)
++
++        val current = readIntNofail(fastChargeData, -1)
++        if (current != target && writeToFileNofail(fastChargeData, target.toString())) {
++            Log.i("PHH-PAR-CHARGE", "profile=$profile temperature=$temperature plugged=$plugged current=$current target=$target")
+         }
+     }
+ 
+@@ -55,20 +130,12 @@ class Huawei: EntryStartup {
+                 tsService?.hwTsSetGloveMode(value)
+             }
+             HuaweiSettings.fastCharge -> {
+-                val value = sp.getString(key, "-1")
+-                when(value) {
+-                    "-1" -> {
+-                        writeToFileNofail(fastChargeCharger, "1500")
+-                        writeToFileNofail(fastChargeData, "900")
+-                    }
+-                    "2750" -> {
+-                        writeToFileNofail(fastChargeCharger, "2750")
+-                        writeToFileNofail(fastChargeData, "1000")
+-                    }
+-                    "4000" -> {
+-                        writeToFileNofail(fastChargeCharger, "4000")
+-                        writeToFileNofail(fastChargeData, "2000")
++                if (Tools.isParDevice) {
++                    val profile = normalizeChargeProfile(sp.getString(key, "auto"))
++                    if (sp.getString(key, "auto") != profile) {
++                        sp.edit().putString(key, profile).apply()
+                     }
++                    scheduleChargeRefresh()
+                 }
+             }
+             HuaweiSettings.noHwcomposer -> {
+@@ -85,6 +152,21 @@ class Huawei: EntryStartup {
+         sp.registerOnSharedPreferenceChangeListener(spListener)
+ 
+         this.ctxt = ctxt.applicationContext
++        this.chargePreferences = sp
++
++        if (Tools.isParDevice) {
++            val chargeFilter = IntentFilter().apply {
++                addAction(Intent.ACTION_BATTERY_CHANGED)
++                addAction(Intent.ACTION_POWER_CONNECTED)
++                addAction(Intent.ACTION_POWER_DISCONNECTED)
++            }
++            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
++                ctxt.registerReceiver(chargeReceiver, chargeFilter, Context.RECEIVER_NOT_EXPORTED)
++            } else {
++                @Suppress("DEPRECATION")
++                ctxt.registerReceiver(chargeReceiver, chargeFilter)
++            }
++        }
+ 
+         //Refresh parameters on boot
+         spListener.onSharedPreferenceChanged(sp, HuaweiSettings.fingerprintGestures)
+diff --git a/app/src/main/java/me/phh/treble/app/HuaweiNcfgBridge.kt b/app/src/main/java/me/phh/treble/app/HuaweiNcfgBridge.kt
+new file mode 100644
+index 0000000..064d073
+--- /dev/null
++++ b/app/src/main/java/me/phh/treble/app/HuaweiNcfgBridge.kt
+@@ -0,0 +1,282 @@
++package me.phh.treble.app
++
++import android.content.Context
++import android.os.HwBinder
++import android.os.HwParcel
++import android.os.IHwBinder
++import android.os.IHwInterface
++import android.os.RemoteException
++import android.os.SystemProperties
++import android.util.Log
++import java.util.concurrent.ConcurrentHashMap
++import java.util.concurrent.atomic.AtomicBoolean
++import java.util.concurrent.atomic.AtomicInteger
++import kotlin.concurrent.thread
++
++/**
++ * Restores the Huawei SIM-to-NCFG handshake that is normally provided by
++ * HwCarrierConfig and HwPhoneService on EMUI. This bridge is intentionally
++ * limited to the PAR device and to operator mappings verified on the stock ROM.
++ */
++object HuaweiNcfgBridge : EntryStartup {
++    private const val TAG = "PHH-PAR-NCFG"
++    private const val RADIO_IFACE = "vendor.huawei.hardware.radio@2.0::IRadio"
++    private const val RADIO_RESPONSE_IFACE =
++        "vendor.huawei.hardware.radio@2.0::IRadioResponse"
++    private const val RADIO_INDICATION_IFACE =
++        "vendor.huawei.hardware.radio@2.0::IRadioIndication"
++    private const val HISI_IFACE = "vendor.huawei.hardware.hisiradio@1.0::IHisiRadio"
++    private const val HISI_RESPONSE_IFACE =
++        "vendor.huawei.hardware.hisiradio@1.0::IHisiRadioResponse"
++    private const val HISI_INDICATION_IFACE =
++        "vendor.huawei.hardware.hisiradio@1.0::IHisiRadioIndication"
++
++    private const val TRANSACTION_SET_CALLBACKS = 1
++    private const val TRANSACTION_SEND_SIM_MATCHED_OPERATOR = 0x1b
++    private const val TRANSACTION_GET_NVCFG_MATCHED_RESULT = 0x44
++    private const val TRANSACTION_HISI_UNSOL_MSG = 1
++    private const val TRANSACTION_HISI_GET_NVCFG_RESPONSE = 15
++    private const val UNSOL_SIM_NVCFG_FINISHED = 0x82b
++    private const val FLAG_ONEWAY = 1
++
++    private val started = AtomicBoolean(false)
++    private val serial = AtomicInteger(0x50415200)
++    private val hisiClients = ConcurrentHashMap<Int, HisiClient>()
++    private val radioCallbacks = ConcurrentHashMap<Int, Pair<CallbackBinder, CallbackBinder>>()
++    private val notifiedSlots = ConcurrentHashMap.newKeySet<Int>()
++
++    override fun startup(ctxt: Context) {
++        if (!isParDevice() || !started.compareAndSet(false, true)) return
++
++        Log.i(TAG, "Starting controlled Huawei PAR NCFG bridge")
++        try {
++            HwBinder.configureRpcThreadpool(1, false)
++        } catch (t: Throwable) {
++            Log.w(TAG, "Hwbinder threadpool was already configured", t)
++        }
++
++        thread(name = "Huawei PAR NCFG") {
++            repeat(12) { attempt ->
++                try {
++                    connectHisiSlot(0)
++                    connectHisiSlot(1)
++                    notifyMatchedOperators()
++                    if (notifiedSlots.isNotEmpty()) {
++                        Thread.sleep(2000)
++                        notifiedSlots.sorted().forEach {
++                            requestNvcfgQuery(it, "post-notification diagnostic")
++                        }
++                        return@thread
++                    }
++                } catch (t: Throwable) {
++                    Log.e(TAG, "Bridge attempt ${attempt + 1} failed", t)
++                }
++                Thread.sleep(5000)
++            }
++            Log.e(TAG, "No verified SIM mapping became available")
++        }
++    }
++
++    private fun isParDevice(): Boolean {
++        val device = listOf(
++            SystemProperties.get("ro.vendor.product.device", ""),
++            SystemProperties.get("ro.product.vendor.device", ""),
++            SystemProperties.get("ro.product.device", ""),
++            SystemProperties.get("ro.build.product", "")
++        )
++        return device.any { it.equals("HWPAR", true) || it.equals("PAR", true) }
++    }
++
++    private fun connectHisiSlot(slot: Int) {
++        if (hisiClients.containsKey(slot)) return
++
++        val instance = "slot${slot + 1}"
++        val remote = HwBinder.getService(HISI_IFACE, instance, false)
++        val client = HisiClient(slot, instance, remote)
++        setCallbacks(remote, HISI_IFACE, client.response, client.indication)
++        hisiClients[slot] = client
++        Log.i(TAG, "Registered $HISI_IFACE/$instance callbacks")
++    }
++
++    private fun notifyMatchedOperators() {
++        val operators = SystemProperties.get("gsm.sim.operator.numeric", "").split(',')
++        operators.forEachIndexed { slot, rawOperator ->
++            if (slot > 1 || notifiedSlots.contains(slot)) return@forEachIndexed
++            val mapping = verifiedMapping(rawOperator.trim()) ?: return@forEachIndexed
++            val instance = "slot${slot + 1}"
++            val remote = HwBinder.getService(RADIO_IFACE, instance, false)
++            val response = CallbackBinder(RADIO_RESPONSE_IFACE)
++            val indication = CallbackBinder(RADIO_INDICATION_IFACE)
++            setCallbacks(remote, RADIO_IFACE, response, indication)
++            radioCallbacks[slot] = response to indication
++
++            val request = HwParcel()
++            val reply = HwParcel()
++            try {
++                request.writeInterfaceToken(RADIO_IFACE)
++                val requestSerial = serial.incrementAndGet()
++                request.writeInt32(requestSerial)
++                request.writeString(mapping.first)
++                request.writeString(mapping.second)
++                request.writeInt32(1)
++                request.writeString("")
++                remote.transact(
++                    TRANSACTION_SEND_SIM_MATCHED_OPERATOR,
++                    request,
++                    reply,
++                    FLAG_ONEWAY
++                )
++                request.releaseTemporaryStorage()
++                notifiedSlots.add(slot)
++                Log.i(
++                    TAG,
++                    "Notified $instance serial=$requestSerial opKey=${mapping.first} " +
++                        "opName=${mapping.second} state=1"
++                )
++            } finally {
++                reply.release()
++            }
++        }
++    }
++
++    private fun verifiedMapping(operator: String): Pair<String, String>? = when (operator) {
++        "46003", "46005", "46011", "46012" -> "46003" to "TELECOM_CN"
++        "45400" -> "45400" to "PCCW_HK"
++        else -> null
++    }
++
++    private fun setCallbacks(
++        remote: IHwBinder,
++        iface: String,
++        response: CallbackBinder,
++        indication: CallbackBinder
++    ) {
++        val request = HwParcel()
++        val reply = HwParcel()
++        try {
++            request.writeInterfaceToken(iface)
++            request.writeStrongBinder(response)
++            request.writeStrongBinder(indication)
++            remote.transact(TRANSACTION_SET_CALLBACKS, request, reply, 0)
++            reply.verifySuccess()
++            request.releaseTemporaryStorage()
++        } finally {
++            reply.release()
++        }
++    }
++
++    private fun onNvcfgFinished(slot: Int, result: Int) {
++        Log.i(TAG, "slot$slot received NCFG-finished result=$result")
++        if (result == 0) return
++        requestNvcfgQuery(slot, "NCFG-finished indication")
++    }
++
++    private fun requestNvcfgQuery(slot: Int, reason: String) {
++        val client = hisiClients[slot] ?: return
++        if (!client.queryStarted.compareAndSet(false, true)) return
++        thread(name = "Huawei PAR NCFG query") {
++            try {
++                Log.i(TAG, "slot$slot querying matched NCFG: $reason")
++                client.queryMatchedResult()
++            } catch (t: Throwable) {
++                client.queryStarted.set(false)
++                Log.e(TAG, "slot$slot NCFG result query failed", t)
++            }
++        }
++    }
++
++    private fun onNvcfgName(slot: Int, responseSerial: Int, error: Int, name: String) {
++        Log.i(
++            TAG,
++            "slot$slot NCFG response serial=$responseSerial error=$error name=$name"
++        )
++    }
++
++    private class HisiClient(
++        private val slot: Int,
++        private val instance: String,
++        private val remote: IHwBinder
++    ) {
++        val queryStarted = AtomicBoolean(false)
++        val response = object : CallbackBinder(HISI_RESPONSE_IFACE) {
++            override fun onInterfaceTransaction(code: Int, request: HwParcel) {
++                if (code != TRANSACTION_HISI_GET_NVCFG_RESPONSE) return
++                val info = request.readBuffer(12L)
++                val responseSerial = info.getInt32(4L)
++                val error = info.getInt32(8L)
++                onNvcfgName(slot, responseSerial, error, request.readString())
++            }
++        }
++        val indication = object : CallbackBinder(HISI_INDICATION_IFACE) {
++            override fun onInterfaceTransaction(code: Int, request: HwParcel) {
++                if (code != TRANSACTION_HISI_UNSOL_MSG) return
++                request.readInt32()
++                val msgId = request.readInt32()
++                val result = request.readBuffer(56L).getInt32(0L)
++                if (msgId == UNSOL_SIM_NVCFG_FINISHED) {
++                    onNvcfgFinished(slot, result)
++                }
++            }
++        }
++
++        fun queryMatchedResult() {
++            val requestSerial = serial.incrementAndGet()
++            val request = HwParcel()
++            val reply = HwParcel()
++            try {
++                request.writeInterfaceToken(HISI_IFACE)
++                request.writeInt32(requestSerial)
++                remote.transact(
++                    TRANSACTION_GET_NVCFG_MATCHED_RESULT,
++                    request,
++                    reply,
++                    FLAG_ONEWAY
++                )
++                request.releaseTemporaryStorage()
++                Log.i(TAG, "Queried $HISI_IFACE/$instance serial=$requestSerial")
++            } finally {
++                reply.release()
++            }
++        }
++    }
++
++    private open class CallbackBinder(private val descriptor: String) : HwBinder() {
++        override fun queryLocalInterface(descriptor: String): IHwInterface? = null
++
++        override fun linkToDeath(recipient: IHwBinder.DeathRecipient, cookie: Long): Boolean = true
++
++        override fun unlinkToDeath(recipient: IHwBinder.DeathRecipient): Boolean = true
++
++        @Throws(RemoteException::class)
++        override fun onTransact(code: Int, request: HwParcel, reply: HwParcel?, flags: Int) {
++            when (code) {
++                0x0f43484e -> {
++                    if (reply == null) return
++                    request.enforceInterface("android.hidl.base@1.0::IBase")
++                    reply.writeStatus(0)
++                    reply.writeStringVector(arrayListOf(descriptor, "android.hidl.base@1.0::IBase"))
++                    reply.send()
++                }
++                0x0f445343 -> {
++                    if (reply == null) return
++                    request.enforceInterface("android.hidl.base@1.0::IBase")
++                    reply.writeStatus(0)
++                    reply.writeString(descriptor)
++                    reply.send()
++                }
++                0x0f494e54 -> {
++                    if (reply == null) return
++                    request.enforceInterface("android.hidl.base@1.0::IBase")
++                    reply.writeStatus(0)
++                    reply.send()
++                }
++                else -> {
++                    request.enforceInterface(descriptor)
++                    onInterfaceTransaction(code, request)
++                }
++            }
++        }
++
++        protected open fun onInterfaceTransaction(code: Int, request: HwParcel) = Unit
++    }
++}
+diff --git a/app/src/main/java/me/phh/treble/app/HuaweiSettings.kt b/app/src/main/java/me/phh/treble/app/HuaweiSettings.kt
+index a4721e2..835fd66 100644
+--- a/app/src/main/java/me/phh/treble/app/HuaweiSettings.kt
++++ b/app/src/main/java/me/phh/treble/app/HuaweiSettings.kt
+@@ -1,6 +1,10 @@
+ package me.phh.treble.app
+ 
+ import android.os.SystemProperties
++import android.os.Bundle
++import androidx.preference.ListPreference
++import androidx.preference.Preference
++import java.io.File
+ 
+ object HuaweiSettings : Settings {
+     val fingerprintGestures = "key_huawei_fingerprint_gestures"
+@@ -16,4 +20,19 @@ object HuaweiSettings : Settings {
+ 
+ class HuaweiSettingsFragment : SettingsFragment() {
+     override val preferencesResId = R.xml.pref_huawei
++
++    override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
++        super.onCreatePreferences(savedInstanceState, rootKey)
++
++        if (!Tools.isParDevice) return
++
++        findPreference<Preference>(HuaweiSettings.noHwcomposer)?.isVisible = false
++        val fastChargePreference = findPreference<ListPreference>(HuaweiSettings.fastCharge)
++        val fastChargeSupported = File("/sys/class/hw_power/charger/charge_data/iin_thermal").exists()
++        fastChargePreference?.isVisible = fastChargeSupported
++        findPreference<Preference>("key_huawei_misc_category")?.isVisible = fastChargeSupported
++        if (fastChargePreference != null && fastChargeSupported) {
++            SettingsActivity.bindPreferenceSummaryToValue(fastChargePreference)
++        }
++    }
+ }
+diff --git a/app/src/main/java/me/phh/treble/app/Ims.kt b/app/src/main/java/me/phh/treble/app/Ims.kt
+index c90e18f..a368885 100644
+--- a/app/src/main/java/me/phh/treble/app/Ims.kt
++++ b/app/src/main/java/me/phh/treble/app/Ims.kt
+@@ -61,26 +61,28 @@ object Ims: EntryStartup {
+ 
+     val mHidlService = android.hidl.manager.V1_0.IServiceManager.getService()
+ 
++    val isPar = SystemProperties.get("ro.hw.oemName", "")
++            .startsWith("PAR", ignoreCase = true)
+     val mAllSlots = listOf("imsrild1", "imsrild2", "imsrild3", "slot1", "slot2", "slot3", "imsSlot1", "imsSlot2", "mtkSlot1", "mtkSlot2", "imsradio0", "imsradio1")
+-    val gotMtkP = mAllSlots
++    val gotMtkP = !isPar && mAllSlots
+             .find { i -> mHidlService.get("vendor.mediatek.hardware.radio@3.0::IRadio", i) != null } != null
+-    val gotMtkQ = mAllSlots
++    val gotMtkQ = !isPar && mAllSlots
+             .find { i -> mHidlService.get("vendor.mediatek.hardware.mtkradioex@1.0::IMtkRadioEx", i) != null } != null
+-    val gotMtkR = mAllSlots
++    val gotMtkR = !isPar && mAllSlots
+             .find { i -> mHidlService.get("vendor.mediatek.hardware.mtkradioex@2.0::IMtkRadioEx", i) != null } != null
+-    val gotMtkS = mAllSlots
++    val gotMtkS = !isPar && mAllSlots
+             .find { i -> mHidlService.get("vendor.mediatek.hardware.mtkradioex@3.0::IMtkRadioEx", i) != null } != null
+-    val gotQcomHidl = mAllSlots
++    val gotQcomHidl = !isPar && mAllSlots
+             .find { i -> mHidlService.get("vendor.qti.hardware.radio.ims@1.0::IImsRadio", i) != null } != null
+     val gotQcomHidlMoto = gotQcomHidl
+             && SystemProperties.get("ro.product.vendor.brand", "N/A").equals("motorola")
+-    val gotQcomAidl = mAllSlots
++    val gotQcomAidl = !isPar && mAllSlots
+             .find { i -> ServiceManager.getService("vendor.qti.hardware.radio.ims.IImsRadio/" + i) != null } != null
+-    val gotSLSI = mAllSlots
++    val gotSLSI = !isPar && mAllSlots
+             .find { i -> mHidlService.get("vendor.samsung_slsi.telephony.hardware.radio@1.0::IOemSamsungslsi", i) != null } != null
+-    val gotSPRD = mAllSlots
++    val gotSPRD = !isPar && mAllSlots
+             .find { i -> mHidlService.get("vendor.sprd.hardware.radio@1.0::IExtRadio", i) != null } != null
+-    val gotHW = mAllSlots
++    val gotHW = isPar || mAllSlots
+             .find { i -> mHidlService.get("vendor.huawei.hardware.radio@1.0::IRadio", i) != null } != null
+ 
+     override fun startup(ctxt: Context) {
+diff --git a/app/src/main/java/me/phh/treble/app/ImsSettings.kt b/app/src/main/java/me/phh/treble/app/ImsSettings.kt
+index 0e344be..116fb60 100644
+--- a/app/src/main/java/me/phh/treble/app/ImsSettings.kt
++++ b/app/src/main/java/me/phh/treble/app/ImsSettings.kt
+@@ -28,7 +28,7 @@ object ImsSettings : Settings {
+     val forceEnableSettings = "key_ims_force_enable_setting"
+     val installImsApk = "key_ims_install_apn"
+ 
+-    override fun enabled() = true
++    override fun enabled() = !Tools.isParDevice
+ }
+ 
+ class ImsSettingsFragment : SettingsFragment() {
+@@ -40,7 +40,7 @@ class ImsSettingsFragment : SettingsFragment() {
+         createApn!!.setOnPreferenceClickListener {
+             Log.d("PHH", "Adding \"ims\" APN")
+ 
+-            val tm = activity.getSystemService(TelephonyManager::class.java)
++            val tm = requireActivity().getSystemService(TelephonyManager::class.java)
+             val operator = tm.simOperator
+             if(tm.simOperator == null || tm.simOperator == "") {
+                 Log.d("PHH","No current carrier bailing out")
+@@ -51,7 +51,7 @@ class ImsSettingsFragment : SettingsFragment() {
+             val mnc = operator.substring(3, operator.length)
+             Log.d("PHH", "Got mcc = $mcc and mnc = $mnc")
+ 
+-            val cr = activity.contentResolver
++            val cr = requireActivity().contentResolver
+ 
+             val cursor = cr.query(
+                     Uri.parse("content://telephony/carriers/current"),
+@@ -108,8 +108,18 @@ class ImsSettingsFragment : SettingsFragment() {
+                 }
+ 
+         installIms!!.title = "Install IMS APK for $message"
++        if (url.isEmpty()) {
++            installIms.isEnabled = false
++            installIms.summary = "No compatible downloadable IMS APK is available for this vendor"
++            findPreference<Preference>(ImsSettings.requestNetwork)?.isEnabled = false
++            android.preference.PreferenceManager.getDefaultSharedPreferences(activity)
++                    .edit()
++                    .putBoolean(ImsSettings.requestNetwork, false)
++                    .apply()
++            return
++        }
+         installIms!!.setOnPreferenceClickListener {
+-            val dm = activity.getSystemService(DownloadManager::class.java)
++            val dm = requireActivity().getSystemService(DownloadManager::class.java)
+ 
+             val downloadRequest = DownloadManager.Request(Uri.parse(url))
+             downloadRequest.setTitle("IMS APK")
+@@ -119,7 +129,7 @@ class ImsSettingsFragment : SettingsFragment() {
+ 
+             val myId = dm!!.enqueue(downloadRequest)
+ 
+-            activity.registerReceiver(object: BroadcastReceiver() {
++            requireActivity().registerReceiver(object: BroadcastReceiver() {
+                 override fun onReceive(context: Context, intent: Intent) {
+                     Log.d("PHH", "Received download completed with intent $intent ${intent.data}")
+                     if(intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L) != myId) return
+@@ -152,7 +162,7 @@ class ImsSettingsFragment : SettingsFragment() {
+                         }
+                     }
+ 
+-                    activity.registerReceiver(
++                    requireActivity().registerReceiver(
+                             object: BroadcastReceiver() {
+                                 override fun onReceive(p0: Context?, intet: Intent?) {
+                                     Log.e("PHH", "Apk install received $intent" )
+@@ -167,8 +177,8 @@ class ImsSettingsFragment : SettingsFragment() {
+                                     this@ImsSettingsFragment.activity,
+                                     1,
+                                     Intent("me.phh.treble.app.ImsInstalled"),
+-                                    PendingIntent.FLAG_ONE_SHOT).intentSender)
+-                    activity.unregisterReceiver(this)
++                                    PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE).intentSender)
++                    requireActivity().unregisterReceiver(this)
+                 }
+ 
+             }, IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE))
+diff --git a/app/src/main/java/me/phh/treble/app/Md3SwitchPreference.kt b/app/src/main/java/me/phh/treble/app/Md3SwitchPreference.kt
+new file mode 100644
+index 0000000..a5d80cd
+--- /dev/null
++++ b/app/src/main/java/me/phh/treble/app/Md3SwitchPreference.kt
+@@ -0,0 +1,28 @@
++package me.phh.treble.app
++
++import android.content.Context
++import android.util.AttributeSet
++import android.widget.CompoundButton
++import androidx.preference.PreferenceViewHolder
++import androidx.preference.SwitchPreferenceCompat
++
++class Md3SwitchPreference @JvmOverloads constructor(
++    context: Context,
++    attrs: AttributeSet? = null,
++    defStyleAttr: Int = androidx.preference.R.attr.switchPreferenceStyle
++) : SwitchPreferenceCompat(context, attrs, defStyleAttr) {
++
++    override fun onBindViewHolder(holder: PreferenceViewHolder) {
++        super.onBindViewHolder(holder)
++
++        val switchView = holder.findViewById(android.R.id.switch_widget) as? CompoundButton
++        switchView?.isChecked = isChecked
++
++        holder.itemView.setOnClickListener {
++            if (isEnabled) {
++                isChecked = !isChecked
++                switchView?.isChecked = isChecked
++            }
++        }
++    }
++}
+diff --git a/app/src/main/java/me/phh/treble/app/Misc.kt b/app/src/main/java/me/phh/treble/app/Misc.kt
+index 13a4827..6818887 100644
+--- a/app/src/main/java/me/phh/treble/app/Misc.kt
++++ b/app/src/main/java/me/phh/treble/app/Misc.kt
+@@ -26,6 +26,20 @@ object Misc: EntryStartup {
+     }
+ 
+     val surfaceFlinger = ServiceManager.getService("SurfaceFlinger")
++
++    fun restartSystemUI(): Boolean {
++        return try {
++            val exitCode = Runtime.getRuntime()
++                    .exec(arrayOf("/system/bin/am", "crash", "com.android.systemui"))
++                    .waitFor()
++            Log.d("PHH", "SystemUI restart command exited with $exitCode")
++            exitCode == 0
++        } catch (t: Throwable) {
++            Log.d("PHH", "Failed to restart SystemUI", t)
++            false
++        }
++    }
++
+     fun forceFps(v: Int, c: Boolean) {
+         val data = Parcel.obtain()
+         try {
+@@ -35,22 +49,7 @@ object Misc: EntryStartup {
+             Log.d("PHH", "Set surface flinger forced fps/mode to supportedModes[$v]")
+             if (c) {
+                 Log.d("PHH", "Resolution changed, attempting to restart SystemUI")
+-                var cmds = listOf(
+-                    arrayOf("/sbin/su", "-c", "/system/bin/killall com.android.systemui"),
+-                    arrayOf("/system/xbin/su", "-c", "/system/bin/killall com.android.systemui"),
+-                    arrayOf("/system/xbin/phh-su", "-c", "/system/bin/killall com.android.systemui"),
+-                    arrayOf("/sbin/su", "0", "/system/bin/killall com.android.systemui"),
+-                    arrayOf("/system/xbin/su", "0", "/system/bin/killall com.android.systemui"),
+-                    arrayOf("/system/xbin/phh-su", "0", "/system/bin/killall com.android.systemui")
+-                )
+-                for (cmd in cmds) {
+-                    try {
+-                        Runtime.getRuntime().exec(cmd).waitFor()
+-                        break
+-                    } catch (t: Throwable) {
+-                        Log.d("PHH", "Failed to exec \"" + cmd.joinToString(separator = " ") + "\", skipping")
+-                    }
+-                }
++                restartSystemUI()
+             }
+         } catch (r: Exception) {
+             Log.d("PHH", "Failed setting surface flinger forced fps/mode to supportedModes[$v]")
+@@ -248,7 +247,13 @@ object Misc: EntryStartup {
+             MiscSettings.dt2w -> {
+                 // Let's try all known dt2w
+                 val value = sp.getBoolean(key, false)
+-                val asusSvc = try { IZenMotion.getService() } catch(e: Exception) { null }
++                val isPar = SystemProperties.get("ro.hw.oemName", "")
++                        .startsWith("PAR", ignoreCase = true)
++                val asusSvc = if (isPar) null else try {
++                    IZenMotion.getService()
++                } catch(e: Exception) {
++                    null
++                }
+                 if(asusSvc != null) {
+                     asusSvc.setDclickEnable(if(value) 1 else 0)
+                 }
+@@ -289,7 +294,12 @@ object Misc: EntryStartup {
+         spListener.onSharedPreferenceChanged(sp, MiscSettings.forceCamera2APIHAL3)
+         if (! sp.contains(MiscSettings.headsetFix))
+             sp.edit().putBoolean(MiscSettings.headsetFix, HuaweiSettings.enabled()).commit()
+-        sp.edit().putBoolean(MiscSettings.sysbta, SystemProperties.getBoolean("persist.bluetooth.system_audio_hal.enabled", false)).apply()
++        if (Tools.isParDevice) {
++            sp.edit().putBoolean(MiscSettings.sysbta, true).commit()
++            spListener.onSharedPreferenceChanged(sp, MiscSettings.sysbta)
++        } else {
++            sp.edit().putBoolean(MiscSettings.sysbta, SystemProperties.getBoolean("persist.bluetooth.system_audio_hal.enabled", false)).apply()
++        }
+         spListener.onSharedPreferenceChanged(sp, MiscSettings.headsetFix)
+         spListener.onSharedPreferenceChanged(sp, MiscSettings.bluetooth)
+         spListener.onSharedPreferenceChanged(sp, MiscSettings.displayFps)
+diff --git a/app/src/main/java/me/phh/treble/app/MiscSettings.kt b/app/src/main/java/me/phh/treble/app/MiscSettings.kt
+index dc2e0e3..95b7dea 100644
+--- a/app/src/main/java/me/phh/treble/app/MiscSettings.kt
++++ b/app/src/main/java/me/phh/treble/app/MiscSettings.kt
+@@ -9,6 +9,12 @@ import androidx.preference.ListPreference
+ import androidx.preference.Preference
+ 
+ object MiscSettings : Settings {
++    val mobileNetworkCategory = "key_misc_mobile_network_category"
++    val audioCategory = "key_misc_audio_category"
++    val displayCategory = "key_misc_display_category"
++    val backlightCategory = "key_misc_backlight_category"
++    val cameraCategory = "key_misc_camera_category"
++    val otherCategory = "key_misc_other_category"
+     val mobileSignal = "key_misc_mobile_signal"
+     val fpsDivisor = "key_misc_fps_divisor"
+     val displayFps = "key_misc_display_fps"
+@@ -117,7 +123,7 @@ class MiscSettingsFragment : SettingsFragment() {
+         }
+ 
+         val fpsPref = findPreference<ListPreference>(MiscSettings.displayFps)!!
+-        val displayManager = activity.getSystemService(DisplayManager::class.java)
++        val displayManager = requireActivity().getSystemService(DisplayManager::class.java)
+         for(display in displayManager.displays) {
+             Log.d("PHH", "Got display $display")
+             for((index, mode) in display.supportedModes.withIndex()) {
+@@ -138,23 +144,49 @@ class MiscSettingsFragment : SettingsFragment() {
+ 
+         val restartSystemUIPref = findPreference<Preference>(MiscSettings.restartSystemUI)
+         restartSystemUIPref!!.setOnPreferenceClickListener {
+-            var cmds = listOf(
+-                arrayOf("/sbin/su", "-c", "/system/bin/killall com.android.systemui"),
+-                arrayOf("/system/xbin/su", "-c", "/system/bin/killall com.android.systemui"),
+-                arrayOf("/system/xbin/phh-su", "-c", "/system/bin/killall com.android.systemui"),
+-                arrayOf("/sbin/su", "0", "/system/bin/killall com.android.systemui"),
+-                arrayOf("/system/xbin/su", "0", "/system/bin/killall com.android.systemui"),
+-                arrayOf("/system/xbin/phh-su", "0", "/system/bin/killall com.android.systemui")
+-            )
+-            for (cmd in cmds) {
+-                try {
+-                    Runtime.getRuntime().exec(cmd).waitFor()
+-                    break
+-                } catch (t: Throwable) {
+-                    Log.d("PHH", "Failed to exec \"" + cmd.joinToString(separator = " ") + "\", skipping")
+-                }
+-            }
++            Misc.restartSystemUI()
+             return@setOnPreferenceClickListener true
+         }
++
++        if (Tools.isParDevice) {
++            hideParUnsupportedPreferences()
++        }
++    }
++
++    private fun hideParUnsupportedPreferences() {
++        listOf(
++                MiscSettings.mobileNetworkCategory,
++                MiscSettings.backlightCategory,
++                MiscSettings.headsetDevinput,
++                MiscSettings.roundedCorners,
++                MiscSettings.roundedCornersOverlay,
++                MiscSettings.fpsDivisor,
++                MiscSettings.displayFps,
++                MiscSettings.noHwcomposer,
++                MiscSettings.aod,
++                MiscSettings.mtkTouchHintIsRotate,
++                MiscSettings.multiCameras,
++                MiscSettings.forceCamera2APIHAL3,
++                MiscSettings.bluetooth,
++                MiscSettings.maxAspectRatioPreO,
++                MiscSettings.sysbta,
++                MiscSettings.forceNavbarOff,
++                MiscSettings.storageFUSE,
++                MiscSettings.restartRil,
++                MiscSettings.dt2w,
++                MiscSettings.fodColor,
++                MiscSettings.securize,
++                MiscSettings.removeTelephony,
++                MiscSettings.remotectl
++        ).forEach { key -> findPreference<Preference>(key)?.isVisible = false }
++
++        findPreference<Preference>(MiscSettings.disableAudioEffects)?.summary =
++                getString(R.string.misc_disable_audio_effects_summary)
++        findPreference<Preference>(MiscSettings.cameraTimestampOverride)?.summary =
++                getString(R.string.misc_camera_timestamp_summary)
++        findPreference<Preference>(MiscSettings.allowBinderThread)?.summary =
++                getString(R.string.misc_binder_thread_summary)
++        findPreference<Preference>(MiscSettings.restartSystemUI)?.summary =
++                getString(R.string.misc_restart_systemui_summary)
+     }
+ }
+diff --git a/app/src/main/java/me/phh/treble/app/MyDeviceSettings.kt b/app/src/main/java/me/phh/treble/app/MyDeviceSettings.kt
+index eabe91b..5b4ed05 100644
+--- a/app/src/main/java/me/phh/treble/app/MyDeviceSettings.kt
++++ b/app/src/main/java/me/phh/treble/app/MyDeviceSettings.kt
+@@ -34,7 +34,7 @@ class MyDeviceSettingsFragment : SettingsFragment() {
+             maintainerPref.setOnPreferenceClickListener {
+                 val i = Intent(Intent.ACTION_VIEW)
+                 i.data = Uri.parse(maintainer.getString("telegram"))
+-                activity.startActivity(i)
++                requireActivity().startActivity(i)
+                 true
+             }
+         }
+@@ -44,7 +44,7 @@ class MyDeviceSettingsFragment : SettingsFragment() {
+             tgGroupPref.setOnPreferenceClickListener {
+                 val i = Intent(Intent.ACTION_VIEW)
+                 i.data = Uri.parse(community.getString("telegram"))
+-                activity.startActivity(i)
++                requireActivity().startActivity(i)
+                 true
+             }
+         } else {
+diff --git a/app/src/main/java/me/phh/treble/app/Settings.kt b/app/src/main/java/me/phh/treble/app/Settings.kt
+index 86223c6..48b05c7 100644
+--- a/app/src/main/java/me/phh/treble/app/Settings.kt
++++ b/app/src/main/java/me/phh/treble/app/Settings.kt
+@@ -1,19 +1,58 @@
+ package me.phh.treble.app
+ 
++import android.graphics.Color
+ import android.os.Bundle
++import android.view.View
+ import androidx.annotation.XmlRes
+-import androidx.preference.PreferenceFragment
++import androidx.preference.PreferenceCategory
++import androidx.preference.PreferenceFragmentCompat
++import androidx.preference.PreferenceGroup
++import androidx.preference.SwitchPreferenceCompat
+ 
+ interface Settings {
+     fun enabled(): Boolean
+ }
+ 
+-abstract class SettingsFragment : PreferenceFragment() {
++abstract class SettingsFragment : PreferenceFragmentCompat() {
+ 
+     @get:XmlRes
+     abstract val preferencesResId: Int
+ 
+     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
+-        addPreferencesFromResource(preferencesResId)
++        setPreferencesFromResource(preferencesResId, rootKey)
++        stylePreferences(preferenceScreen)
++    }
++
++    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
++        super.onViewCreated(view, savedInstanceState)
++        setDivider(null)
++        listView.apply {
++            clipToPadding = false
++            setPadding(
++                0,
++                resources.getDimensionPixelSize(R.dimen.settings_list_top_padding),
++                0,
++                resources.getDimensionPixelSize(R.dimen.settings_list_bottom_padding)
++            )
++            setBackgroundColor(Color.TRANSPARENT)
++        }
++    }
++
++    private fun stylePreferences(group: PreferenceGroup) {
++        for (index in 0 until group.preferenceCount) {
++            val preference = group.getPreference(index)
++            preference.isIconSpaceReserved = false
++            preference.layoutResource = if (preference is PreferenceCategory) {
++                R.layout.preference_category_md3
++            } else {
++                R.layout.preference_md3
++            }
++            if (preference is SwitchPreferenceCompat) {
++                preference.widgetLayoutResource = R.layout.preference_widget_material_switch
++            }
++            if (preference is PreferenceGroup) {
++                stylePreferences(preference)
++            }
++        }
+     }
+ }
+diff --git a/app/src/main/java/me/phh/treble/app/SettingsActivity.kt b/app/src/main/java/me/phh/treble/app/SettingsActivity.kt
+index 6eb9c2c..b1adb1f 100644
+--- a/app/src/main/java/me/phh/treble/app/SettingsActivity.kt
++++ b/app/src/main/java/me/phh/treble/app/SettingsActivity.kt
+@@ -1,160 +1,290 @@
+ package me.phh.treble.app
+ 
+-import android.content.Context
+ import android.content.Intent
+-import android.content.res.Configuration
+ import android.os.Bundle
+ import android.os.SystemProperties
+ import android.os.UserHandle
+-import android.preference.PreferenceActivity
++import androidx.annotation.DrawableRes
++import androidx.annotation.StringRes
++import androidx.appcompat.app.AppCompatActivity
++import androidx.appcompat.content.res.AppCompatResources
++import androidx.fragment.app.Fragment
+ import androidx.preference.ListPreference
+ import androidx.preference.Preference
+-import androidx.preference.PreferenceFragment
++import androidx.preference.PreferenceFragmentCompat
+ import androidx.preference.PreferenceManager
++import com.google.android.material.appbar.MaterialToolbar
++import com.google.android.material.appbar.CollapsingToolbarLayout
++import com.google.android.material.color.DynamicColors
+ 
+-/**
+- * A [PreferenceActivity] that presents a set of application settings. On
+- * handset devices, settings are presented as a single list. On tablets,
+- * settings are split by category, with category headers shown to the left of
+- * the list of settings.
+- *
+- * See [Android Design: Settings](http://developer.android.com/design/patterns/settings.html)
+- * for design guidelines and the [Settings API Guide](http://developer.android.com/guide/topics/ui/settings.html)
+- * for more information on developing a Settings UI.
+- */
+-class SettingsActivity : PreferenceActivity() {
++class SettingsActivity : AppCompatActivity(),
++    PreferenceFragmentCompat.OnPreferenceStartFragmentCallback {
++
++    private lateinit var toolbar: MaterialToolbar
++    private lateinit var collapsingToolbar: CollapsingToolbarLayout
+ 
+     override fun onCreate(savedInstanceState: Bundle?) {
++        DynamicColors.applyToActivityIfAvailable(this)
+         super.onCreate(savedInstanceState)
+-        getApplicationContext().startServiceAsUser(Intent(getApplicationContext(), EntryService::class.java), UserHandle.SYSTEM)
+-        setupActionBar()
+-    }
++        setContentView(R.layout.activity_settings)
++
++        applicationContext.startServiceAsUser(
++            Intent(applicationContext, EntryService::class.java),
++            UserHandle.SYSTEM
++        )
++
++        toolbar = findViewById(R.id.settings_toolbar)
++        collapsingToolbar = findViewById(R.id.settings_collapsing_toolbar)
++        setSupportActionBar(toolbar)
++        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+ 
+-    /**
+-     * Set up the [android.app.ActionBar], if the API is available.
+-     */
+-    private fun setupActionBar() {
+-        actionBar?.setDisplayHomeAsUpEnabled(true)
++        supportFragmentManager.addOnBackStackChangedListener(::updateToolbar)
++        if (savedInstanceState == null) {
++            supportFragmentManager.beginTransaction()
++                .replace(R.id.settings_content, TopLevelSettingsFragment())
++                .commit()
++        }
++        updateToolbar()
+     }
+ 
+-    /**
+-     * {@inheritDoc}
+-     */
+-    override fun onIsMultiPane(): Boolean {
+-        return isXLargeTablet(this)
++    override fun onPreferenceStartFragment(
++        caller: PreferenceFragmentCompat,
++        preference: Preference
++    ): Boolean {
++        val fragmentName = preference.fragment ?: return false
++        val fragment = supportFragmentManager.fragmentFactory.instantiate(
++            classLoader,
++            fragmentName
++        )
++        fragment.arguments = Bundle(preference.extras).apply {
++            putCharSequence(ARG_TITLE, preference.title)
++        }
++
++        supportFragmentManager.beginTransaction()
++            .setCustomAnimations(
++                android.R.anim.fade_in,
++                android.R.anim.fade_out,
++                android.R.anim.fade_in,
++                android.R.anim.fade_out
++            )
++            .replace(R.id.settings_content, fragment)
++            .addToBackStack(preference.key ?: fragmentName)
++            .commit()
++        return true
+     }
+ 
+-    /**
+-     * {@inheritDoc}
+-     */
+-    override fun onBuildHeaders(target: MutableList<Header>) {
+-        loadHeadersFromResource(R.xml.pref_headers, target)
+-        if (!LenovoSettings.enabled())
+-            target.removeIf { it.fragment == LenovoSettingsFragment::class.java.name }
+-        if (!OnePlusSettings.enabled())
+-            target.removeIf { it.fragment == OnePlusSettingsFragment::class.java.name }
+-        if (!HuaweiSettings.enabled())
+-            target.removeIf { it.fragment == HuaweiSettingsFragment::class.java.name }
+-        if (!SamsungSettings.enabled())
+-            target.removeIf { it.fragment == SamsungSettingsFragment::class.java.name }
+-        if (!XiaomiSettings.enabled())
+-            target.removeIf { it.fragment == XiaomiSettingsFragment::class.java.name }
+-        if (!OppoSettings.enabled())
+-            target.removeIf { it.fragment == OppoSettingsFragment::class.java.name }
+-        if (!AsusSettings.enabled())
+-            target.removeIf { it.fragment == AsusSettingsFragment::class.java.name }
+-        if (!QualcommSettings.enabled())
+-            target.removeIf { it.fragment == QualcommSettingsFragment::class.java.name }
+-        if (!VsmartSettings.enabled())
+-            target.removeIf { it.fragment == VsmartSettingsFragment::class.java.name }
+-        if (!MyDeviceSettings.enabled())
+-            target.removeIf { it.fragment == MyDeviceSettingsFragment::class.java.name }
+-        if (!NubiaSettings.enabled())
+-            target.removeIf { it.fragment == NubiaSettingsFragment::class.java.name }
+-        if (!ImsSettings.enabled())
+-            target.removeIf { it.fragment == ImsSettingsFragment::class.java.name }
+-        if (!CustomSettings.enabled())
+-            target.removeIf { it.fragment == CustomSettingsFragment::class.java.name }
+-        val p = SystemProperties.get("ro.system.ota.json_url", "")
+-        if (p.trim() == "")
+-            target.removeIf { it.id.compareTo(R.id.updater) == 0 }
++    override fun onSupportNavigateUp(): Boolean {
++        if (supportFragmentManager.backStackEntryCount > 0) {
++            supportFragmentManager.popBackStack()
++        } else {
++            finish()
++        }
++        return true
+     }
+ 
+-    /**
+-     * This method stops fragment injection in malicious applications.
+-     * Make sure to deny any unknown fragments here.
+-     */
+-    override fun isValidFragment(fragmentName: String): Boolean {
+-        return PreferenceFragment::class.java.name == fragmentName
+-                || LenovoSettingsFragment::class.java.name == fragmentName
+-                || OnePlusSettingsFragment::class.java.name == fragmentName
+-                || DozeSettingsFragment::class.java.name == fragmentName
+-                || HuaweiSettingsFragment::class.java.name == fragmentName
+-                || MiscSettingsFragment::class.java.name == fragmentName
+-                || SamsungSettingsFragment::class.java.name == fragmentName
+-                || XiaomiSettingsFragment::class.java.name == fragmentName
+-                || OppoSettingsFragment::class.java.name == fragmentName
+-                || AsusSettingsFragment::class.java.name == fragmentName
+-                || QualcommSettingsFragment::class.java.name == fragmentName
+-                || VsmartSettingsFragment::class.java.name == fragmentName
+-                || MyDeviceSettingsFragment::class.java.name == fragmentName
+-                || NubiaSettingsFragment::class.java.name == fragmentName
+-                || ImsSettingsFragment::class.java.name == fragmentName
+-                || CustomSettingsFragment::class.java.name == fragmentName
++    private fun updateToolbar() {
++        val current = supportFragmentManager.findFragmentById(R.id.settings_content)
++        collapsingToolbar.title = current?.arguments?.getCharSequence(ARG_TITLE)
++            ?: getString(R.string.title_activity_top_level)
++        supportActionBar?.title = null
+     }
+ 
+     companion object {
+-        /**
+-         * A preference value change listener that updates the preference's summary
+-         * to reflect its new value.
+-         */
++        const val ARG_TITLE = "settings_title"
++
+         private val sBindPreferenceSummaryToValueListener =
+             Preference.OnPreferenceChangeListener { preference, value ->
+                 val stringValue = value.toString()
+-
+                 preference.summary = if (preference is ListPreference) {
+-                    // For list preferences, look up the correct display value in the preference's
+-                    // 'entries' list.
+                     val index = preference.findIndexOfValue(stringValue)
+-                    // Set the summary to reflect the new value.
+                     if (index >= 0) preference.entries[index] else null
+                 } else {
+-                    // For all other preferences, set the summary to the value's simple string
+-                    // representation.
+                     stringValue
+                 }
+                 true
+             }
+ 
+-        /**
+-         * Helper method to determine if the device has an extra-large screen. For
+-         * example, 10" tablets are extra-large.
+-         */
+-        private fun isXLargeTablet(context: Context): Boolean {
+-            return context.resources.configuration.screenLayout and
+-                    Configuration.SCREENLAYOUT_SIZE_MASK >= Configuration.SCREENLAYOUT_SIZE_XLARGE
+-        }
+-
+-        /**
+-         * Binds a preference's summary to its value. More specifically, when the
+-         * preference's value is changed, its summary (line of text below the
+-         * preference title) is updated to reflect the value. The summary is also
+-         * immediately updated upon calling this method. The exact display format is
+-         * dependent on the type of preference.
+-
+-         * @see .sBindPreferenceSummaryToValueListener
+-         */
+         fun bindPreferenceSummaryToValue(preference: Preference) {
+-            // Set the listener to watch for value changes.
+             preference.onPreferenceChangeListener = sBindPreferenceSummaryToValueListener
+-
+-            // Trigger the listener immediately with the preference's current value.
+             sBindPreferenceSummaryToValueListener.onPreferenceChange(
+                 preference,
+                 PreferenceManager
+                     .getDefaultSharedPreferences(preference.context)
+-                    .getString(preference.key, "")
++                    .getString(preference.key, "")!!
+             )
+         }
+     }
+ }
++
++class TopLevelSettingsFragment : PreferenceFragmentCompat() {
++    override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
++        preferenceScreen = preferenceManager.createPreferenceScreen(requireContext())
++
++        addDestination(
++            "my_device",
++            R.string.header_my_device,
++            R.string.summary_my_device,
++            R.drawable.ic_phone_settings,
++            MyDeviceSettingsFragment::class.java,
++            MyDeviceSettings.enabled()
++        )
++        addDestination(
++            "oneplus",
++            R.string.header_oneplus_features,
++            R.string.summary_vendor_features,
++            R.drawable.ic_tune,
++            OnePlusSettingsFragment::class.java,
++            OnePlusSettings.enabled()
++        )
++        addDestination(
++            "nubia",
++            R.string.header_nubia_features,
++            R.string.summary_vendor_features,
++            R.drawable.ic_tune,
++            NubiaSettingsFragment::class.java,
++            NubiaSettings.enabled()
++        )
++        addDestination(
++            "vsmart",
++            R.string.header_vsmart_features,
++            R.string.summary_vendor_features,
++            R.drawable.ic_tune,
++            VsmartSettingsFragment::class.java,
++            VsmartSettings.enabled()
++        )
++        addDestination(
++            "qualcomm",
++            R.string.header_qualcomm_features,
++            R.string.summary_vendor_features,
++            R.drawable.ic_tune,
++            QualcommSettingsFragment::class.java,
++            QualcommSettings.enabled()
++        )
++        addDestination(
++            "huawei",
++            R.string.header_huawei_features,
++            R.string.summary_huawei_features,
++            R.drawable.ic_phone_settings,
++            HuaweiSettingsFragment::class.java,
++            HuaweiSettings.enabled()
++        )
++        addDestination(
++            "samsung",
++            R.string.header_samsung_features,
++            R.string.summary_vendor_features,
++            R.drawable.ic_tune,
++            SamsungSettingsFragment::class.java,
++            SamsungSettings.enabled()
++        )
++        addDestination(
++            "lenovo",
++            R.string.header_lenovo_features,
++            R.string.summary_vendor_features,
++            R.drawable.ic_tune,
++            LenovoSettingsFragment::class.java,
++            LenovoSettings.enabled()
++        )
++        addDestination(
++            "xiaomi",
++            R.string.header_xiaomi_features,
++            R.string.summary_vendor_features,
++            R.drawable.ic_tune,
++            XiaomiSettingsFragment::class.java,
++            XiaomiSettings.enabled()
++        )
++        addDestination(
++            "oppo",
++            R.string.header_oppo_features,
++            R.string.summary_vendor_features,
++            R.drawable.ic_tune,
++            OppoSettingsFragment::class.java,
++            OppoSettings.enabled()
++        )
++        addDestination(
++            "asus",
++            R.string.header_asus_features,
++            R.string.summary_vendor_features,
++            R.drawable.ic_tune,
++            AsusSettingsFragment::class.java,
++            AsusSettings.enabled()
++        )
++        addDestination(
++            "doze",
++            R.string.header_doze_features,
++            R.string.summary_doze_features,
++            R.drawable.ic_gesture,
++            DozeSettingsFragment::class.java,
++            true
++        )
++        addDestination(
++            "misc",
++            R.string.header_misc_features,
++            R.string.summary_misc_features,
++            R.drawable.ic_tune,
++            MiscSettingsFragment::class.java,
++            true
++        )
++        addDestination(
++            "ims",
++            R.string.header_ims_features,
++            R.string.summary_ims_features,
++            R.drawable.ic_network,
++            ImsSettingsFragment::class.java,
++            ImsSettings.enabled()
++        )
++        addDestination(
++            "customization",
++            R.string.header_customization_features,
++            R.string.summary_customization_features,
++            R.drawable.ic_palette,
++            CustomSettingsFragment::class.java,
++            CustomSettings.enabled()
++        )
++
++        if (SystemProperties.get("ro.system.ota.json_url", "").isNotBlank()) {
++            preferenceScreen.addPreference(
++                Preference(requireContext()).apply {
++                    key = "updater"
++                    title = getString(R.string.title_activity_updater)
++                    summary = getString(R.string.summary_updater)
++                    icon = null
++                    layoutResource = R.layout.preference_md3
++                    intent = Intent(requireContext(), UpdaterActivity::class.java)
++                }
++            )
++        }
++    }
++
++    override fun onViewCreated(view: android.view.View, savedInstanceState: Bundle?) {
++        super.onViewCreated(view, savedInstanceState)
++        setDivider(null)
++        listView.apply {
++            clipToPadding = false
++            setPadding(0, resources.getDimensionPixelSize(R.dimen.settings_list_top_padding), 0,
++                resources.getDimensionPixelSize(R.dimen.settings_list_bottom_padding))
++            setBackgroundColor(android.graphics.Color.TRANSPARENT)
++        }
++    }
++
++    private fun addDestination(
++        key: String,
++        @StringRes titleRes: Int,
++        @StringRes summaryRes: Int,
++        @DrawableRes iconRes: Int,
++        fragmentClass: Class<out Fragment>,
++        enabled: Boolean
++    ) {
++        if (!enabled) return
++        preferenceScreen.addPreference(
++            Preference(requireContext()).apply {
++                this.key = key
++                title = getString(titleRes)
++                summary = null
++                icon = null
++                fragment = fragmentClass.name
++                layoutResource = R.layout.preference_md3
++                isIconSpaceReserved = false
++            }
++        )
++    }
++}
+diff --git a/app/src/main/java/me/phh/treble/app/Tools.kt b/app/src/main/java/me/phh/treble/app/Tools.kt
+index efa4f2d..4981092 100644
+--- a/app/src/main/java/me/phh/treble/app/Tools.kt
++++ b/app/src/main/java/me/phh/treble/app/Tools.kt
+@@ -9,8 +9,10 @@ object Tools {
+     val vendorFp = SystemProperties.get("ro.vendor.build.fingerprint")
+     val vendorFpLow = vendorFp.toLowerCase()
+     val deviceId = SystemProperties.get("ro.build.overlay.deviceid")
++    val isParDevice = SystemProperties.get("ro.hw.oemName", "")
++            .startsWith("PAR", ignoreCase = true)
+ 
+     fun startup(ctxt: Context) {
+         audioManager = ctxt.getSystemService(AudioManager::class.java)
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/app/src/main/res/color/settingslib_switch_thumb_color.xml b/app/src/main/res/color/settingslib_switch_thumb_color.xml
+new file mode 100644
+index 0000000..932775c
+--- /dev/null
++++ b/app/src/main/res/color/settingslib_switch_thumb_color.xml
+@@ -0,0 +1,10 @@
++<?xml version="1.0" encoding="utf-8"?>
++<selector xmlns:android="http://schemas.android.com/apk/res/android">
++    <item
++        android:state_enabled="false"
++        android:color="@color/settingslib_switch_thumb_disabled" />
++    <item
++        android:state_checked="false"
++        android:color="@color/settingslib_switch_thumb_off" />
++    <item android:color="@color/settingslib_switch_thumb_on" />
++</selector>
+diff --git a/app/src/main/res/color/settingslib_switch_track_color.xml b/app/src/main/res/color/settingslib_switch_track_color.xml
+new file mode 100644
+index 0000000..031910c
+--- /dev/null
++++ b/app/src/main/res/color/settingslib_switch_track_color.xml
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="utf-8"?>
++<selector xmlns:android="http://schemas.android.com/apk/res/android">
++    <item
++        android:state_enabled="false"
++        android:color="@color/settingslib_switch_track_off"
++        android:alpha="0.38" />
++    <item
++        android:state_checked="false"
++        android:color="@color/settingslib_switch_track_off" />
++    <item android:color="@color/settingslib_switch_track_on" />
++</selector>
+diff --git a/app/src/main/res/drawable/bg_md3_icon_container.xml b/app/src/main/res/drawable/bg_md3_icon_container.xml
+new file mode 100644
+index 0000000..2fc9871
+--- /dev/null
++++ b/app/src/main/res/drawable/bg_md3_icon_container.xml
+@@ -0,0 +1,5 @@
++<?xml version="1.0" encoding="utf-8"?>
++<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
++    <solid android:color="?attr/colorSecondaryContainer" />
++    <corners android:radius="18dp" />
++</shape>
+diff --git a/app/src/main/res/drawable/bg_preference_dot_bottom.xml b/app/src/main/res/drawable/bg_preference_dot_bottom.xml
+new file mode 100644
+index 0000000..f9e6533
+--- /dev/null
++++ b/app/src/main/res/drawable/bg_preference_dot_bottom.xml
+@@ -0,0 +1,24 @@
++<?xml version="1.0" encoding="utf-8"?>
++<ripple xmlns:android="http://schemas.android.com/apk/res/android"
++    android:color="?attr/colorControlHighlight">
++    <item android:id="@android:id/mask">
++        <shape>
++            <solid android:color="@android:color/white" />
++            <corners
++                android:topLeftRadius="4dp"
++                android:topRightRadius="4dp"
++                android:bottomLeftRadius="20dp"
++                android:bottomRightRadius="20dp" />
++        </shape>
++    </item>
++    <item>
++        <shape>
++            <solid android:color="?attr/colorSurfaceVariant" />
++            <corners
++                android:topLeftRadius="4dp"
++                android:topRightRadius="4dp"
++                android:bottomLeftRadius="20dp"
++                android:bottomRightRadius="20dp" />
++        </shape>
++    </item>
++</ripple>
+diff --git a/app/src/main/res/drawable/bg_preference_dot_full.xml b/app/src/main/res/drawable/bg_preference_dot_full.xml
+new file mode 100644
+index 0000000..7f446e9
+--- /dev/null
++++ b/app/src/main/res/drawable/bg_preference_dot_full.xml
+@@ -0,0 +1,16 @@
++<?xml version="1.0" encoding="utf-8"?>
++<ripple xmlns:android="http://schemas.android.com/apk/res/android"
++    android:color="?attr/colorControlHighlight">
++    <item android:id="@android:id/mask">
++        <shape>
++            <solid android:color="@android:color/white" />
++            <corners android:radius="20dp" />
++        </shape>
++    </item>
++    <item>
++        <shape>
++            <solid android:color="?attr/colorSurfaceVariant" />
++            <corners android:radius="20dp" />
++        </shape>
++    </item>
++</ripple>
+diff --git a/app/src/main/res/drawable/bg_preference_dot_middle.xml b/app/src/main/res/drawable/bg_preference_dot_middle.xml
+new file mode 100644
+index 0000000..b6e5ee1
+--- /dev/null
++++ b/app/src/main/res/drawable/bg_preference_dot_middle.xml
+@@ -0,0 +1,16 @@
++<?xml version="1.0" encoding="utf-8"?>
++<ripple xmlns:android="http://schemas.android.com/apk/res/android"
++    android:color="?attr/colorControlHighlight">
++    <item android:id="@android:id/mask">
++        <shape>
++            <solid android:color="@android:color/white" />
++            <corners android:radius="4dp" />
++        </shape>
++    </item>
++    <item>
++        <shape>
++            <solid android:color="?attr/colorSurfaceVariant" />
++            <corners android:radius="4dp" />
++        </shape>
++    </item>
++</ripple>
+diff --git a/app/src/main/res/drawable/bg_preference_dot_top.xml b/app/src/main/res/drawable/bg_preference_dot_top.xml
+new file mode 100644
+index 0000000..89d302b
+--- /dev/null
++++ b/app/src/main/res/drawable/bg_preference_dot_top.xml
+@@ -0,0 +1,24 @@
++<?xml version="1.0" encoding="utf-8"?>
++<ripple xmlns:android="http://schemas.android.com/apk/res/android"
++    android:color="?attr/colorControlHighlight">
++    <item android:id="@android:id/mask">
++        <shape>
++            <solid android:color="@android:color/white" />
++            <corners
++                android:topLeftRadius="20dp"
++                android:topRightRadius="20dp"
++                android:bottomLeftRadius="4dp"
++                android:bottomRightRadius="4dp" />
++        </shape>
++    </item>
++    <item>
++        <shape>
++            <solid android:color="?attr/colorSurfaceVariant" />
++            <corners
++                android:topLeftRadius="20dp"
++                android:topRightRadius="20dp"
++                android:bottomLeftRadius="4dp"
++                android:bottomRightRadius="4dp" />
++        </shape>
++    </item>
++</ripple>
+diff --git a/app/src/main/res/drawable/ic_gesture.xml b/app/src/main/res/drawable/ic_gesture.xml
+new file mode 100644
+index 0000000..18112c3
+--- /dev/null
++++ b/app/src/main/res/drawable/ic_gesture.xml
+@@ -0,0 +1,7 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++    <path android:fillColor="#FF000000" android:pathData="M4,12a8,8 0,0 1,8 -8v2a6,6 0,0 0,-6 6H4zM20,12h-2a6,6 0,0 0,-6 -6V4a8,8 0,0 1,8 8zM12,20a8,8 0,0 1,-8 -8h2a6,6 0,0 0,6 6v2zM12,20v-2a6,6 0,0 0,6 -6h2a8,8 0,0 1,-8 8zM12,9a3,3 0,1 1,0 6,3 3,0 0,1 0,-6z" />
++</vector>
+diff --git a/app/src/main/res/drawable/ic_network.xml b/app/src/main/res/drawable/ic_network.xml
+new file mode 100644
+index 0000000..c423dff
+--- /dev/null
++++ b/app/src/main/res/drawable/ic_network.xml
+@@ -0,0 +1,7 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++    <path android:fillColor="#FF000000" android:pathData="M12,3a9,9 0,1 0,0 18,9 9,0 0,0 0,-18zM6.2,9h2.1a15,15 0,0 0,0 6H6.2a7,7 0,0 1,0 -6zM12,5c1,1.2 1.7,2.5 1.9,4h-3.8C10.3,7.5 11,6.2 12,5zM10.1,11h3.8a13,13 0,0 1,0 2h-3.8a13,13 0,0 1,0 -2zM12,19c-1,-1.2 -1.7,-2.5 -1.9,-4h3.8C13.7,16.5 13,17.8 12,19zM15.7,15h2.1a7,7 0,0 1,-3.4 3.4A14,14 0,0 0,15.7 15zM15.7,9a14,14 0,0 0,-1.3 -3.4A7,7 0,0 1,17.8 9h-2.1z" />
++</vector>
+diff --git a/app/src/main/res/drawable/ic_palette.xml b/app/src/main/res/drawable/ic_palette.xml
+new file mode 100644
+index 0000000..156dc58
+--- /dev/null
++++ b/app/src/main/res/drawable/ic_palette.xml
+@@ -0,0 +1,9 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++    <path
++        android:fillColor="#FF000000"
++        android:pathData="M12,3C7.03,3 3,6.58 3,11c0,3.31 2.69,6 6,6h1.65c0.82,0 1.35,-0.83 1.01,-1.58 -0.16,-0.36 -0.25,-0.76 -0.25,-1.18 0,-1.66 1.34,-3 3,-3H18c1.66,0 3,-1.34 3,-3C21,5.31 16.97,3 12,3zM6.5,12C5.67,12 5,11.33 5,10.5S5.67,9 6.5,9 8,9.67 8,10.5 7.33,12 6.5,12zM9.5,8C8.67,8 8,7.33 8,6.5S8.67,5 9.5,5 11,5.67 11,6.5 10.33,8 9.5,8zM14.5,8C13.67,8 13,7.33 13,6.5S13.67,5 14.5,5 16,5.67 16,6.5 15.33,8 14.5,8zM17.5,12C16.67,12 16,11.33 16,10.5S16.67,9 17.5,9 19,9.67 19,10.5 18.33,12 17.5,12z" />
++</vector>
+diff --git a/app/src/main/res/drawable/ic_phone_settings.xml b/app/src/main/res/drawable/ic_phone_settings.xml
+new file mode 100644
+index 0000000..c7c8260
+--- /dev/null
++++ b/app/src/main/res/drawable/ic_phone_settings.xml
+@@ -0,0 +1,7 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++    <path android:fillColor="#FF000000" android:pathData="M7,2h10a2,2 0,0 1,2 2v16a2,2 0,0 1,-2 2H7a2,2 0,0 1,-2 -2V4a2,2 0,0 1,2 -2zM7,5v12h10V5H7zM10,19v1h4v-1h-4z" />
++</vector>
+diff --git a/app/src/main/res/drawable/ic_tune.xml b/app/src/main/res/drawable/ic_tune.xml
+new file mode 100644
+index 0000000..b72facd
+--- /dev/null
++++ b/app/src/main/res/drawable/ic_tune.xml
+@@ -0,0 +1,7 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++    <path android:fillColor="#FF000000" android:pathData="M3,5h8v2H3V5zM15,5h6v2h-6V5zM11,3h4v6h-4V3zM3,11h3v2H3v-2zM10,11h11v2H10v-2zM6,9h4v6H6V9zM3,17h10v2H3v-2zM17,17h4v2h-4v-2zM13,15h4v6h-4v-6z" />
++</vector>
+diff --git a/app/src/main/res/drawable/settingslib_switch_thumb.xml b/app/src/main/res/drawable/settingslib_switch_thumb.xml
+new file mode 100644
+index 0000000..2f9f964
+--- /dev/null
++++ b/app/src/main/res/drawable/settingslib_switch_thumb.xml
+@@ -0,0 +1,15 @@
++<?xml version="1.0" encoding="utf-8"?>
++<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
++    <item
++        android:top="4dp"
++        android:left="4dp"
++        android:right="4dp"
++        android:bottom="4dp">
++        <shape android:shape="oval">
++            <size
++                android:width="20dp"
++                android:height="20dp" />
++            <solid android:color="@android:color/white" />
++        </shape>
++    </item>
++</layer-list>
+diff --git a/app/src/main/res/drawable/settingslib_switch_track.xml b/app/src/main/res/drawable/settingslib_switch_track.xml
+new file mode 100644
+index 0000000..9bc76e8
+--- /dev/null
++++ b/app/src/main/res/drawable/settingslib_switch_track.xml
+@@ -0,0 +1,9 @@
++<?xml version="1.0" encoding="utf-8"?>
++<shape xmlns:android="http://schemas.android.com/apk/res/android"
++    android:shape="rectangle">
++    <size
++        android:width="52dp"
++        android:height="28dp" />
++    <solid android:color="@android:color/white" />
++    <corners android:radius="35dp" />
++</shape>
+diff --git a/app/src/main/res/layout/activity_settings.xml b/app/src/main/res/layout/activity_settings.xml
+new file mode 100644
+index 0000000..56aff4a
+--- /dev/null
++++ b/app/src/main/res/layout/activity_settings.xml
+@@ -0,0 +1,56 @@
++<?xml version="1.0" encoding="utf-8"?>
++<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
++    xmlns:app="http://schemas.android.com/apk/res-auto"
++    android:id="@+id/settings_root"
++    android:layout_width="match_parent"
++    android:layout_height="match_parent"
++    android:background="?attr/colorSurface"
++    android:fitsSystemWindows="true">
++
++    <com.google.android.material.appbar.AppBarLayout
++        android:id="@+id/settings_app_bar"
++        android:layout_width="match_parent"
++        android:layout_height="wrap_content"
++        android:background="@android:color/transparent"
++        android:fitsSystemWindows="true"
++        android:outlineAmbientShadowColor="@android:color/transparent"
++        android:outlineSpotShadowColor="@android:color/transparent">
++
++        <com.google.android.material.appbar.CollapsingToolbarLayout
++            android:id="@+id/settings_collapsing_toolbar"
++            android:layout_width="match_parent"
++            android:layout_height="160dp"
++            android:clipToPadding="false"
++            android:fitsSystemWindows="true"
++            style="@style/Widget.Material3.CollapsingToolbar.Large"
++            app:collapsedTitleTextAppearance="@style/TextAppearance.TrebleApp.ToolbarCollapsed"
++            app:contentScrim="?attr/colorSurface"
++            app:expandedTitleMarginBottom="32dp"
++            app:expandedTitleMarginEnd="24dp"
++            app:expandedTitleMarginStart="24dp"
++            app:expandedTitleTextAppearance="@style/TextAppearance.TrebleApp.ToolbarExpanded"
++            app:layout_scrollFlags="scroll|exitUntilCollapsed|snap"
++            app:scrimAnimationDuration="50"
++            app:statusBarScrim="@android:color/transparent"
++            app:titleCollapseMode="scale"
++            app:toolbarId="@id/settings_toolbar">
++
++            <com.google.android.material.appbar.MaterialToolbar
++                android:id="@+id/settings_toolbar"
++                android:layout_width="match_parent"
++                android:layout_height="?attr/actionBarSize"
++                android:background="@android:color/transparent"
++                android:theme="?attr/actionBarTheme"
++                style="@style/Widget.Material3.Toolbar"
++                app:layout_collapseMode="pin"
++                app:navigationIconTint="?attr/colorOnSurface" />
++        </com.google.android.material.appbar.CollapsingToolbarLayout>
++    </com.google.android.material.appbar.AppBarLayout>
++
++    <FrameLayout
++        android:id="@+id/settings_content"
++        android:layout_width="match_parent"
++        android:layout_height="match_parent"
++        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
++
++</androidx.coordinatorlayout.widget.CoordinatorLayout>
+diff --git a/app/src/main/res/layout/preference_category_md3.xml b/app/src/main/res/layout/preference_category_md3.xml
+new file mode 100644
+index 0000000..442dedc
+--- /dev/null
++++ b/app/src/main/res/layout/preference_category_md3.xml
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="utf-8"?>
++<com.google.android.material.textview.MaterialTextView xmlns:android="http://schemas.android.com/apk/res/android"
++    android:id="@android:id/title"
++    android:layout_width="match_parent"
++    android:layout_height="wrap_content"
++    android:paddingStart="24dp"
++    android:paddingTop="8dp"
++    android:paddingEnd="16dp"
++    android:paddingBottom="8dp"
++    android:textAppearance="@style/TextAppearance.TrebleApp.PreferenceCategory"
++    android:textColor="@color/settingslib_category_color" />
+diff --git a/app/src/main/res/layout/preference_home_aosp.xml b/app/src/main/res/layout/preference_home_aosp.xml
+new file mode 100644
+index 0000000..b16c238
+--- /dev/null
++++ b/app/src/main/res/layout/preference_home_aosp.xml
+@@ -0,0 +1,8 @@
++<?xml version="1.0" encoding="utf-8"?>
++<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
++    android:layout_width="match_parent"
++    android:layout_height="wrap_content"
++    android:background="?attr/selectableItemBackground">
++
++    <include layout="@layout/preference_home_content" />
++</FrameLayout>
+diff --git a/app/src/main/res/layout/preference_home_content.xml b/app/src/main/res/layout/preference_home_content.xml
+new file mode 100644
+index 0000000..bb6f0c9
+--- /dev/null
++++ b/app/src/main/res/layout/preference_home_content.xml
+@@ -0,0 +1,52 @@
++<?xml version="1.0" encoding="utf-8"?>
++<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
++    xmlns:app="http://schemas.android.com/apk/res-auto"
++    android:layout_width="match_parent"
++    android:layout_height="wrap_content"
++    android:minHeight="72dp"
++    android:gravity="center_vertical"
++    android:orientation="horizontal"
++    android:paddingStart="20dp"
++    android:paddingTop="10dp"
++    android:paddingEnd="20dp"
++    android:paddingBottom="10dp">
++
++    <FrameLayout
++        android:id="@android:id/icon_frame"
++        android:layout_width="40dp"
++        android:layout_height="40dp"
++        android:layout_marginEnd="16dp">
++
++        <ImageView
++            android:id="@android:id/icon"
++            android:layout_width="24dp"
++            android:layout_height="24dp"
++            android:layout_gravity="center"
++            android:contentDescription="@null"
++            app:tint="?attr/colorPrimary" />
++    </FrameLayout>
++
++    <LinearLayout
++        android:layout_width="0dp"
++        android:layout_height="wrap_content"
++        android:layout_weight="1"
++        android:orientation="vertical">
++
++        <com.google.android.material.textview.MaterialTextView
++            android:id="@android:id/title"
++            android:layout_width="wrap_content"
++            android:layout_height="wrap_content"
++            android:maxLines="1"
++            android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
++            android:textColor="?attr/colorOnSurface" />
++
++        <com.google.android.material.textview.MaterialTextView
++            android:id="@android:id/summary"
++            android:layout_width="wrap_content"
++            android:layout_height="wrap_content"
++            android:layout_marginTop="2dp"
++            android:maxLines="2"
++            android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
++            android:textColor="?attr/colorOnSurfaceVariant" />
++    </LinearLayout>
++</LinearLayout>
+diff --git a/app/src/main/res/layout/preference_home_dot_bottom.xml b/app/src/main/res/layout/preference_home_dot_bottom.xml
+new file mode 100644
+index 0000000..c668905
+--- /dev/null
++++ b/app/src/main/res/layout/preference_home_dot_bottom.xml
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="utf-8"?>
++<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
++    android:layout_width="match_parent"
++    android:layout_height="wrap_content"
++    android:layout_marginStart="16dp"
++    android:layout_marginEnd="16dp"
++    android:layout_marginBottom="4dp"
++    android:background="@drawable/bg_preference_dot_bottom">
++
++    <include layout="@layout/preference_home_content" />
++</FrameLayout>
+diff --git a/app/src/main/res/layout/preference_home_dot_full.xml b/app/src/main/res/layout/preference_home_dot_full.xml
+new file mode 100644
+index 0000000..9057003
+--- /dev/null
++++ b/app/src/main/res/layout/preference_home_dot_full.xml
+@@ -0,0 +1,12 @@
++<?xml version="1.0" encoding="utf-8"?>
++<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
++    android:layout_width="match_parent"
++    android:layout_height="wrap_content"
++    android:layout_marginStart="16dp"
++    android:layout_marginTop="12dp"
++    android:layout_marginEnd="16dp"
++    android:layout_marginBottom="4dp"
++    android:background="@drawable/bg_preference_dot_full">
++
++    <include layout="@layout/preference_home_content" />
++</FrameLayout>
+diff --git a/app/src/main/res/layout/preference_home_dot_middle.xml b/app/src/main/res/layout/preference_home_dot_middle.xml
+new file mode 100644
+index 0000000..f443047
+--- /dev/null
++++ b/app/src/main/res/layout/preference_home_dot_middle.xml
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="utf-8"?>
++<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
++    android:layout_width="match_parent"
++    android:layout_height="wrap_content"
++    android:layout_marginStart="16dp"
++    android:layout_marginEnd="16dp"
++    android:layout_marginBottom="2dp"
++    android:background="@drawable/bg_preference_dot_middle">
++
++    <include layout="@layout/preference_home_content" />
++</FrameLayout>
+diff --git a/app/src/main/res/layout/preference_home_dot_top.xml b/app/src/main/res/layout/preference_home_dot_top.xml
+new file mode 100644
+index 0000000..3834307
+--- /dev/null
++++ b/app/src/main/res/layout/preference_home_dot_top.xml
+@@ -0,0 +1,12 @@
++<?xml version="1.0" encoding="utf-8"?>
++<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
++    android:layout_width="match_parent"
++    android:layout_height="wrap_content"
++    android:layout_marginStart="16dp"
++    android:layout_marginTop="12dp"
++    android:layout_marginEnd="16dp"
++    android:layout_marginBottom="2dp"
++    android:background="@drawable/bg_preference_dot_top">
++
++    <include layout="@layout/preference_home_content" />
++</FrameLayout>
+diff --git a/app/src/main/res/layout/preference_home_nad.xml b/app/src/main/res/layout/preference_home_nad.xml
+new file mode 100644
+index 0000000..8cded84
+--- /dev/null
++++ b/app/src/main/res/layout/preference_home_nad.xml
+@@ -0,0 +1,58 @@
++<?xml version="1.0" encoding="utf-8"?>
++<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
++    xmlns:app="http://schemas.android.com/apk/res-auto"
++    android:layout_width="match_parent"
++    android:layout_height="wrap_content"
++    android:layout_marginStart="16dp"
++    android:layout_marginTop="5dp"
++    android:layout_marginEnd="16dp"
++    android:layout_marginBottom="5dp"
++    android:minHeight="72dp"
++    android:background="@drawable/bg_preference_dot_full"
++    android:gravity="center_vertical"
++    android:orientation="horizontal"
++    android:paddingStart="14dp"
++    android:paddingTop="8dp"
++    android:paddingEnd="18dp"
++    android:paddingBottom="8dp">
++
++    <FrameLayout
++        android:id="@android:id/icon_frame"
++        android:layout_width="44dp"
++        android:layout_height="44dp"
++        android:layout_marginEnd="16dp"
++        android:background="@drawable/bg_md3_icon_container">
++
++        <ImageView
++            android:id="@android:id/icon"
++            android:layout_width="24dp"
++            android:layout_height="24dp"
++            android:layout_gravity="center"
++            android:contentDescription="@null"
++            app:tint="?attr/colorOnSecondaryContainer" />
++    </FrameLayout>
++
++    <LinearLayout
++        android:layout_width="0dp"
++        android:layout_height="wrap_content"
++        android:layout_weight="1"
++        android:orientation="vertical">
++
++        <com.google.android.material.textview.MaterialTextView
++            android:id="@android:id/title"
++            android:layout_width="wrap_content"
++            android:layout_height="wrap_content"
++            android:maxLines="1"
++            android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
++            android:textColor="?attr/colorOnSurface" />
++
++        <com.google.android.material.textview.MaterialTextView
++            android:id="@android:id/summary"
++            android:layout_width="wrap_content"
++            android:layout_height="wrap_content"
++            android:layout_marginTop="2dp"
++            android:maxLines="1"
++            android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
++            android:textColor="?attr/colorOnSurfaceVariant" />
++    </LinearLayout>
++</LinearLayout>
+diff --git a/app/src/main/res/layout/preference_md3.xml b/app/src/main/res/layout/preference_md3.xml
+new file mode 100644
+index 0000000..18ea715
+--- /dev/null
++++ b/app/src/main/res/layout/preference_md3.xml
+@@ -0,0 +1,65 @@
++<?xml version="1.0" encoding="utf-8"?>
++<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
++    xmlns:app="http://schemas.android.com/apk/res-auto"
++    android:layout_width="match_parent"
++    android:layout_height="wrap_content"
++    android:minHeight="?android:attr/listPreferredItemHeightSmall"
++    android:background="?android:attr/selectableItemBackground"
++    android:baselineAligned="false"
++    android:clipToPadding="false"
++    android:gravity="center_vertical"
++    android:paddingStart="24dp"
++    android:paddingEnd="16dp">
++
++    <FrameLayout
++        android:id="@android:id/icon_frame"
++        android:layout_width="40dp"
++        android:layout_height="40dp"
++        android:layout_marginEnd="16dp"
++        android:visibility="gone">
++
++        <ImageView
++            android:id="@android:id/icon"
++            android:layout_width="24dp"
++            android:layout_height="24dp"
++            android:layout_gravity="center"
++            android:contentDescription="@null"
++            app:tint="?attr/colorPrimary" />
++    </FrameLayout>
++
++    <RelativeLayout
++        android:layout_width="0dp"
++        android:layout_height="wrap_content"
++        android:layout_weight="1"
++        android:paddingTop="16dp"
++        android:paddingBottom="16dp">
++
++        <TextView
++            android:id="@android:id/title"
++            android:layout_width="wrap_content"
++            android:layout_height="wrap_content"
++            android:ellipsize="marquee"
++            android:maxLines="2"
++            android:textAppearance="@style/TextAppearance.TrebleApp.PreferenceTitle"
++            android:textColor="?android:attr/textColorPrimary" />
++
++        <TextView
++            android:id="@android:id/summary"
++            android:layout_width="wrap_content"
++            android:layout_height="wrap_content"
++            android:layout_below="@android:id/title"
++            android:layout_alignStart="@android:id/title"
++            android:maxLines="10"
++            android:textAlignment="viewStart"
++            android:textAppearance="@style/TextAppearance.TrebleApp.PreferenceSummary"
++            android:textColor="?android:attr/textColorSecondary" />
++    </RelativeLayout>
++
++    <LinearLayout
++        android:id="@android:id/widget_frame"
++        android:layout_width="wrap_content"
++        android:layout_height="match_parent"
++        android:gravity="end|center_vertical"
++        android:orientation="vertical"
++        android:paddingStart="16dp" />
++</LinearLayout>
+diff --git a/app/src/main/res/layout/preference_widget_material_switch.xml b/app/src/main/res/layout/preference_widget_material_switch.xml
+new file mode 100644
+index 0000000..f7d0348
+--- /dev/null
++++ b/app/src/main/res/layout/preference_widget_material_switch.xml
+@@ -0,0 +1,18 @@
++<?xml version="1.0" encoding="utf-8"?>
++<Switch xmlns:android="http://schemas.android.com/apk/res/android"
++    android:id="@android:id/switch_widget"
++    android:layout_width="wrap_content"
++    android:layout_height="wrap_content"
++    android:minHeight="48dp"
++    android:switchMinWidth="52dp"
++    android:showText="false"
++    android:splitTrack="false"
++    android:thumb="@drawable/settingslib_switch_thumb"
++    android:track="@drawable/settingslib_switch_track"
++    android:thumbTint="@color/settingslib_switch_thumb_color"
++    android:trackTint="@color/settingslib_switch_track_color"
++    android:thumbTintMode="src_in"
++    android:trackTintMode="src_in"
++    android:clickable="false"
++    android:focusable="false"
++    android:background="@null" />
+diff --git a/app/src/main/res/values-night-v31/colors.xml b/app/src/main/res/values-night-v31/colors.xml
+new file mode 100644
+index 0000000..dde91df
+--- /dev/null
++++ b/app/src/main/res/values-night-v31/colors.xml
+@@ -0,0 +1,9 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <color name="settingslib_category_color">@android:color/system_accent1_100</color>
++    <color name="settingslib_switch_track_on">@android:color/system_accent2_500</color>
++    <color name="settingslib_switch_track_off">@android:color/system_neutral1_700</color>
++    <color name="settingslib_switch_thumb_on">@android:color/system_accent1_100</color>
++    <color name="settingslib_switch_thumb_off">@android:color/system_neutral1_400</color>
++    <color name="settingslib_switch_thumb_disabled">@android:color/system_neutral1_700</color>
++</resources>
+diff --git a/app/src/main/res/values-night/colors.xml b/app/src/main/res/values-night/colors.xml
+new file mode 100644
+index 0000000..fd3a715
+--- /dev/null
++++ b/app/src/main/res/values-night/colors.xml
+@@ -0,0 +1,19 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <color name="colorPrimary">#BBC3FF</color>
++    <color name="colorOnPrimary">#202B60</color>
++    <color name="colorPrimaryContainer">#374378</color>
++    <color name="colorOnPrimaryContainer">#DDE1FF</color>
++    <color name="colorSecondaryContainer">#45464F</color>
++    <color name="colorOnSecondaryContainer">#E1E2EC</color>
++    <color name="colorSurface">#121318</color>
++    <color name="colorSurfaceVariant">#46464F</color>
++    <color name="colorOnSurface">#E4E1E9</color>
++    <color name="colorOnSurfaceVariant">#C7C5D0</color>
++    <color name="settingslib_category_color">@color/colorPrimary</color>
++    <color name="settingslib_switch_track_on">@color/colorPrimary</color>
++    <color name="settingslib_switch_track_off">#5F5E66</color>
++    <color name="settingslib_switch_thumb_on">#202B60</color>
++    <color name="settingslib_switch_thumb_off">#938F99</color>
++    <color name="settingslib_switch_thumb_disabled">#49454F</color>
++</resources>
+diff --git a/app/src/main/res/values-night/styles.xml b/app/src/main/res/values-night/styles.xml
+new file mode 100644
+index 0000000..ff93d05
+--- /dev/null
++++ b/app/src/main/res/values-night/styles.xml
+@@ -0,0 +1,24 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <style name="Base.Theme.TrebleApp" parent="Theme.Material3.DayNight.NoActionBar">
++        <item name="colorPrimary">@color/colorPrimary</item>
++        <item name="colorOnPrimary">@color/colorOnPrimary</item>
++        <item name="colorPrimaryContainer">@color/colorPrimaryContainer</item>
++        <item name="colorOnPrimaryContainer">@color/colorOnPrimaryContainer</item>
++        <item name="colorSecondaryContainer">@color/colorSecondaryContainer</item>
++        <item name="colorOnSecondaryContainer">@color/colorOnSecondaryContainer</item>
++        <item name="colorSurface">@color/colorSurface</item>
++        <item name="colorSurfaceVariant">@color/colorSurfaceVariant</item>
++        <item name="colorOnSurface">@color/colorOnSurface</item>
++        <item name="colorOnSurfaceVariant">@color/colorOnSurfaceVariant</item>
++        <item name="android:colorAccent">?attr/colorPrimary</item>
++        <item name="android:fontFamily">sans</item>
++        <item name="android:windowActionModeOverlay">true</item>
++        <item name="android:windowLightStatusBar">false</item>
++        <item name="android:windowLightNavigationBar">false</item>
++        <item name="android:statusBarColor">?attr/colorSurface</item>
++        <item name="android:navigationBarColor">?attr/colorSurface</item>
++        <item name="materialAlertDialogTheme">@style/ThemeOverlay.Material3.MaterialAlertDialog</item>
++        <item name="preferenceTheme">@style/PreferenceThemeOverlay.v14.Material</item>
++    </style>
++</resources>
+diff --git a/app/src/main/res/values-v29/styles.xml b/app/src/main/res/values-v29/styles.xml
+index 8017cba..458df99 100644
+--- a/app/src/main/res/values-v29/styles.xml
++++ b/app/src/main/res/values-v29/styles.xml
+@@ -1,6 +1,7 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <resources>
+     <style name="Theme.TrebleApp" parent="Base.Theme.TrebleApp">
+-        <item name="android:navigationBarColor">@android:color/transparent</item>
++        <item name="android:navigationBarDividerColor">@android:color/transparent</item>
++        <item name="android:enforceNavigationBarContrast">false</item>
+     </style>
+ </resources>
+diff --git a/app/src/main/res/values-v31/colors.xml b/app/src/main/res/values-v31/colors.xml
+new file mode 100644
+index 0000000..eb16c5e
+--- /dev/null
++++ b/app/src/main/res/values-v31/colors.xml
+@@ -0,0 +1,9 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <color name="settingslib_category_color">@android:color/system_accent1_600</color>
++    <color name="settingslib_switch_track_on">@android:color/system_accent1_600</color>
++    <color name="settingslib_switch_track_off">@android:color/system_neutral2_500</color>
++    <color name="settingslib_switch_thumb_on">@android:color/system_accent1_100</color>
++    <color name="settingslib_switch_thumb_off">@android:color/system_neutral2_300</color>
++    <color name="settingslib_switch_thumb_disabled">@android:color/system_neutral2_100</color>
++</resources>
+diff --git a/app/src/main/res/values-zh-rCN/strings.xml b/app/src/main/res/values-zh-rCN/strings.xml
+new file mode 100644
+index 0000000..a1dc788
+--- /dev/null
++++ b/app/src/main/res/values-zh-rCN/strings.xml
+@@ -0,0 +1,70 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <string name="app_name">PHH Treble 设置</string>
++    <string name="title_activity_settings">设置</string>
++    <string name="title_activity_top_level">PHH Treble 设置</string>
++    <string name="desc_activity_top_level">设备专用设置</string>
++    <string name="title_activity_updater">系统更新</string>
++    <string name="header_my_device">我的设备</string>
++    <string name="header_oneplus_features">OnePlus 设备功能</string>
++    <string name="header_nubia_features">努比亚设备功能</string>
++    <string name="header_vsmart_features">Vsmart 设备功能</string>
++    <string name="header_qualcomm_features">高通设备功能</string>
++    <string name="header_huawei_features">华为设备功能</string>
++    <string name="header_samsung_features">三星设备功能</string>
++    <string name="header_lenovo_features">联想设备功能</string>
++    <string name="header_xiaomi_features">小米设备功能</string>
++    <string name="header_oppo_features">OPPO 设备功能</string>
++    <string name="header_asus_features">华硕设备功能</string>
++    <string name="header_doze_features">息屏手势</string>
++    <string name="header_misc_features">其他功能</string>
++    <string name="header_ims_features">IMS 功能</string>
++    <string name="header_customization_features">个性化</string>
++    <string name="summary_my_device">维护者信息与设备预设</string>
++    <string name="summary_vendor_features">显示、音频和硬件相关选项</string>
++    <string name="summary_huawei_features">指纹、显示和充电</string>
++    <string name="summary_doze_features">息屏手势与动作感应</string>
++    <string name="summary_misc_features">音频、相机、通话与系统工具</string>
++    <string name="summary_ims_features">运营商通话与 IMS 配置</string>
++    <string name="summary_customization_features">系统界面、颜色、图标和字体</string>
++    <string name="summary_updater">检查并安装系统更新</string>
++    <string name="category_fingerprint">指纹</string>
++    <string name="category_display">显示</string>
++    <string name="category_charging">充电</string>
++    <string name="category_doze">息屏手势</string>
++    <string name="category_audio">音频</string>
++    <string name="category_camera">相机</string>
++    <string name="category_other">其他</string>
++    <string name="category_debugging">调试</string>
++    <string name="category_styles">样式</string>
++    <string name="huawei_fingerprint_gestures">启用指纹手势</string>
++    <string name="huawei_glove_mode">启用手套模式</string>
++    <string name="huawei_charge_profile_title">充电电流</string>
++    <string name="huawei_charge_profile_auto">自适应</string>
++    <string name="huawei_charge_profile_900">900 mA</string>
++    <string name="huawei_charge_profile_1200">1200 mA</string>
++    <string name="huawei_charge_profile_1400">1400 mA</string>
++    <string name="doze_handwave">启用挥手亮屏</string>
++    <string name="doze_pocket">启用出袋亮屏</string>
++    <string name="doze_chopchop">启用 Chop Chop 手势</string>
++    <string name="sponsor_phh">赞助 phh</string>
++    <string name="misc_headset_fix">强制切换耳机状态</string>
++    <string name="misc_disable_audio_effects">禁用音频效果</string>
++    <string name="misc_disable_audio_effects_summary">仅用于排障；音效正常时请保持关闭</string>
++    <string name="misc_restart_systemui">重启系统界面</string>
++    <string name="misc_restart_systemui_summary">无需 root，重新启动状态栏和导航栏</string>
++    <string name="misc_camera_timestamp">相机时间戳来源</string>
++    <string name="misc_camera_timestamp_summary">仅用于排障；相机时间戳无异常时请保持“不强制”</string>
++    <string name="camera_timestamp_default">不强制</string>
++    <string name="camera_timestamp_monotonic">单调时钟</string>
++    <string name="camera_timestamp_boottime">开机时钟</string>
++    <string name="misc_binder_thread">来电时允许 Binder 线程</string>
++    <string name="misc_binder_thread_summary">仅用于 4G 来电排障；通话正常时请保持关闭</string>
++    <string name="debug_sensors">调试传感器</string>
++    <string name="system_ui_tuner">系统界面调节器</string>
++    <string name="custom_accent_color">强调色</string>
++    <string name="custom_icon_shape">图标形状</string>
++    <string name="custom_icon_pack">图标包</string>
++    <string name="custom_font_family">字体</string>
++    <string name="preference_default">默认</string>
++</resources>
+diff --git a/app/src/main/res/values/colors.xml b/app/src/main/res/values/colors.xml
+index 3ab3e9c..3549ebd 100644
+--- a/app/src/main/res/values/colors.xml
++++ b/app/src/main/res/values/colors.xml
+@@ -1,6 +1,19 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <resources>
+-    <color name="colorPrimary">#3F51B5</color>
+-    <color name="colorPrimaryDark">#303F9F</color>
+-    <color name="colorAccent">#FF4081</color>
++    <color name="colorPrimary">#4F5B92</color>
++    <color name="colorOnPrimary">#FFFFFF</color>
++    <color name="colorPrimaryContainer">#DDE1FF</color>
++    <color name="colorOnPrimaryContainer">#08164B</color>
++    <color name="colorSecondaryContainer">#E1E2EC</color>
++    <color name="colorOnSecondaryContainer">#1B1B25</color>
++    <color name="colorSurface">#FBF8FF</color>
++    <color name="colorSurfaceVariant">#E4E1EC</color>
++    <color name="colorOnSurface">#1B1B1F</color>
++    <color name="colorOnSurfaceVariant">#46464F</color>
++    <color name="settingslib_category_color">@color/colorPrimary</color>
++    <color name="settingslib_switch_track_on">@color/colorPrimary</color>
++    <color name="settingslib_switch_track_off">#777680</color>
++    <color name="settingslib_switch_thumb_on">#FFFFFF</color>
++    <color name="settingslib_switch_thumb_off">#C6C5CE</color>
++    <color name="settingslib_switch_thumb_disabled">#E4E1EC</color>
+ </resources>
+diff --git a/app/src/main/res/values/dimens.xml b/app/src/main/res/values/dimens.xml
+new file mode 100644
+index 0000000..5030282
+--- /dev/null
++++ b/app/src/main/res/values/dimens.xml
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <dimen name="settings_detail_horizontal_padding">12dp</dimen>
++    <dimen name="settings_list_top_padding">8dp</dimen>
++    <dimen name="settings_list_bottom_padding">24dp</dimen>
++</resources>
+diff --git a/app/src/main/res/values/pref_huawei.xml b/app/src/main/res/values/pref_huawei.xml
+index 2164a19..20cbc9f 100644
+--- a/app/src/main/res/values/pref_huawei.xml
++++ b/app/src/main/res/values/pref_huawei.xml
+@@ -1,13 +1,15 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <resources>
+-    <array name="pref_huawei_fast_charge">
+-	    <item>Standard USB charging (1500mA)</item>
+-	    <item>Mid-fast (2750mA)</item>
+-	    <item>Fast (4000mA)</item>
+-    </array>
++    <string-array name="pref_huawei_fast_charge">
++        <item>@string/huawei_charge_profile_auto</item>
++        <item>@string/huawei_charge_profile_900</item>
++        <item>@string/huawei_charge_profile_1200</item>
++        <item>@string/huawei_charge_profile_1400</item>
++    </string-array>
+     <array name="pref_huawei_fast_charge_values">
+-	    <item>"-1"</item>
+-	    <item>"2750"</item>
+-	    <item>"4000"</item>
++        <item>"auto"</item>
++        <item>"900"</item>
++        <item>"1200"</item>
++        <item>"1400"</item>
+     </array>
+ </resources>
+diff --git a/app/src/main/res/values/pref_misc.xml b/app/src/main/res/values/pref_misc.xml
+index 918d5cc..390ce04 100644
+--- a/app/src/main/res/values/pref_misc.xml
++++ b/app/src/main/res/values/pref_misc.xml
+@@ -58,9 +58,9 @@
+     </array>
+ 
+     <array name="pref_misc_camera_timestamp">
+-      <item>"Don't override"</item>
+-      <item>"Clock monotonic"</item>
+-      <item>"Clock boottime"</item>
++      <item>@string/camera_timestamp_default</item>
++      <item>@string/camera_timestamp_monotonic</item>
++      <item>@string/camera_timestamp_boottime</item>
+     </array>
+     <array name="pref_misc_camera_timestamp_values">
+       <item>"-1"</item>
+diff --git a/app/src/main/res/values/strings.xml b/app/src/main/res/values/strings.xml
+index d6f6e83..2f9e1bb 100644
+--- a/app/src/main/res/values/strings.xml
++++ b/app/src/main/res/values/strings.xml
+@@ -27,4 +27,66 @@
+     <string name="magisk_exists_message">Magisk was detected! If you proceed with the update you may lose Magisk or the installation may fail!</string>
+     <string name="menu_delete_ota">Delete OTA files</string>
+     <string name="delete_ota_message">Take in consideration that you may lose your userdata if you proceed!\nTo prevent this, cancel this dialog, reboot and flash the latest update on fastboot mode.\nDo you want to proceed anyway?</string>
++    <string name="header_my_device">My device</string>
++    <string name="header_oneplus_features">OnePlus features</string>
++    <string name="header_nubia_features">Nubia features</string>
++    <string name="header_vsmart_features">Vsmart features</string>
++    <string name="header_qualcomm_features">Qualcomm features</string>
++    <string name="header_huawei_features">Huawei features</string>
++    <string name="header_samsung_features">Samsung features</string>
++    <string name="header_lenovo_features">Lenovo features</string>
++    <string name="header_xiaomi_features">Xiaomi features</string>
++    <string name="header_oppo_features">Oppo features</string>
++    <string name="header_asus_features">Asus features</string>
++    <string name="header_doze_features">Doze features</string>
++    <string name="header_misc_features">Misc features</string>
++    <string name="header_ims_features">IMS features</string>
++    <string name="header_customization_features">Customization features</string>
++    <string name="summary_my_device">Maintainer and device presets</string>
++    <string name="summary_vendor_features">Device-specific display, audio, and hardware options</string>
++    <string name="summary_huawei_features">Fingerprint, display, and charging</string>
++    <string name="summary_doze_features">Screen-off gestures and motion actions</string>
++    <string name="summary_misc_features">Audio, camera, calling, and system tools</string>
++    <string name="summary_ims_features">Carrier calling and IMS configuration</string>
++    <string name="summary_customization_features">System UI, colors, icons, and fonts</string>
++    <string name="summary_updater">Check for and install system updates</string>
++    <string name="category_fingerprint">Fingerprint</string>
++    <string name="category_display">Display</string>
++    <string name="category_charging">Charging</string>
++    <string name="category_doze">Doze</string>
++    <string name="category_audio">Audio</string>
++    <string name="category_camera">Camera</string>
++    <string name="category_other">Other</string>
++    <string name="category_debugging">Debugging</string>
++    <string name="category_styles">Styles</string>
++    <string name="huawei_fingerprint_gestures">Enable fingerprint gestures</string>
++    <string name="huawei_glove_mode">Enable touchscreen glove mode</string>
++    <string name="huawei_charge_profile_title">Charging current</string>
++    <string name="huawei_charge_profile_auto">Adaptive</string>
++    <string name="huawei_charge_profile_900">900 mA</string>
++    <string name="huawei_charge_profile_1200">1200 mA</string>
++    <string name="huawei_charge_profile_1400">1400 mA</string>
++    <string name="doze_handwave">Enable handwave gesture</string>
++    <string name="doze_pocket">Enable out-of-pocket gesture</string>
++    <string name="doze_chopchop">Enable Chop Chop gesture</string>
++    <string name="sponsor_phh">Sponsor phh</string>
++    <string name="misc_headset_fix">Force headset switch</string>
++    <string name="misc_disable_audio_effects">Disable audio effects</string>
++    <string name="misc_disable_audio_effects_summary">Troubleshooting only; leave disabled unless audio effects misbehave</string>
++    <string name="misc_restart_systemui">Restart SystemUI</string>
++    <string name="misc_restart_systemui_summary">Restarts the status and navigation bars without root</string>
++    <string name="misc_camera_timestamp">Camera timestamp source</string>
++    <string name="misc_camera_timestamp_summary">Troubleshooting only; keep Do not force unless camera timestamps are broken</string>
++    <string name="camera_timestamp_default">Do not force</string>
++    <string name="camera_timestamp_monotonic">Monotonic clock</string>
++    <string name="camera_timestamp_boottime">Boot-time clock</string>
++    <string name="misc_binder_thread">Allow binder thread on incoming calls</string>
++    <string name="misc_binder_thread_summary">Troubleshooting for incoming 4G calls; leave disabled while calls work</string>
++    <string name="debug_sensors">Debug sensors</string>
++    <string name="system_ui_tuner">System UI Tuner</string>
++    <string name="custom_accent_color">Accent color</string>
++    <string name="custom_icon_shape">Icon shape</string>
++    <string name="custom_icon_pack">Icon pack</string>
++    <string name="custom_font_family">Font family</string>
++    <string name="preference_default">Default</string>
+ </resources>
+diff --git a/app/src/main/res/values/styles.xml b/app/src/main/res/values/styles.xml
+index 15b6b17..a669aef 100644
+--- a/app/src/main/res/values/styles.xml
++++ b/app/src/main/res/values/styles.xml
+@@ -1,6 +1,50 @@
+ <resources>
++    <style name="Base.Theme.TrebleApp" parent="Theme.Material3.DayNight.NoActionBar">
++        <item name="colorPrimary">@color/colorPrimary</item>
++        <item name="colorOnPrimary">@color/colorOnPrimary</item>
++        <item name="colorPrimaryContainer">@color/colorPrimaryContainer</item>
++        <item name="colorOnPrimaryContainer">@color/colorOnPrimaryContainer</item>
++        <item name="colorSecondaryContainer">@color/colorSecondaryContainer</item>
++        <item name="colorOnSecondaryContainer">@color/colorOnSecondaryContainer</item>
++        <item name="colorSurface">@color/colorSurface</item>
++        <item name="colorSurfaceVariant">@color/colorSurfaceVariant</item>
++        <item name="colorOnSurface">@color/colorOnSurface</item>
++        <item name="colorOnSurfaceVariant">@color/colorOnSurfaceVariant</item>
++        <item name="android:colorAccent">?attr/colorPrimary</item>
++        <item name="android:fontFamily">sans</item>
++        <item name="android:windowActionModeOverlay">true</item>
++        <item name="android:windowLightStatusBar">true</item>
++        <item name="android:statusBarColor">?attr/colorSurface</item>
++        <item name="android:navigationBarColor">?attr/colorSurface</item>
++        <item name="materialAlertDialogTheme">@style/ThemeOverlay.Material3.MaterialAlertDialog</item>
++        <item name="preferenceTheme">@style/PreferenceThemeOverlay.v14.Material</item>
++    </style>
+ 
+-    <style name="Base.Theme.TrebleApp" parent="@android:style/Theme.DeviceDefault.Settings" />
+     <style name="Theme.TrebleApp" parent="Base.Theme.TrebleApp" />
+ 
++    <style name="TextAppearance.TrebleApp.ToolbarCollapsed"
++        parent="@android:style/TextAppearance.DeviceDefault.Widget.ActionBar.Title">
++        <item name="android:textSize">20dp</item>
++        <item name="android:textColor">?attr/colorOnSurface</item>
++    </style>
++
++    <style name="TextAppearance.TrebleApp.ToolbarExpanded"
++        parent="@style/TextAppearance.TrebleApp.ToolbarCollapsed">
++        <item name="android:textSize">36dp</item>
++        <item name="android:textColor">?attr/colorOnSurface</item>
++    </style>
++
++    <style name="TextAppearance.TrebleApp.PreferenceTitle"
++        parent="@android:style/TextAppearance.Material.Subhead">
++        <item name="android:fontFamily">sans</item>
++        <item name="android:textSize">20sp</item>
++    </style>
++
++    <style name="TextAppearance.TrebleApp.PreferenceSummary"
++        parent="@android:style/TextAppearance.DeviceDefault.Small" />
++
++    <style name="TextAppearance.TrebleApp.PreferenceCategory"
++        parent="@android:style/TextAppearance.DeviceDefault.Medium">
++        <item name="android:textSize">14sp</item>
++    </style>
+ </resources>
+diff --git a/app/src/main/res/xml/pref_asus.xml b/app/src/main/res/xml/pref_asus.xml
+index 89bc590..0165381 100644
+--- a/app/src/main/res/xml/pref_asus.xml
++++ b/app/src/main/res/xml/pref_asus.xml
+@@ -1,17 +1,17 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+     <PreferenceCategory android:title="Display">
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_asus_glove_mode"
+             android:title="Enable glove mode" />
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_asus_dt2w"
+             android:title="Enable double tap to wake" />
+     </PreferenceCategory>
+     <PreferenceCategory android:title="Other">
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="true"
+             android:key="key_asus_fp_wake"
+             android:title="Enable fingerprint wake" />
+diff --git a/app/src/main/res/xml/pref_custom.xml b/app/src/main/res/xml/pref_custom.xml
+index b39d167..47d635c 100644
+--- a/app/src/main/res/xml/pref_custom.xml
++++ b/app/src/main/res/xml/pref_custom.xml
+@@ -1,13 +1,15 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <PreferenceScreen
+ 	xmlns:android="http://schemas.android.com/apk/res/android">
+-    <Preference android:title="System UI Tuner">
++	    <Preference android:title="@string/system_ui_tuner">
+         <intent
+             android:action="android.intent.action.VIEW"
+             android:targetPackage="com.android.systemui"
+             android:targetClass="com.android.systemui.DemoMode" />
+     </Preference>
+-    <PreferenceCategory android:title="UI">
++    <PreferenceCategory
++        android:key="key_custom_ui_category"
++        android:title="UI">
+ 		<ListPreference
+ 		    android:defaultValue="0"
+ 		    android:entries="@array/pref_custom_pointer_type"
+@@ -16,30 +18,30 @@
+             android:title="Pointer type"
+             android:summary="Requires a reboot" />
+     </PreferenceCategory>
+-    <PreferenceCategory android:title="Styles">
++	    <PreferenceCategory android:title="@string/category_styles">
+ 	<ListPreference
+ 		android:defaultValue=""
+             android:entries="@array/pref_custom_accent_color"
+             android:entryValues="@array/pref_custom_accent_color_values"
+             android:key="key_custom_accent_color"
+-		android:title="Accent color" />
++		android:title="@string/custom_accent_color" />
+ 	<ListPreference
+ 		android:defaultValue=""
+             android:entries="@array/pref_custom_icon_shape"
+             android:entryValues="@array/pref_custom_icon_shape_values"
+             android:key="key_custom_icon_shape"
+-		android:title="Icon shape" />
++		android:title="@string/custom_icon_shape" />
+ 	<ListPreference
+ 		android:defaultValue=""
+             android:entries="@array/pref_custom_icon_pack"
+             android:entryValues="@array/pref_custom_icon_pack_values"
+             android:key="key_custom_icon_pack"
+-		android:title="Icon pack" />
++		android:title="@string/custom_icon_pack" />
+ 	<ListPreference
+ 		android:defaultValue=""
+             android:entries="@array/pref_custom_font_family"
+             android:entryValues="@array/pref_custom_font_family_values"
+             android:key="key_custom_font_family"
+-		android:title="Font family" />
++		android:title="@string/custom_font_family" />
+     </PreferenceCategory>
+ </PreferenceScreen>
+diff --git a/app/src/main/res/xml/pref_doze.xml b/app/src/main/res/xml/pref_doze.xml
+index 3f8d1c1..41a0d8d 100644
+--- a/app/src/main/res/xml/pref_doze.xml
++++ b/app/src/main/res/xml/pref_doze.xml
+@@ -1,20 +1,20 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto"
+     xmlns:android="http://schemas.android.com/apk/res/android">
+-    <PreferenceCategory android:title="Doze">
+-        <SwitchPreference
++    <PreferenceCategory android:title="@string/category_doze">
++        <me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_doze_handwave"
+-            android:title="Enable Handwave gesture" />
+-        <SwitchPreference
++            android:title="@string/doze_handwave" />
++        <me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_doze_pocket"
+-            android:title="Enable out-of-pocket gesture" />
+-        <SwitchPreference
++            android:title="@string/doze_pocket" />
++        <me.phh.treble.app.Md3SwitchPreference
+             android:layout_width="wrap_content"
+             android:layout_height="wrap_content"
+             android:defaultValue="false"
+             android:key="key_doze_chopchop"
+-            android:title="Enable Chop Chop gesture" />
++            android:title="@string/doze_chopchop" />
+     </PreferenceCategory>
+ </PreferenceScreen>
+diff --git a/app/src/main/res/xml/pref_headers.xml b/app/src/main/res/xml/pref_headers.xml
+index 5c54ed8..e55f9fd 100644
+--- a/app/src/main/res/xml/pref_headers.xml
++++ b/app/src/main/res/xml/pref_headers.xml
+@@ -16,7 +16,7 @@
+         android:title="Qualcomm features" />
+     <header
+         android:fragment="me.phh.treble.app.HuaweiSettingsFragment"
+-        android:title="Huawei features" />
++        android:title="@string/header_huawei_features" />
+     <header
+         android:fragment="me.phh.treble.app.SamsungSettingsFragment"
+         android:title="Samsung features" />
+@@ -34,19 +34,19 @@
+         android:title="Asus features" />
+     <header
+         android:fragment="me.phh.treble.app.DozeSettingsFragment"
+-        android:title="Doze features" />
++        android:title="@string/header_doze_features" />
+     <header
+         android:fragment="me.phh.treble.app.MiscSettingsFragment"
+-        android:title="Misc features" />
++        android:title="@string/header_misc_features" />
+     <header
+         android:fragment="me.phh.treble.app.ImsSettingsFragment"
+-        android:title="IMS features" />
++        android:title="@string/header_ims_features" />
+     <header
+         android:fragment="me.phh.treble.app.CustomSettingsFragment"
+-        android:title="Customization features" />
++        android:title="@string/header_customization_features" />
+     <header
+         android:id="@+id/updater"
+-        android:title="Updater">
++        android:title="@string/title_activity_updater">
+         <intent android:action="android.settings.SYSTEM_UPDATE_SETTINGS"
+                 android:targetClass=".UpdaterActivity"/>
+     </header>
+diff --git a/app/src/main/res/xml/pref_huawei.xml b/app/src/main/res/xml/pref_huawei.xml
+index ef6dcb7..d002853 100644
+--- a/app/src/main/res/xml/pref_huawei.xml
++++ b/app/src/main/res/xml/pref_huawei.xml
+@@ -1,28 +1,34 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+-    <PreferenceCategory android:title="Fingerprint">
+-        <SwitchPreference
++    <PreferenceCategory
++        android:key="key_huawei_fingerprint_category"
++        android:title="@string/category_fingerprint">
++        <me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_huawei_fingerprint_gestures"
+-            android:title="Enable Fingerprint gestures" />
++            android:title="@string/huawei_fingerprint_gestures" />
+     </PreferenceCategory>
+-    <PreferenceCategory android:title="Display">
+-        <SwitchPreference
++    <PreferenceCategory
++        android:key="key_huawei_display_category"
++        android:title="@string/category_display">
++        <me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_huawei_touchscreen_glove_mode"
+-            android:title="Enable touchscreen glove mode" />
+-        <SwitchPreference
++            android:title="@string/huawei_glove_mode" />
++        <me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_huawei_no_hwcomposer"
+             android:title="Enable graphic issues workaround (recommended if ui is blurry)" />
+     </PreferenceCategory>
+-    <PreferenceCategory android:title="Misc">
++    <PreferenceCategory
++        android:key="key_huawei_misc_category"
++        android:title="@string/category_charging">
+ 	    <ListPreference
+-		    android:defaultValue="-1"
++		    android:defaultValue="auto"
+ 		    android:entries="@array/pref_huawei_fast_charge"
+ 		    android:entryValues="@array/pref_huawei_fast_charge_values"
+ 		    android:key="key_huawei_fast_charge"
+-		    android:title="Huawei fast charge" />
++		    android:title="@string/huawei_charge_profile_title" />
+     </PreferenceCategory>
+ 
+ </PreferenceScreen>
+diff --git a/app/src/main/res/xml/pref_ims.xml b/app/src/main/res/xml/pref_ims.xml
+index 3c5d646..e0ba3df 100644
+--- a/app/src/main/res/xml/pref_ims.xml
++++ b/app/src/main/res/xml/pref_ims.xml
+@@ -5,11 +5,11 @@
+         android:key="key_ims_create_apn" />
+     <Preference android:title="Download and install IMS APK"
+         android:key="key_ims_install_apn" />
+-    <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+         android:defaultValue="false"
+         android:key="key_ims_request_network"
+         android:title="Request IMS network" />
+-    <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+         android:defaultValue="false"
+         android:key="key_ims_force_enable_setting"
+         android:title="Force the presence of 4G Calling setting" />
+diff --git a/app/src/main/res/xml/pref_lenovo.xml b/app/src/main/res/xml/pref_lenovo.xml
+index e22cfa5..6c1b8b9 100644
+--- a/app/src/main/res/xml/pref_lenovo.xml
++++ b/app/src/main/res/xml/pref_lenovo.xml
+@@ -2,7 +2,7 @@
+ <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+ 
+     <PreferenceCategory android:title="Other">
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:layout_width="wrap_content"
+             android:layout_height="wrap_content"
+             android:defaultValue="false"
+diff --git a/app/src/main/res/xml/pref_misc.xml b/app/src/main/res/xml/pref_misc.xml
+index 1aed133..05ce0ca 100644
+--- a/app/src/main/res/xml/pref_misc.xml
++++ b/app/src/main/res/xml/pref_misc.xml
+@@ -1,13 +1,15 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <PreferenceScreen
+ 	xmlns:android="http://schemas.android.com/apk/res/android">
+-	<Preference android:title="Sponsor phh"
++	<Preference android:title="@string/sponsor_phh"
+         android:key="key_sponsor">
+ 		<intent
+ 		    android:action="android.intent.action.VIEW"
+ 		    android:data="https://github.com/sponsors/phhusson/" />
+ 	</Preference>
+-	<PreferenceCategory android:title="Mobile network">
++	<PreferenceCategory
++		android:key="key_misc_mobile_network_category"
++		android:title="Mobile network">
+ 		<ListPreference
+ 		    android:defaultValue="default"
+ 		    android:entries="@array/pref_misc_mobile_signal"
+@@ -15,21 +17,25 @@
+ 		    android:key="key_misc_mobile_signal"
+ 		    android:title="Signal meter method" />
+ 	</PreferenceCategory>
+-	<PreferenceCategory android:title="Audio">
+-		<SwitchPreference
++	<PreferenceCategory
++		android:key="key_misc_audio_category"
++		android:title="@string/category_audio">
++		<me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_huawei_headset_fix"
+-            android:title="Force headset switch (Huawei default)" />
+-		<SwitchPreference
++	            android:title="@string/misc_headset_fix" />
++		<me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_misc_headset_devinput"
+             android:title="Use alternate way to detect headsets" />
+-		<SwitchPreference
++		<me.phh.treble.app.Md3SwitchPreference
+ 			android:defaultValue="false"
+ 			android:key="key_misc_disable_audio_effects"
+-			android:title="Disable audio effects" />
++			android:title="@string/misc_disable_audio_effects" />
+ 	</PreferenceCategory>
+-	<PreferenceCategory android:title="Display">
++	<PreferenceCategory
++		android:key="key_misc_display_category"
++		android:title="@string/category_display">
+ 		<EditTextPreference
+             android:defaultValue="-1"
+             android:key="key_misc_rounded_corners"
+@@ -55,48 +61,52 @@
+ 			android:title="Force FPS" />
+         <Preference
+             android:key="key_misc_restart_systemui"
+-            android:title="Restart SystemUI"
+-            android:summary="Recommended after switching display resolution\nRequires root" />
+-        <SwitchPreference
++	            android:title="@string/misc_restart_systemui"
++	            android:summary="@string/misc_restart_systemui_summary" />
++        <me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_misc_no_hwcomposer"
+             android:title="Disable HW overlays"
+             android:summary="Eats more CPU and battery" />
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_misc_aod"
+             android:title="Force allow Always-On Display" />
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_misc_mediatek_touch_hint_rotate"
+             android:title="Rotation perf hint instead of touch"
+             android:summary="For Mediatek devices"/>
+ 	</PreferenceCategory>
+-	<PreferenceCategory android:title="Backlight">
+-		<SwitchPreference
++	<PreferenceCategory
++		android:key="key_misc_backlight_category"
++		android:title="Backlight">
++		<me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_misc_linear_brightness"
+             android:title="Use linear screen brightness slider" />
+-		<SwitchPreference
++		<me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_misc_disable_buttons_backlight"
+             android:title="Disable backlight of hardware buttons if present"
+             android:summary="Requires a reboot" />
+-		<SwitchPreference
++		<me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_misc_backlight_scale"
+             android:title="Force alternative backlight scale" />
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_misc_minimal_brightness"
+             android:title="Allows setting brightness to the lowest possible" />
+ 	</PreferenceCategory>
+-	<PreferenceCategory android:title="Camera">
+-		<SwitchPreference
++	<PreferenceCategory
++		android:key="key_misc_camera_category"
++		android:title="@string/category_camera">
++		<me.phh.treble.app.Md3SwitchPreference
+ 			android:defaultValue="false"
+ 			android:key="key_misc_multi_camera"
+ 			android:title="Expose Aux cameras" />
+-		<SwitchPreference
++		<me.phh.treble.app.Md3SwitchPreference
+ 			android:defaultValue="false"
+ 			android:key="key_misc_force_camera2api_hal3"
+ 			android:title="Force Enable Camera2API HAL3" />
+@@ -105,10 +115,12 @@
+ 		    android:entries="@array/pref_misc_camera_timestamp"
+ 		    android:entryValues="@array/pref_misc_camera_timestamp_values"
+ 		    android:key="key_misc_camera_timestamp"
+-            android:title="Force Timestamp Source"
++	            android:title="@string/misc_camera_timestamp"
+             android:summary="Requires a reboot" />
+   </PreferenceCategory>
+-	<PreferenceCategory android:title="Other">
++	<PreferenceCategory
++		android:key="key_misc_other_category"
++		android:title="@string/category_other">
+ 		<ListPreference
+ 			android:defaultValue="-1"
+ 			android:entries="@array/pref_misc_bluetooth"
+@@ -121,30 +133,30 @@
+     	    android:entryValues="@array/pref_misc_max_aspect_ratio_pre_o_values"
+     	    android:key="key_misc_max_aspect_ratio_pre_o"
+     	    android:title="Compatibility max aspect ratio" />
+-		<SwitchPreference
++		<me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="true"
+             android:key="key_misc_dynamic_sysbta"
+             android:title="Use System Wide BT HAL" />
+-		<SwitchPreference
++		<me.phh.treble.app.Md3SwitchPreference
+ 			android:defaultValue="false"
+ 			android:key="key_misc_allow_binder_thread_on_incoming_calls"
+ 			android:summary="Possible workaround for 4G calling\nRequires a reboot"
+-			android:title="Allow binder thread on incoming calls" />
+-		<SwitchPreference
++			android:title="@string/misc_binder_thread" />
++		<me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_misc_force_navbar_off"
+             android:title="Force navigation bar disabled"
+             android:summary="Requires a reboot" />
+-		<SwitchPreference
++		<me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_misc_storage_fuse"
+             android:title="Disable FUSE storage layer"
+             android:summary="This can (de/in)crease storage speed\nRequires a reboot" />
+-		<SwitchPreference
++		<me.phh.treble.app.Md3SwitchPreference
+ 				android:defaultValue="false"
+ 				android:key="key_misc_restart_ril"
+ 				android:title="Automatically restart RIL" />
+-		<SwitchPreference
++		<me.phh.treble.app.Md3SwitchPreference
+ 				android:defaultValue="false"
+ 				android:key="key_misc_dt2w"
+             android:title="Double tap to wake"
+@@ -160,14 +172,14 @@
+ 		<Preference android:title="@string/remove_telephony_subsystem"
+             android:key="key_misc_removetelephony" />
+ 	</PreferenceCategory>
+-    <PreferenceCategory android:title="Debugging">
+-        <Preference android:title="Debug Sensors">
++	    <PreferenceCategory android:title="@string/category_debugging">
++	        <Preference android:title="@string/debug_sensors">
+             <intent
+                 android:action="android.intent.action.VIEW"
+                 android:targetPackage="me.phh.treble.app"
+                 android:targetClass="me.phh.treble.app.DebugSensors" />
+         </Preference>
+-		<SwitchPreference
++		<me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_misc_remotectl"
+             android:title="Allow takeover of the device by phh for debugging" />
+diff --git a/app/src/main/res/xml/pref_nubia.xml b/app/src/main/res/xml/pref_nubia.xml
+index 3d765fa..9f87177 100644
+--- a/app/src/main/res/xml/pref_nubia.xml
++++ b/app/src/main/res/xml/pref_nubia.xml
+@@ -1,13 +1,13 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+     <PreferenceCategory android:title="Touchscreen">
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:layout_width="wrap_content"
+             android:layout_height="wrap_content"
+             android:defaultValue="false"
+             android:key="nubia_double_tap_to_wake"
+             android:title="Enable DT2W" />
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:layout_width="wrap_content"
+             android:layout_height="wrap_content"
+             android:defaultValue="false"
+@@ -23,7 +23,7 @@
+ 		    android:title="FAN speed" />
+     </PreferenceCategory>
+     <PreferenceCategory android:title="LEDs">
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:layout_width="wrap_content"
+             android:layout_height="wrap_content"
+             android:defaultValue="false"
+@@ -37,19 +37,19 @@
+ 		    android:title="REDMAGIC RGB" />
+     </PreferenceCategory>
+     <PreferenceCategory android:title="Boosts">
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:layout_width="wrap_content"
+             android:layout_height="wrap_content"
+             android:defaultValue="false"
+             android:key="nubia_boost_cpu"
+             android:title="Boost CPU" />
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:layout_width="wrap_content"
+             android:layout_height="wrap_content"
+             android:defaultValue="false"
+             android:key="nubia_boost_cache"
+             android:title="Boost caches" />
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:layout_width="wrap_content"
+             android:layout_height="wrap_content"
+             android:defaultValue="false"
+diff --git a/app/src/main/res/xml/pref_oneplus.xml b/app/src/main/res/xml/pref_oneplus.xml
+index 28224c3..909918b 100644
+--- a/app/src/main/res/xml/pref_oneplus.xml
++++ b/app/src/main/res/xml/pref_oneplus.xml
+@@ -16,11 +16,11 @@
+     </PreferenceCategory>
+ 
+     <PreferenceCategory android:title="Other">
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_oneplus_usb_otg"
+             android:title="Enable USB OTG" />
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:layout_width="wrap_content"
+             android:layout_height="wrap_content"
+             android:defaultValue="false"
+diff --git a/app/src/main/res/xml/pref_oppo.xml b/app/src/main/res/xml/pref_oppo.xml
+index 392350f..bd5a2a7 100644
+--- a/app/src/main/res/xml/pref_oppo.xml
++++ b/app/src/main/res/xml/pref_oppo.xml
+@@ -2,13 +2,13 @@
+ <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+ 
+     <PreferenceCategory android:title="Touchscreen">
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:layout_width="wrap_content"
+             android:layout_height="wrap_content"
+             android:defaultValue="false"
+             android:key="key_oppo_double_tap_to_wake"
+             android:title="Enable DT2W" />
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:layout_width="wrap_content"
+             android:layout_height="wrap_content"
+             android:defaultValue="false"
+@@ -16,11 +16,11 @@
+             android:title="Enable game mode" />
+     </PreferenceCategory>
+     <PreferenceCategory android:title="Other">
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_oppo_usb_otg"
+             android:title="Enable USB OTG" />
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_oppo_dc_diming"
+             android:title="Enable DC Diming" />
+diff --git a/app/src/main/res/xml/pref_qualcomm.xml b/app/src/main/res/xml/pref_qualcomm.xml
+index 491eca4..c119d33 100644
+--- a/app/src/main/res/xml/pref_qualcomm.xml
++++ b/app/src/main/res/xml/pref_qualcomm.xml
+@@ -1,20 +1,20 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+-    <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+         android:defaultValue="false"
+         android:key="key_qualcomm_alternate_mediaprofile"
+         android:title="Use alternate camera profile"
+         android:summary="Requires a reboot" />
+-    <SwitchPreference
++    <me.phh.treble.app.Md3SwitchPreference
+         android:defaultValue="false"
+         android:key="key_qualcomm_alternate_audiopolicy"
+         android:title="Use alternate audio policy" />
+-    <SwitchPreference
++    <me.phh.treble.app.Md3SwitchPreference
+         android:defaultValue="false"
+         android:key="key_qualcomm_disable_soundvolume_effect"
+         android:title="Disable soundvolume effect"
+         android:summary="May fix audio distorsion" />
+-    <SwitchPreference
++    <me.phh.treble.app.Md3SwitchPreference
+         android:defaultValue="false"
+         android:key="key_qualcomm_disable_stereo_voip"
+         android:title="Disable stereo support on VoIP"
+diff --git a/app/src/main/res/xml/pref_samsung.xml b/app/src/main/res/xml/pref_samsung.xml
+index 346ff85..d78a648 100644
+--- a/app/src/main/res/xml/pref_samsung.xml
++++ b/app/src/main/res/xml/pref_samsung.xml
+@@ -1,15 +1,15 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+     <PreferenceCategory android:title="Audio">
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_samsung_alternate_audio_policy"
+             android:title="Use alternate audio policy" />
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_samsung_audio_stereo"
+             android:title="Enable stereo audio mode" />
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_samsung_disable_back_mic"
+             android:title="Disable Built-In Back Mic"
+@@ -22,29 +22,29 @@
+             android:title="Set eSCO transport unit size" />
+     </PreferenceCategory>
+     <PreferenceCategory android:title="Screen">
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_samsung_high_brightness"
+             android:title="Enable extended brightness range" />
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_samsung_glove_mode"
+             android:title="Enable glove mode" />
+     </PreferenceCategory>
+     <PreferenceCategory android:title="Misc">
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_samsung_wireless_charging_transmit"
+             android:title="Enable reversed wireless charging(If applicable)" />
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_samsung_double_tap_to_wake"
+             android:title="Enable double tap to wake" />
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_samsung_fod_single_click"
+             android:title="Clicking fingerprint turns device on" />
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_samsung_camera_ids"
+             android:title="Enable access to all cameras"
+@@ -57,15 +57,15 @@
+ 	        android:inputType="number" />
+     </PreferenceCategory>
+     <PreferenceCategory android:title="Workarounds">
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_samsung_extra_sensors"
+             android:title="Enable extra sensors" />
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_samsung_colorspace"
+             android:title="Enable workaround for white-ish screen" />
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_samsung_broken_fingerprint"
+             android:title="Enable workaround for broken fingerprint" />
+diff --git a/app/src/main/res/xml/pref_vsmart.xml b/app/src/main/res/xml/pref_vsmart.xml
+index f3abfc4..b86aa76 100644
+--- a/app/src/main/res/xml/pref_vsmart.xml
++++ b/app/src/main/res/xml/pref_vsmart.xml
+@@ -1,7 +1,7 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+     <PreferenceCategory android:title="Display">
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:defaultValue="false"
+             android:key="key_vsmart_dt2w"
+             android:title="Enable double tap to wake" />
+diff --git a/app/src/main/res/xml/pref_xiaomi.xml b/app/src/main/res/xml/pref_xiaomi.xml
+index 588281f..b3c2733 100644
+--- a/app/src/main/res/xml/pref_xiaomi.xml
++++ b/app/src/main/res/xml/pref_xiaomi.xml
+@@ -2,13 +2,13 @@
+ <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+ 
+     <PreferenceCategory android:title="Display">
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:layout_width="wrap_content"
+             android:layout_height="wrap_content"
+             android:defaultValue="false"
+             android:key="xiaomi_double_tap_to_wake"
+             android:title="Enable DT2W" />
+-        <SwitchPreference
++        <me.phh.treble.app.Md3SwitchPreference
+             android:layout_width="wrap_content"
+             android:layout_height="wrap_content"
+             android:defaultValue="false"
+diff --git a/build.gradle b/build.gradle
+index c78fd6f..1c7dac4 100644
+--- a/build.gradle
++++ b/build.gradle
+@@ -1,8 +1,9 @@
+ buildscript {
+     ext.kotlin_version = '1.8.0'
+     repositories {
+-        google()
+-        jcenter()
++        maven { url 'https://maven.aliyun.com/repository/google' }
++        maven { url 'https://maven.aliyun.com/repository/public' }
++        maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
+     }
+     dependencies {
+         classpath 'com.android.tools.build:gradle:7.4.2'
+@@ -12,8 +13,8 @@ buildscript {
+ 
+ allprojects {
+     repositories {
+-        google()
+-        jcenter()
++        maven { url 'https://maven.aliyun.com/repository/google' }
++        maven { url 'https://maven.aliyun.com/repository/public' }
+     }
+ }
+ 
+diff --git a/gradle/wrapper/gradle-wrapper.properties b/gradle/wrapper/gradle-wrapper.properties
+index fee24ad..30806bd 100644
+--- a/gradle/wrapper/gradle-wrapper.properties
++++ b/gradle/wrapper/gradle-wrapper.properties
+@@ -3,4 +3,5 @@ distributionBase=GRADLE_USER_HOME
+ distributionPath=wrapper/dists
+ zipStoreBase=GRADLE_USER_HOME
+ zipStorePath=wrapper/dists
+-distributionUrl=https\://services.gradle.org/distributions/gradle-7.5-all.zip
++distributionUrl=https\://ghfast.top/https\://github.com/gradle/gradle-distributions/releases/download/v7.5.0/gradle-7.5-bin.zip
++distributionSha256Sum=cb87f222c5585bd46838ad4db78463a5c5f3d336e5e2b98dc7c0c586527351c2
+diff --git a/sdk/.knownPackages b/sdk/.knownPackages
+index 7b27183..f79b448 100644
+--- a/sdk/.knownPackages
++++ b/sdk/.knownPackages
+@@ -1 +1,2 @@
+-k.ҕ(\Z�DpNY�
+\ No newline at end of file
++%'?l�a�P�
++��ӿ�
+\ No newline at end of file

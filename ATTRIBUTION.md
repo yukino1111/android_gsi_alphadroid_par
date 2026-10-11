@@ -104,3 +104,7 @@ is intentionally inert; `packages_services_Telephony_par_dualsim.patch` owns
 transaction 27 matching and persistent deduplication. The replacement contains
 no Huawei proprietary binary, and the upstream application and its original
 authorship remain unchanged.
+
+`patches/treble_app.patch` provides the reproducible source patch against
+TrebleDroid `treble_app` commit `733d1b9242c3c0d3110bb4f993fead8088e5c419` used
+to build the replacement `TrebleApp/app.apk` binary.

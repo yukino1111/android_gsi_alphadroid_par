@@ -17,3 +17,8 @@ The PAR release uses the official arm64 assets from
 Both APKs remain signed by their upstream publisher. The browser asset is
 installed verbatim because Cromite intentionally compresses its crashpad JNI
 library.
+
+Build definition makefiles (`Android.mk`, `product.mk`, and `SOURCE.md`) are
+provided in `prebuilts/cromite/`. To integrate Cromite into the build, place the
+downloaded APK assets alongside those makefiles and bind-mount or copy the
+directory into `vendor/par/chromium` in the Android source tree.
